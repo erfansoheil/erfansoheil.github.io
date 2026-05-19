@@ -2,18 +2,20 @@
 
 ML Scientist / AI Engineer
 
-## About me
 
-I work on machine learning, LLMs, RAG systems, and dynamic neural networks.
+# Erfan Soheil
 
-## Projects
+ML Scientist | AI Engineer
 
-Coming soon.
+---
 
-## Blog
+## Sections
 
-Coming soon.
+- [About](./about)
+- [Projects](./projects)
+- [Research Notes](./research-notes)
+- [Reading Notes](./reading-notes)
+- [CV](./cv)
+- [Contact](./contact)
 
-## Contact
 
-GitHub: [https://github.com/ErfanSOHEIL](https://github.com/erfansoheil)
