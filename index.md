@@ -1,12 +1,6 @@
 # Erfan Soheil
 
 ML Scientist / AI Engineer
-
-
-# Erfan Soheil
-
-ML Scientist | AI Engineer
-
 ---
 
 ## Sections
