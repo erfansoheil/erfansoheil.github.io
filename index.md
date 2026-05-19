@@ -1,5 +1,3 @@
-# Erfan Soheil
-
 ML Scientist / AI Engineer
 ---
 
