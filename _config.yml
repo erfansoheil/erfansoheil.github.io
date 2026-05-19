@@ -1,0 +1,11 @@
+title: Erfan Soheil
+
+theme: minima
+
+header_pages:
+  - about.md
+  - projects.md
+  - research-notes.md
+  - reading-notes.md
+  - cv.md
+  - contact.md
