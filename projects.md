@@ -1,9 +1,3 @@
----
-layout: page
-title: Projects
----
-
-# Projects
 
 ## AI Systems
 
