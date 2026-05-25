@@ -1,1 +1,1 @@
-![Erfan Soheil](./assets/images/profile.jpg){: .profile-img}
+![Erfan Soheil](./assets/images/profile.png)
