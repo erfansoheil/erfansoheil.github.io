@@ -1,14 +1,29 @@
 ---
 ---
 
+// Custom Palette Variables
+$brand-color:       #4f46e5; // Vibrant Indigo for links/buttons
+$background-color:  #fafafa; // Soft white/grey background
+$text-color:        #1f2937; // Charcoal text (softer than pure black)
 
-// custom colors
-$brand-color: #2a7ae2;       // Color for links/accents
-$background-color: #fdfdfd;  // Main page background
-$text-color: #111111;        // Main font color
+// Code block styling
+$code-background-color: #f3f4f6;      // Main font color
 
 // theme styles
 @import "minima";
+
+// Additional global graphics tweaks
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+.site-header {
+  border-top: 5px solid $brand-color; // Adds a colored top accent bar
+  background-color: #ffffff;
+}
+
+
 
 // Profile image config
 .profile-img {
