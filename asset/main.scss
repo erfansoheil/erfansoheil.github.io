@@ -1,0 +1,17 @@
+
+// custom colors
+$brand-color: #2a7ae2;       // Color for links/accents
+$background-color: #fdfdfd;  // Main page background
+$text-color: #111111;        // Main font color
+
+// 2. Import theme styles
+@import "minima";
+
+// profile image config
+.profile-img {
+  max-width: 200px;
+  border-radius: 50%; /* Makes it a circle */
+  display: block;
+  margin: 20px 0;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
