@@ -1,9 +1,7 @@
-title: Erfan Soheil
+
 email: erfansoheil.umz@gmail.com
 description: >- # This adds a professional bio snippet to your footer
-  ML Scientist / AI Engineer specializing in machine learning systems, 
-  LLMs, RAG pipelines, and quantitative finance.
-
+  ML Scientist / AI Engineer 
 theme: minima
 
 header_pages:
@@ -12,4 +10,4 @@ header_pages:
   - research-notes.md
   - reading-notes.md
   - cv.md
-  - contact.md
+
