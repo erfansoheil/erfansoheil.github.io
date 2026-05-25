@@ -1,8 +1,8 @@
-AI Research Engineer / Scientist
-
-France  
-erfansoheil.umz@gmail.com  
-
+---
+layout: page
+title: CV
+permalink: /cv/
+---
 
 [LinkedIn](https://www.linkedin.com/in/erfansoheil/) | [GitHub](https://github.com/erfansoheil)
 
