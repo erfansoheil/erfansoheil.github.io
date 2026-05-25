@@ -6,8 +6,9 @@ description: >-
 theme: minima
 
 header_pages:
+  - cv.md
   - about.md
   - projects.md
   - research-notes.md
   - reading-notes.md
-  - cv.md
+  
