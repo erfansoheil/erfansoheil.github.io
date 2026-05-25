@@ -1,7 +1,8 @@
-
+title: Erfan Soheil
+author: Erfan Soheil
 email: erfansoheil.umz@gmail.com
-description: >- # This adds a professional bio snippet to your footer
-  ML Scientist / AI Engineer 
+description: >-
+  AI Research Engineer | PhD in Mathematics
 theme: minima
 
 header_pages:
@@ -10,4 +11,3 @@ header_pages:
   - research-notes.md
   - reading-notes.md
   - cv.md
-
