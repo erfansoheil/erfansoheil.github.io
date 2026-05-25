@@ -3,6 +3,5 @@
 - [Research Notes](./research-notes)
 - [Reading Notes](./reading-notes)
 - [CV](./cv)
-- [Contact](./contact)
 
 
