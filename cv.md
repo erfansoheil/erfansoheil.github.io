@@ -19,7 +19,7 @@ AI Research Engineer with a PhD in Mathematics and strong foundations in probabi
 # Research Experience
 
 ## TORUS AI — *AI Scientist*
-**Dec 2023 -- Present**
+**Dec 2023 -- May 2026**
 
 ### Research Theme: Dynamic & Parsimonious Neural Networks
 
