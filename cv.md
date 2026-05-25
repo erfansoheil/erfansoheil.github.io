@@ -1,12 +1,10 @@
-# ERFAN SOHEIL
-
 AI Research Engineer / Scientist
 
 France  
 erfansoheil.umz@gmail.com  
 
 
-[LinkedIn](https://linkedin.com) | [GitHub](https://github.com)
+[LinkedIn](https://www.linkedin.com/in/erfansoheil/) | [GitHub](https://github.com/erfansoheil)
 
 ---
 
