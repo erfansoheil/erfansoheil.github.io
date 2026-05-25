@@ -1,3 +1,8 @@
+---
+layout: page
+title: About
+permalink: /about/
+---
 
 <img src="asset/images/profile.png" alt="Erfan Soheil" class="profile-img">
 
