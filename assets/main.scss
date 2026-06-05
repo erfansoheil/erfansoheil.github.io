@@ -1,35 +1,141 @@
 ---
 ---
 
-// Custom Palette Variables
-$brand-color:       #4f46e5; // Vibrant Indigo for links/buttons
-$background-color:  #fafafa; // Soft white/grey background
-$text-color:        #1f2937; // Charcoal text (softer than pure black)
+// 1. Custom Palette & Theme Variables
+$brand-color:       #6366f1; // Slightly brighter Indigo for a modern look
+$brand-color-hover: #4f46e5; // Darker Indigo for interactive hover states
+$background-color:  #f8fafc; // Off-white with a hint of slate (very clean)
+$text-color:        #0f172a; // Deep slate/charcoal for premium readability
+$link-color:        $brand-color;
 
 // Code block styling
-$code-background-color: #f3f4f6;      // Main font color
+$code-background-color: #f1f5f9;
 
-// theme styles
+// Global transition variable for smooth animations
+$smooth-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+// Import the base theme styles
 @import "minima";
 
-// Additional global graphics tweaks
+// 2. Global Enhancements & Animations
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   letter-spacing: -0.01em;
+  background-color: $background-color;
+  color: $text-color;
+  -webkit-font-smoothing: antialiased;
+  
+  // Fade-in animation when the page loads
+  animation: fadeInPage 0.8s ease-out forwards;
 }
 
+// Keyframes for page entry animation
+@keyframes fadeInPage {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Smooth transitions for all links in the document
+a {
+  transition: $smooth-transition;
+  color: $brand-color;
+  text-decoration: none;
+  
+  &:hover {
+    color: $brand-color-hover;
+    text-decoration: underline;
+  }
+}
+
+// 3. Header & Navigation Updates
 .site-header {
-  border-top: 5px solid $brand-color; // Adds a colored top accent bar
-  background-color: #ffffff;
+  border-top: 5px solid $brand-color;
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px); // Gives a modern frosted-glass effect if header is sticky
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
+.site-title {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  background: linear-gradient(45deg, $brand-color, #ec4899); // Indigo to Pink gradient
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  transition: $smooth-transition;
 
+  &:hover {
+    opacity: 0.85;
+  }
+}
 
-// Profile image config
+.trigger .page-link {
+  position: relative;
+  font-weight: 500;
+  padding: 4px 0;
+  
+  // Animated underline effect for nav links
+  &:after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    transform: scaleX(0);
+    height: 2px;
+    bottom: 0;
+    left: 0;
+    background-color: $brand-color;
+    transform-origin: bottom right;
+    transition: transform 0.25s ease-out;
+  }
+  
+  &:hover:after {
+    transform: scaleX(1);
+    transform-origin: bottom left;
+  }
+}
+
+// 4. Interactive Elements (Cards & Lists)
+.post-list > li {
+  padding: 20px;
+  margin-bottom: 20px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  transition: $smooth-transition;
+
+  // Lift up and add shadow when hovering over a blog post item
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+}
+
+// 5. Dynamic Profile Image
 .profile-img {
-  max-width: 200px;
-  border-radius: 50%; /* Makes it a circle */
+  max-width: 180px;
+  border-radius: 50%;
   display: block;
-  margin: 20px 0;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  margin: 30px 0;
+  border: 4px solid #ffffff;
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+  transition: $smooth-transition;
+  cursor: pointer;
+
+  // Slight pop effect when hovering over your profile picture
+  &:hover {
+    transform: scale(1.05) rotate(2deg);
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.15);
+  }
+}
+
+// 6. Footer Tweaks
+.site-footer {
+  background-color: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  padding: 40px 0;
 }
