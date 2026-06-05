@@ -1,6 +1,7 @@
 ---
+layout: post
+title: "Dynamic Pruning"
 ---
-# Dynamic Pruning
 
 When we talk about **dynamic pruning**, we refer to the process of pruning and compressing a model's architecture *during* the training phase, rather than as a post-training optimization step. 
 
