@@ -133,9 +133,34 @@ a {
   }
 }
 
-// 6. Footer Tweaks
+// 6. Ultra-Small & Minimal Footer
 .site-footer {
   background-color: #ffffff;
   border-top: 1px solid #e2e8f0;
-  padding: 40px 0;
+  padding: 15px 0; // Drastically reduces top and bottom breathing room
+  font-size: 0.85rem; // Makes the text slightly smaller and sleeker
+}
+
+.footer-heading {
+  display: none !important; // Removes the large duplicate site title from the footer
+}
+
+.footer-col-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-left: 0;
+}
+
+// Collapses the stacked vertical columns into a single, clean horizontal row
+.footer-col {
+  width: auto !important;
+  float: none !important;
+  margin-bottom: 0 !important;
+  padding-left: 0 !important;
+}
+
+// Hides the description column entirely to save vertical space
+.footer-col-2 {
+  display: none !important;
 }
