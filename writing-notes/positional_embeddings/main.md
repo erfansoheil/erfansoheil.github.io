@@ -15,3 +15,5 @@ Suppose you have a mountain of messy, unorganized text inputs that you need to s
 In the real world, data isn't quite as simple or tangible as a physical basket of fruit. To sort text, we use embedding models to map words into a mathematical space based on their semantic similarities. This ensures that words with related meanings sit close to each other—similar to grouping all the citrus fruits in one corner and berries in another.
 
 The figure below illustrates how an embedding model plots words as vectors based on their characteristics, automatically clustering similar concepts together:
+
+![Embedding mechanism](./writing-notes/positional_embeddings/assets/images/embedding_mechanism.png)
