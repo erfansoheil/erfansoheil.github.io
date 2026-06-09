@@ -1,5 +1,7 @@
-
-# Positional Embeddings
+---
+layout: post
+title: "Positional Embeddings"
+---
 
 In this article, we will explore the concept of positional embeddings in Transformer architectures, break down the different methods used to calculate them, and discuss when to use each approach. Before diving into the positional aspect, however, we need to understand the foundational concept of modern **embeddings**.
 
@@ -16,4 +18,4 @@ In the real world, data isn't quite as simple or tangible as a physical basket o
 
 The figure below illustrates how an embedding model plots words as vectors based on their characteristics, automatically clustering similar concepts together:
 
-![Embedding mechanism](./writing-notes/positional_embeddings/assets/images/embedding_mechanism.png)
+![Embedding mechanism](/writing-notes/positional_embeddings/assets/images/embedding_mechanism.png)
