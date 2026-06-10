@@ -27,7 +27,7 @@ This is where positional embeddings come in. The idea is simple: before we feed 
 
 > **Note:** A method called the **attention mechanism** (which we will explore later) is permutation-invariant, meaning it cannot tell which word came first. Positional embeddings solve this by making position part of the representation itself.
 
-## Positon Embedding Methods (PE methods)
+## Positional Embedding Methods (PE methods)
 
 ### Absolute positional embeddings
 
