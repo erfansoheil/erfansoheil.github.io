@@ -18,7 +18,7 @@ In the real world, data isn't quite as simple or tangible as a physical basket o
 
 The figure below is AI-generated and illustrates and how an embedding model plots words as vectors based on their characteristics, automatically clustering similar concepts together.
 
-[Embedding mechanism](./writing-notes/positional_embeddings/assets/images/embedding_mechanism.png)
+[Embedding mechanism](./positional_embeddings/assets/images/embedding_mechanism.png)
 
 While (token) embeddings are excellent at capturing semantic meaning, they have one critical limitation: they contain no information about word order.
 Consider "The cat chased the dog" and "The dog chased the cat". Same words but opposite meanings. Yet to an embedding model, these sentences are identical. Order is invisible.
