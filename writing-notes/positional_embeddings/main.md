@@ -40,12 +40,12 @@ As the name suggests, in this method we assign an absolute positional vector to 
 Suppose the token $T$ is located at position n in a tokenized sequence $S$. The sinusoidal positional encoding of $T$ is a vector of dimension $d$, where $d$ is the embedding dimension.
 
 
-For each 0 \le i < d,
+For each $0 \le i < d$,
 
 $$
 PE(pos, i) =
 \begin{cases}
-\sin\left(\frac{n}{\omega^{i/d}}\right), & \text{if } i \text{ is even} \\[6pt]
+\sin\left(\frac{n}{\omega^{i/d}}\right), & \text{if } i \text{ is even} \\
 \cos\left(\frac{n}{\omega^{(i-1)/d}}\right), & \text{if } i \text{ is odd}
 \end{cases}
 $$
