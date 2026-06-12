@@ -1,7 +1,7 @@
 ---
-
-## layout: post
+layout: post
 title: "Positional Embeddings (PE)"
+---
 
 In this article, we will explore the concept of positional embeddings in Transformer architectures, break down the different methods used to calculate them, and discuss when to use each approach. Before diving into the positional aspect, however, we need to understand the foundational concept of modern **embeddings**.
 
