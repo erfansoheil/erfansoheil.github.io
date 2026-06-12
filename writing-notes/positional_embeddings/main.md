@@ -46,8 +46,8 @@ $$
 PE(pos, i) =
 \begin{cases}
 \sin\left(\frac{n}{\omega^{i/d}}\right), & \text{if } i \text{ is even} \\
-\cos\left(\frac{n}{\omega^{(i-1)/d}}\right), & \text{if } i \text{ is odd}
-\end{cases}
+\cos\left(\frac{n}{\omega^{(i-1)/d}}\right) & \text{if } i \text{ is odd}
+\end{cases},
 $$
 
 where $\omega \in \mathbb{R}$. In the original Transformer architecture, $\omega=10000$.
