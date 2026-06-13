@@ -76,7 +76,7 @@ Before discussing positional encodings, recall some properties of inner products
 
 Given a vector $v \in \mathbb{R}^d$, its **norm** (length) is defined from the inner product with itself:
 
-$$\|v\| = \sqrt{\langle v, v \rangle} = \sqrt{v \cdot v}$$
+$$\left\lVert v \left\lVert = \sqrt{\langle v, v \rangle} = \sqrt{v \cdot v}$$
 
 A norm gives us a **distance** (metric) between any two vectors $u, v$:
 
