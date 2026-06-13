@@ -80,13 +80,13 @@ $$\left\lVert v \right\lVert = \sqrt{\langle v, v \rangle} = \sqrt{v \cdot v}$$
 
 A norm gives us a **distance** (metric) between any two vectors $u, v$:
 
-$$d(u, v) = $\left\lVertu - v$\right\lVert = \sqrt{\langle u-v,\, u-v\rangle}$$
+$$d(u, v) = $\left\lVert u - v \right\lVert = \sqrt{\langle u-v,\, u-v\rangle}$$
 
 Expanding:
 
-$$\left\lVertu-v$\right\lVert^2 = $\left\lVert u$\right\lVert^2 + $\left\lVert v$\right\lVert^2 - 2\langle u, v\rangle$$
+$$\left\lVert u-v \right\lVert^2 = $\left\lVert u \right\lVert^2 + $\left\lVert v \right\lVert^2 - 2\langle u, v\rangle$$
 
-If $\left\lVertu$\right\lVert$ and $\left\lVertv$\right\lVert$ are **constant**, then the distance between $u$ and $v$ is determined entirely by their inner product $\langle u, v \rangle$. This is exactly the situation we'll find with positional encodings.
+If $\left\lVert u \right\lVert$ and $\left\lVert v \right\lVert$ are **constant**, then the distance between $u$ and $v$ is determined entirely by their inner product $\langle u, v \rangle$. This is exactly the situation we'll find with positional encodings.
 
 
 ##### 1. Setup
@@ -102,11 +102,11 @@ $$PE(p) = \big(\sin(p\,\omega_0),\ \cos(p\,\omega_0),\ \sin(p\,\omega_1),\ \cos(
 
 ##### 2. Every Positional Vector Has the Same Constant Norm
 
-$$\left\lVertPE(p)$\right\lVert^2 = \langle PE(p), PE(p)\rangle = \sum_{i=0}^{d/2-1} \Big[\sin^2(p\,\omega_i) + \cos^2(p\,\omega_i)\Big]$$
+$$\left\lVert PE(p) \right\lVert^2 = \langle PE(p), PE(p)\rangle = \sum_{i=0}^{d/2-1} \Big[\sin^2(p\,\omega_i) + \cos^2(p\,\omega_i)\Big]$$
 
 By the Pythagorean identity, **each bracket equals 1**. So,
 
-$$\left\lVertPE(p)$\right\lVert^2 = \frac{d}{2} \quad\Longrightarrow\quad $\left\lVert PE(p)$\right\lVert = \sqrt{\frac{d}{2}} =: r$$
+$$\left\lVert PE(p) \right\lVert^2 = \frac{d}{2} \quad\Longrightarrow\quad $\left\lVert PE(p) \right\lVert = \sqrt{\frac{d}{2}} =: r$$
 
 **$r$ depends only on $d$**, not on the position $p$, and not on the frequencies $\omega_i$.
 
@@ -133,27 +133,27 @@ Two key properties:
 
 From Section 0:
 
-$$\left\lVertPE(p_1) - PE(p_2)$\right\lVert^2 = $\left\lVert PE(p_1)$\right\lVert^2 + $\left\lVert PE(p_2)$\right\lVert^2 - 2\langle PE(p_1), PE(p_2)\rangle$$
+$$\left\lVert PE(p_1) - PE(p_2) \right\lVert^2 = $\left\lVert PE(p_1) \right\lVert^2 + $\left\lVert PE(p_2) \right\lVert^2 - 2\langle PE(p_1), PE(p_2)\rangle$$
 
 Both norms equal $r^2 = d/2$ (Section 2), so:
 
-$$\left\lVertPE(p_1) - PE(p_2)$\right\lVert^2 = d - 2\sum_{i=0}^{d/2-1} \cos\big((p_1-p_2)\,\omega_i\big)$$
+$$\left\lVert PE(p_1) - PE(p_2) \right\lVert^2 = d - 2\sum_{i=0}^{d/2-1} \cos\big((p_1-p_2)\,\omega_i\big)$$
 
-From Section 3 we know that the  last term in the above equation is bounded in $[-d,\, d]$, therefore $\left\lVertPE(p_1) - PE(p_2)$\right\lVert^2$ is bounded in $[0,\, 2d]$.
+From Section 3 we know that the  last term in the above equation is bounded in $[-d,\, d]$, therefore $\left\lVert PE(p_1) - PE(p_2)\right\lVert^2$ is bounded in $[0,\, 2d]$.
 This squared distance is **purely a function of $\Delta p$**. So even though sinusoidal PE is *constructed* as an absolute encoding (one fixed vector per position), it induces a **relative geometric structure**: positions close together ($\Delta p$ small) yield vectors close together in space, regardless of where they sit in the sequence.
 
 
 ##### 5. Bounded Distance and Pure Angular Information
 
-From Section 4, $\left\lVertPE(p_1)-PE(p_2)$\right\lVert^2 \in [0, 2d]$. Dividing through by $2d$:
+From Section 4, $\left\lVert PE(p_1)-PE(p_2) \right\lVert^2 \in [0, 2d]$. Dividing through by $2d$:
 
-$$\frac{ $\left\lVert (p_1)-PE(p_2)$\right\lVert^2}{2d} \in [0, 1]$$
+$$\frac{ $\left\lVert (p_1)-PE(p_2) \right\lVert^2}{2d} \in [0, 1]$$
 
 So after rescaling by the constant $2d$, the squared distance between *any* two positional vectors lies in the unit interval regardless of $p_1, p_2, d$, or the $\omega_i$.
 
 Recall every $PE(p)$ has the **same constant norm** $r=\sqrt{d/2}$ (Section 2). Two vectors of equal, fixed length sitting on a common sphere can only differ in **where they point** — their separation is entirely a question of the angle $\theta$ between them, via the standard identity
 
-$$\left\lVertPE(p_1)-PE(p_2)$\right\lVert^2 = 2r^2(1-\cos\theta) = d(1-\cos\theta),$$
+$$\left\lVert PE(p_1)-PE(p_2) \right\lVert^2 = 2r^2(1-\cos\theta) = d(1-\cos\theta),$$
 
 where $\theta$ is the angle between $PE(p_1)$ and $PE(p_2)$. 
 Dividing by $2d$ gives $\frac{1-\cos\theta}{2} \in [0,1]$, a direct, monotonic reparametrization of the angle $\theta$ itself.
