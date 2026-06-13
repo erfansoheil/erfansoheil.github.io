@@ -1,9 +1,10 @@
 ---
 layout: post
-title: "Positional Embeddings (PE)"
+title: "Positional Embeddingq (PE)"
 ---
 
-In this article, we will explore the concept of positional embeddings in Transformer architectures, break down the different methods used to calculate them, and discuss when to use each approach. Before diving into the positional aspect, however, we need to understand the foundational concept of modern **embeddings**.
+In this article, we will explore the concept of positional embeddings in Transformer architectures, break down the different methods used to calculate them, and discuss when to use each approach. 
+Before diving into the positional aspect, however, we need to understand the foundational concept of modern **embeddings**.
 
 ## Embeddings
 
@@ -23,13 +24,22 @@ The figure below is AI-generated and illustrates and how an embedding model plot
 
 While (token) embeddings are excellent at capturing semantic meaning, they have one critical limitation: they contain no information about word order.
 Consider "The cat chased the dog" and "The dog chased the cat". Same words but opposite meanings. Yet to an embedding model, these sentences are identical. Order is invisible.
-This is where positional embeddings come in. The idea is simple: before we feed our embeddings into any further processing, we enrich them with information about where each word sits in the sentence.
+This is where positional encodings come in. The idea is simple: before we feed our embeddings into any further processing, we enrich them with information about where each word sits in the sentence.
 
-> **Note:** A method called the **attention mechanism** without positional iformation (which we will explore later) is permutation-invariant, meaning it cannot tell which word came first. Positional embeddings solve this by making position part of the representation itself.
+
+> **Note:** A method called the **attention mechanism** without positional information (which we will explore later) is permutation-invariant, meaning it cannot tell which word came first. positional encodings solve this by making position part of the representation itself.
 
 ## Positional Embedding Methods (PE methods)
 
-### Absolute positional embeddings
+> **Embedding vs. Encoding:** these two words are often used interchangeably, but it helps to keep a distinction in mind. A **(token) embedding** is *learned*: the model adjusts these vectors during training. A **positional encoding**, in its classic (sinusoidal) form, is *fixed*: it's computed directly from a formula and never updated by gradient descent. Some methods do use **learned positional embeddings** instead. Throughout this article we'll use "encoding" when referring to the fixed, formula-based versions, and "embedding" when the positional vector is itself learned. 
+
+
+![Positional encoding from Attention Is All You Need](./assets/images/pe.png)
+
+*Figure 1: Positional encoding as introduced in the paper [Attention Is All You Need](https://arxiv.org/abs/1706.03762). In Transformer architectures, positional encoding is added to the token embedding so the model can use information about the position of each token in the sequence.*
+
+
+### Absolute positional Embedding
 
 As the name suggests, in this method we assign an absolute positional vector to each token. The model receives information about the absolute position of every token in the sequence (1st, 2nd, 3rd, and so on) by adding a position-specific vector to the token embedding before it enters the network. The positional information is injected once at the input layer, while the attention mechanism itself remains position-agnostic and operates on the combined representation of token embeddings and positional encodings.
 
@@ -37,6 +47,8 @@ As the name suggests, in this method we assign an absolute positional vector to 
 
 
 #### Sinusoidal Positional Encoding
+
+
 
 Suppose the token $T$ is located at position $n$ in a tokenized sequence $S$. The sinusoidal positional encoding of $T$ is a vector of dimension $d$, where $d$ is the embedding dimension.
 
@@ -55,7 +67,7 @@ where $\omega \in \mathbb{R}$. In the original Transformer architecture, $\omega
 
 There are several notes on this topic for example [here](https://www.byhand.ai/p/pytorchexcel-sinusoidal-positional) and [here](https://www.geeksforgeeks.org/nlp/positional-encoding-in-transformers/).
 
-Let us mention some remarks on senusoidal positional encoding. We start we simple dot product concept. 
+Let us mention some remarks on senusoidal positional encoding. We start with a simple inner product concept. 
 
 
 ##### 0. From Inner Products to Norms to Distances
@@ -98,7 +110,7 @@ $$\|PE(p)\|^2 = \frac{d}{2} \quad\Longrightarrow\quad \|PE(p)\| = \sqrt{\frac{d}
 
 **$r$ depends only on $d$**, not on the position $p$, and not on the frequencies $\omega_i$.
 
-> Geometrically: every $PE(p)$, for every $p$, lies on the **same sphere of radius $r$** in $\mathbb{R}^d$,(In mathematics we denote this space as $\mathbb{S}^d$). Varying $p$ moves the vector *around* the sphere, never off it.
+> Geometrically: every $PE(p)$, for every $p$, lies on the **same sphere of radius $r$** in $\mathbb{R}^d$,(In mathematics we denote this space as $\mathbb{S}_{r} ^{d-}$). Varying $p$ moves the vector *around* the sphere, never off it.
 
 
 ##### 3. Inner Product Between Two Different Positions
