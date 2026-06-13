@@ -56,12 +56,11 @@ Suppose the token $T$ is located at position $n$ in a tokenized sequence $S$. Th
 For each $0 \le i < d$,
 
 $$
-PE(n, i) = \left\{
-\begin{array}{ll}
+PE(n, i) =
+\begin{cases}
 \sin\left(\frac{n}{\omega^{i/d}}\right), & \text{if } i \text{ is even} \\
 \cos\left(\frac{n}{\omega^{(i-1)/d}}\right) & \text{if } i \text{ is odd}
-\end{array}
-\right.
+\end{cases},
 $$
 
 where $\omega \in \mathbb{R}$. In the original Transformer architecture, $\omega=10000$.
