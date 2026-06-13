@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Positional Embeddingq (PE)"
+title: "Positional Embeddings (PEs)"
 ---
 
 In this article, we will explore the concept of positional embeddings in Transformer architectures, break down the different methods used to calculate them, and discuss when to use each approach. 
@@ -27,7 +27,7 @@ Consider "The cat chased the dog" and "The dog chased the cat". Same words but o
 This is where positional encodings come in. The idea is simple: before we feed our embeddings into any further processing, we enrich them with information about where each word sits in the sentence.
 
 
-> **Note:** A method called the **attention mechanism** without positional information (which we will explore later) is permutation-invariant, meaning it cannot tell which word came first. positional encodings solve this by making position part of the representation itself.
+> **Note:** A method called the **attention mechanism** without positional information (which we will explore later) is permutation-invariant, meaning it cannot tell which word came first. Positional encodings solve this by making position part of the representation itself.
 
 ## Positional Embedding Methods (PE methods)
 
@@ -56,18 +56,19 @@ Suppose the token $T$ is located at position $n$ in a tokenized sequence $S$. Th
 For each $0 \le i < d$,
 
 $$
-PE(n, i) =
-\begin{cases}
+PE(n, i) = \left\{
+\begin{array}{ll}
 \sin\left(\frac{n}{\omega^{i/d}}\right), & \text{if } i \text{ is even} \\
 \cos\left(\frac{n}{\omega^{(i-1)/d}}\right) & \text{if } i \text{ is odd}
-\end{cases},
+\end{array}
+\right.
 $$
 
 where $\omega \in \mathbb{R}$. In the original Transformer architecture, $\omega=10000$.
 
 There are several notes on this topic for example [here](https://www.byhand.ai/p/pytorchexcel-sinusoidal-positional) and [here](https://www.geeksforgeeks.org/nlp/positional-encoding-in-transformers/).
 
-Let us mention some remarks on senusoidal positional encoding. We start with a simple inner product concept. 
+Let us mention some remarks on sinusoidal positional encoding. We start with a simple inner product concept. 
 
 
 ##### 0. From Inner Products to Norms to Distances
@@ -110,7 +111,7 @@ $$\|PE(p)\|^2 = \frac{d}{2} \quad\Longrightarrow\quad \|PE(p)\| = \sqrt{\frac{d}
 
 **$r$ depends only on $d$**, not on the position $p$, and not on the frequencies $\omega_i$.
 
-> Geometrically: every $PE(p)$, for every $p$, lies on the **same sphere of radius $r$** in $\mathbb{R}^d$,(In mathematics we denote this space as $\mathbb{S}_{r} ^{d-}$). Varying $p$ moves the vector *around* the sphere, never off it.
+> Geometrically: every $PE(p)$, for every $p$, lies on the **same sphere of radius $r$** in $\mathbb{R}^d$,(In mathematics we denote this space as $\mathbb{S}_{r} ^{d-1}$). Varying $p$ moves the vector *around* the sphere, never off it.
 
 
 ##### 3. Inner Product Between Two Different Positions
@@ -139,7 +140,7 @@ Both norms equal $r^2 = d/2$ (Section 2), so:
 
 $$\|PE(p_1) - PE(p_2)\|^2 = d - 2\sum_{i=0}^{d/2-1} \cos\big((p_1-p_2)\,\omega_i\big)$$
 
-From Section 3 we know that the  last term in above equation is bounded in $[-d,\, d]$, therefore $\|PE(p_1) - PE(p_2)\|^2$ is bounded in $[0,\, 2d]$.
+From Section 3 we know that the  last term in the above equation is bounded in $[-d,\, d]$, therefore $\|PE(p_1) - PE(p_2)\|^2$ is bounded in $[0,\, 2d]$.
 This squared distance is **purely a function of $\Delta p$**. So even though sinusoidal PE is *constructed* as an absolute encoding (one fixed vector per position), it induces a **relative geometric structure**: positions close together ($\Delta p$ small) yield vectors close together in space, regardless of where they sit in the sequence.
 
 
@@ -149,13 +150,13 @@ From Section 4, $\|PE(p_1)-PE(p_2)\|^2 \in [0, 2d]$. Dividing through by $2d$:
 
 $$\frac{\|PE(p_1)-PE(p_2)\|^2}{2d} \in [0, 1]$$
 
-So after rescaling by the constant $2d$, the squared distance between *any* two positional vectors lies in the unit interval regardless of $p_1, p_2, d$, or the $\omega_i$).
+So after rescaling by the constant $2d$, the squared distance between *any* two positional vectors lies in the unit interval regardless of $p_1, p_2, d$, or the $\omega_i$.
 
 Recall every $PE(p)$ has the **same constant norm** $r=\sqrt{d/2}$ (Section 2). Two vectors of equal, fixed length sitting on a common sphere can only differ in **where they point** — their separation is entirely a question of the angle $\theta$ between them, via the standard identity
 
-$$\|PE(p_1)-PE(p_2)\|^2 = 2r^2(1-\cos\theta) = d(1-\cos\theta)$$
+$$\|PE(p_1)-PE(p_2)\|^2 = 2r^2(1-\cos\theta) = d(1-\cos\theta),$$
 
-Where $\theta$ is the angle between $PE(p_1)$ and $PE(p_2)$. 
+where $\theta$ is the angle between $PE(p_1)$ and $PE(p_2)$. 
 Dividing by $2d$ gives $\frac{1-\cos\theta}{2} \in [0,1]$, a direct, monotonic reparametrization of the angle $\theta$ itself.
 
 **Conclusion:** since the norm $r$ is fixed and the distance is just a rescaled function of $\theta$, *all* positional information (all notion of "closeness" between two positions) is encoded purely in the **angle/phase relationship** between the two vectors, never in magnitude. 
