@@ -6,6 +6,19 @@ title: "Positional Embeddings (PEs)"
 In this article, we will explore the concept of positional embeddings in Transformer architectures, break down the different methods used to calculate them, and discuss when to use each approach. 
 Before diving into the positional aspect, however, we need to understand the foundational concept of modern **embeddings**.
 
+
+Throughout this article, the word **token** is used frequently. A token is a discrete unit of information processed by a model. In language models, a token usually represents a word, part of a word, a punctuation mark, or another piece of text. In other domains, however, tokens may represent image patches, audio segments, time-series windows, and so on.
+
+Before a model can process an input, it must first convert it into a sequence of tokens. The tokens themselves are not directly understood by the neural network. Instead, each token is mapped to a unique integer called a **token ID**. These token IDs are then transformed into vectors through an **embedding layer**, producing numerical representations that the model can process.
+
+As a result, the pipeline looks as follows:
+
+<center>Input → Tokens → Token IDs → Embeddings (Vectors)</center>
+
+The process of converting an input into tokens is called **tokenization**, while the process of converting token IDs into vectors is called **embedding**.
+
+ 
+
 ## Embeddings
 
 Every piece of text we input into a model needs to be translated into a language the machine can process, and computers only understand numbers. An **embedding model** is a tool that translates human language (like words, sentences, images, etc.) into a structured set of numbers called a vector.
