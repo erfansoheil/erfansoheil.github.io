@@ -11,3 +11,8 @@ header_pages:
   - research-notes.md
   - writing-notes.md
   
+markdown: kramdown
+kramdown:
+  math_engine: mathjax
+  syntax_highlighter_opts:
+    default_lang: "plaintext"

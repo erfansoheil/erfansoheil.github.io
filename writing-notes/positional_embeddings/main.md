@@ -93,11 +93,11 @@ $$\left\lVert v \right\lVert = \sqrt{\langle v, v \rangle} = \sqrt{v \cdot v}$$
 
 A norm gives us a **distance** (metric) between any two vectors $u, v$:
 
-$$d(u, v) = $\left\lVert u - v \right\lVert = \sqrt{\langle u-v,\, u-v\rangle}$$
+$$d(u, v) = \left\lVert u - v \right\lVert = \sqrt{\langle u-v,\, u-v\rangle}$$
 
 Expanding:
 
-$$\left\lVert u-v \right\lVert^2 = $\left\lVert u \right\lVert^2 + $\left\lVert v \right\lVert^2 - 2\langle u, v\rangle$$
+$$\left\lVert u-v \right\lVert^2 = \left\lVert u \right\lVert^2 + \left\lVert v \right\lVert^2 - 2\langle u, v\rangle$$
 
 If $\left\lVert u \right\lVert$ and $\left\lVert v \right\lVert$ are **constant**, then the distance between $u$ and $v$ is determined entirely by their inner product $\langle u, v \rangle$. This is exactly the situation we'll find with positional encodings.
 
@@ -146,7 +146,7 @@ Two key properties:
 
 From Section 0:
 
-$$\left\lVert PE(p_1) - PE(p_2) \right\lVert^2 = $\left\lVert PE(p_1) \right\lVert^2 + $\left\lVert PE(p_2) \right\lVert^2 - 2\langle PE(p_1), PE(p_2)\rangle$$
+$$\left\lVert PE(p_1) - PE(p_2) \right\lVert^2 = \left\lVert PE(p_1) \right\lVert^2 + $\left\lVert PE(p_2) \right\lVert^2 - 2\langle PE(p_1), PE(p_2)\rangle$$
 
 Both norms equal $r^2 = d/2$ (Section 2), so:
 
