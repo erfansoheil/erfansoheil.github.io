@@ -144,7 +144,7 @@ Two key properties:
 
 ##### 4. Combining Norm + Inner Product: A Built-In Notion of Distance
 
-From Section 0:
+From Section 0:²
 
 $$\left\lVert PE(p_1) - PE(p_2) \right\lVert^2 = \left\lVert PE(p_1) \right\lVert^2 + \left\lVert PE(p_2) \right\lVert^2 - 2\langle PE(p_1), PE(p_2)\rangle$$
 
