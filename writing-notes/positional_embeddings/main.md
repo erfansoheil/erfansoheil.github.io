@@ -119,7 +119,7 @@ $$\left\lVert PE(p) \right\lVert^2 = \langle PE(p), PE(p)\rangle = \sum_{i=0}^{d
 
 By the Pythagorean identity, **each bracket equals 1**. So,
 
-$$\left\lVert PE(p) \right\lVert^2 = \frac{d}{2} \quad\Longrightarrow\quad $\left\lVert PE(p) \right\lVert = \sqrt{\frac{d}{2}} =: r$$
+$$\left\lVert PE(p) \right\lVert^2 = \frac{d}{2} \quad\Longrightarrow\quad   \left\lVert PE(p) \right\lVert = \sqrt{\frac{d}{2}} =: r$$
 
 **$r$ depends only on $d$**, not on the position $p$, and not on the frequencies $\omega_i$.
 
@@ -146,7 +146,7 @@ Two key properties:
 
 From Section 0:
 
-$$\left\lVert PE(p_1) - PE(p_2) \right\lVert^2 = \left\lVert PE(p_1) \right\lVert^2 + $\left\lVert PE(p_2) \right\lVert^2 - 2\langle PE(p_1), PE(p_2)\rangle$$
+$$\left\lVert PE(p_1) - PE(p_2) \right\lVert^2 = \left\lVert PE(p_1) \right\lVert^2 + \left\lVert PE(p_2) \right\lVert^2 - 2\langle PE(p_1), PE(p_2)\rangle$$
 
 Both norms equal $r^2 = d/2$ (Section 2), so:
 
@@ -160,7 +160,7 @@ This squared distance is **purely a function of $\Delta p$**. So even though sin
 
 From Section 4, $\left\lVert PE(p_1)-PE(p_2) \right\lVert^2 \in [0, 2d]$. Dividing through by $2d$:
 
-$$\frac{ $\left\lVert (p_1)-PE(p_2) \right\lVert^2}{2d} \in [0, 1]$$
+$$\frac{ \left\lVert PE(p_1)-PE(p_2) \right\lVert^2}{2d} \in [0, 1]$$
 
 So after rescaling by the constant $2d$, the squared distance between *any* two positional vectors lies in the unit interval regardless of $p_1, p_2, d$, or the $\omega_i$.
 
