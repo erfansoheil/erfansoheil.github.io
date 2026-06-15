@@ -83,7 +83,7 @@ There are several notes on this topic for example [here](https://www.byhand.ai/p
 Let us mention some remarks on sinusoidal positional encoding. We start with a simple inner product concept. 
 
 
-##### 0. From Inner Products to Norms to Distances
+#### 0. From Inner Products to Norms to Distances
 
 Before discussing positional encodings, recall some properties of inner products.
 
@@ -102,7 +102,7 @@ $$\left\lVert u-v \right\lVert^2 = \left\lVert u \right\lVert^2 + \left\lVert v 
 If $\left\lVert u \right\lVert$ and $\left\lVert v \right\lVert$ are **constant**, then the distance between $u$ and $v$ is determined entirely by their inner product $\langle u, v \rangle$. This is exactly the situation we'll find with positional encodings.
 
 
-##### 1. Setup
+#### 1. Setup
 
 For model dimension $d$ (even), and frequencies
 
@@ -113,7 +113,7 @@ the positional encoding for position $p$ is:
 $$PE(p) = \big(\sin(p\,\omega_0),\ \cos(p\,\omega_0),\ \sin(p\,\omega_1),\ \cos(p\,\omega_1),\ \dots\big) \in \mathbb{R}^d$$
 
 
-##### 2. Every Positional Vector Has the Same Constant Norm
+#### 2. Every Positional Vector Has the Same Constant Norm
 
 $$\left\lVert PE(p) \right\lVert^2 = \langle PE(p), PE(p)\rangle = \sum_{i=0}^{d/2-1} \Big[\sin^2(p\,\omega_i) + \cos^2(p\,\omega_i)\Big]$$
 
@@ -126,7 +126,7 @@ $$\left\lVert PE(p) \right\lVert^2 = \frac{d}{2} \quad\Longrightarrow\quad   \le
 > Geometrically: every $PE(p)$, for every $p$, lies on the **same sphere of radius $r$** in $\mathbb{R}^d$,(In mathematics we denote this space as $\mathbb{S}_{r} ^{d-1}$). Varying $p$ moves the vector *around* the sphere, never off it.
 
 
-##### 3. Inner Product Between Two Different Positions
+#### 3. Inner Product Between Two Different Positions
 
 For arbitrary positions $p_1, p_2$:
 
@@ -142,7 +142,7 @@ Two key properties:
 - **Depends only on $\Delta p = p_1-p_2$**: the individual positions $p_1, p_2$ vanish, and only their *difference* remains. Two pairs with the same offset give **identical** inner products.
 
 
-##### 4. Combining Norm + Inner Product: A Built-In Notion of Distance
+#### 4. Combining Norm + Inner Product: A Built-In Notion of Distance
 
 From Section 0:²
 
@@ -156,7 +156,7 @@ From Section 3 we know that the  last term in the above equation is bounded in $
 This squared distance is **purely a function of $\Delta p$**. So even though sinusoidal PE is *constructed* as an absolute encoding (one fixed vector per position), it induces a **relative geometric structure**: positions close together ($\Delta p$ small) yield vectors close together in space, regardless of where they sit in the sequence.
 
 
-##### 5. Bounded Distance and Pure Angular Information
+#### 5. Bounded Distance and Pure Angular Information
 
 From Section 4, $\left\lVert PE(p_1)-PE(p_2) \right\lVert^2 \in [0, 2d]$. Dividing through by $2d$:
 
