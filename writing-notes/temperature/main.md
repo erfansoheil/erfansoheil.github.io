@@ -65,4 +65,56 @@ S_T:\mathbb{R}^n \to (0,1)^n \\
 S_T(v_i) = \frac{e^{v_i/T}}{\sum_{j=1}^n e^{v_j/T}}
 $$
 
+In $S_T$ in the above equation is called **The Softmax Function with Temperature $T$**
+
+
+Let $M = \max_{j} v_j$, be the maximum value in the vector $v$. We want to prove that as $T \to 0^+$, the softmax distribution pointwise converges to the argmax distribution:
+
+
+$$\lim_{T \to 0^+} S_T (v)_i = \text{Argmax}(v)_i$$
+
+Let's evaluate the limit of the $i$-th component, $S_T(v_i)$:
+
+
+$$\lim_{T \to 0^+} S_T(v_i) = \lim_{T \to 0^+} \frac{e^{v_i/T}}{\sum_{j=1}^n e^{v_j/T}}$$
+
+We multiply both the numerator and the denominator by $e^{-M/T}$:
+
+$$S_T(v_i) = \frac{e^{v_i/T} \cdot e^{-M/T}}{\left(\sum_{j=1}^n e^{v_j/T}\right) \cdot e^{-M/T}}$$
+
+Using the exponent rule $e^a \cdot e^b = e^{a+b}$, we can rewrite this as:
+
+
+$$S_T(v_i) = \frac{e^{(v_j - M)/T}}{\sum_{j=1}^n e^{(v_j - M)/T}}$$
+
+In the denominator there is one index, like $k$ such that $v_k = M. So, $(v_k - M) = 0$. Therefore, $e^{v_k-M} = e^{0/T} = e^0 = 1$. For other indices, know $v_j < M$, so $(v_j - M)$ is a strictly negative constant. Let $c_j = v_j - M < 0$. As $T \to 0^+$, the exponent $\frac{c_j}{T} \to -\infty$. Consequently, $e^{(v_j - M)/T} \to 0$.
+
+Thus, the limit of the denominator as $T \to 0^+$ is:
+
+
+$$\lim_{T \to 0^+} \sum_{j=1}^n e^{(v_j - M)/T} = 1+0 = 1$$
+
+Now, we evaluate the limit of the entire fraction by looking at the numerator for the two possible cases for $v_j$:
+
+**Case 1: $v_j$ is not the maximum ($v_j < M$)**
+
+If $v_j < M$, then $(v_j - M) < 0$.
+
+
+$$\lim_{T \to 0^+} e^{(v_j - M)/T} = 0  \Longrightarrow \lim_{T \to 0^+} S_T(v_i)= \frac{0}{1} = 0$$
+
+**Case 2: $v_j$ is the maximum ($v_j = M$)**
+
+If $v_j = M$, then $(v_j - M) = 0$.
+
+
+$$\lim_{T \to 0^+} e^{(v_j - M)/T} = e^0 = 1  \Longrightarrow \lim_{T \to 0^+} S_T(v_i)= \frac{1}{1}= 1 $$
+
+Combining both cases, we get:
+$$ \lim_{T \to 0^+} S_T(v_i)= \begin{cases}
+1 & \text{if } v_j = \max(v) \\
+0 & \text{otherwise}
+\end{cases} $$
+
+The above argument shows that the softmax function converges pointwise to the argmax function. However this convergences is not uniform convergence. 
 
