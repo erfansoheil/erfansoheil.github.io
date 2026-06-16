@@ -21,9 +21,11 @@ $$S(v_i) = \frac{e^{v_i}}{\sum_{j=1}^n e^{v_j}}$$
 
 One immediate observation is that the Softmax function outputs a valid probability distribution—the elements are all positive and sum up to 1. It transforms any arbitrary vector of real numbers into a probability vector.
 
-![Embedding mechanism](./assets/images/decoder_llm.png)
 
-
+| Transformer Decoder Layer                                                                                                                          | Geometric Softmax Mapping                                                                                                         |
+| :--------------------------------------------------------------------------------------------------------------------------------------------------:| :---------------------------------------------------------------------------------------------------------------------------------:|
+| <img src="./assets/images/decoder_llm.png" height="320" />                                                                                         | <img src="./assets/images/output_1.png" height="320" />                                                                           |
+| **Model Architecture:** The final layers of a decoder LLM, highlighting the **Linear $\rightarrow$ Softmax** pipeline that prepares token outputs. | **Geometric Intuition:** A 3D visualization showing raw logits (blue) being compressed into a bounded  probability simplex (red). |
 ### The Token Generation Process in LLMs
 
 In a decoder-only LLM, the main objective is to predict the next token (word or sub-word) in a sequence.
@@ -53,3 +55,14 @@ Here are two ways to say that a sequence of functions $f_1, f_2, \ldots$ (each m
 - **Uniform convergence:** The approximation is close *everywhere at once*. For large enough $k$, $f_k(x) \approx f(x)$ for every input $x \in \mathbb{R}^n$ — not just for one $x$ at a time.
 
 > Note:  Uniform convergence is the stronger notion: uniform $\Rightarrow$ pointwise, but not the other way around.
+
+
+Now suppose for each $T \in \mathbb{R}$ we define 
+
+$$  
+S_T:\mathbb{R}^n \to (0,1)^n \\
+
+S_T(v_i) = \frac{e^{v_i/T}}{\sum_{j=1}^n e^{v_j/T}}
+$$
+
+
