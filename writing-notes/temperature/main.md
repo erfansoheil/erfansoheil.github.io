@@ -164,4 +164,14 @@ $$\lim_{T \to \infty} \sigma(\mathbf{x}/T)_i = \frac{1}{n}$$
 
 This proves that as the temperature approaches infinity, the softmax function completely ignores the original input values $v_i$. Every single class gets assigned the exact same probability of $\frac{1}{n}$, giving you a perfectly uniform distribution.
 
-![](./assets/vidoes/temperature_vid.webm)
+<video controls autoplay muted loop width="100%" style="border-radius: 8px;">
+  <source src="{{ site.baseurl }}/assets/videos/temperature_vid.webm" type="video/webm">
+  Your browser does not support the video tag.
+</video>
+
+
+This short demonstration illustrates the effect of the **temperature** parameter on the output of a locally hosted language model. In text generation, temperature is applied during the sampling stage after softmax, controlling how strongly the model favors high-probability tokens. Lower temperatures generally produce more deterministic and conservative outputs, while higher temperatures increase variability and can lead to more unexpected generations.
+
+For the experiment, I use **Ollama** to run `llama3.2:3b` locally on my own machine. The command `/set parameter temperature ...` is used to modify the generation temperature, and `/clear` is used before each run to remove the previous conversation history and make the comparison cleaner. I also fix the `seed` to improve reproducibility, although the role of seed will be discussed separately in a later blog post.
+
+Since the experiment is performed with a relatively small 3B model running locally, the results should be interpreted as a practical illustration rather than a general benchmark. The goal is to provide an intuitive example of how temperature influences language model behavior.
