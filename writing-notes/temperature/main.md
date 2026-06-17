@@ -165,7 +165,8 @@ $$\lim_{T \to \infty} \sigma(\mathbf{x}/T)_i = \frac{1}{n}$$
 This proves that as the temperature approaches infinity, the softmax function completely ignores the original input values $v_i$. Every single class gets assigned the exact same probability of $\frac{1}{n}$, giving you a perfectly uniform distribution.
 
 <video controls autoplay muted loop width="100%" style="border-radius: 8px;">
-  <source src="{{ site.baseurl }}/assets/videos/temperature_vid.webm" type="video/webm">
+  <source src="./assets/videos/temperature_vid.webm" type="video/webm">
+<source src="./assets/videos/temperature_vid.mp4" type="video/mp4">
   Your browser does not support the video tag.
 </video>
 
