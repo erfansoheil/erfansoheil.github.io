@@ -3,7 +3,10 @@ layout: post
 title: "Temperature in Large Language Models (LLMs)"
 ---
 
-The goal of this article is to explain what temperature is in LLMs and how it changes the behaviour of the output of the LLMs and discuss why the outputs of the LLMs are nondeterministic. 
+The goal of this article is to explain what temperature is in LLMs and how it changes the behaviour of the output of the LLMs.
+
+Before diving into the math, it helps to have a clear picture of what an LLM is actually doing at inference time. At its core, a decoder-only language model is a next-token predictor: given a sequence of tokens  (words or sub-words), it tries to predict which token should come next.  To do this, the model's final linear layer produces a raw score, called  a **logit**, for every token in its vocabulary, which can easily be in  the tens of thousands. These logits are then converted into probabilities, from which the model samples its next output. The mechanism that performs  this conversion, and the parameter that controls *how* it samples, are 
+exactly what this article is about. 
 
 Before we dive into the concept of **temperature**, we first need to understand the *Softmax* function and how it shapes the model's choices.
 
@@ -80,6 +83,9 @@ However, during training, the model needs to learn via gradient descent. The **A
 
 This is exactly why we use **Softmax**. It acts as a "soft", continuous, and fully differentiable **approximation** of Argmax, turning raw scores into a smooth probability map that allows the network to train while still identifying the most likely next tokens.
 
+
+> **Training vs. Inference:** It is worth being precise about *when* temperature plays a role. During **training**, the standard Softmax (implicitly with $T = 1$) is used to maintain differentiability and enable gradient-based learning. During **inference**, however, temperature becomes a tunable knob that controls the shape of the output distribution *after* the model's weights are frozen. Unless stated otherwise, every reference to temperature in this article refers to the **inference-time** setting.
+
  > Note: Despite its name, Softmax is not actually a soft approximation of the maximum function. Instead, it is a soft approximation of the Argmax function, which is why many researchers prefer the more accurate term *Softargmax*.
 
 ### Soft (smooth) approximation
@@ -155,7 +161,7 @@ $$ \lim_{T \to 0^+} S_T(v_i)= \begin{cases}
 \end{cases} $$
 
 The above argument shows that the softmax function converges pointwise to the argmax function.
-> **Note:** However, this convergence is not uniform. In fact, since all of the $S_T$ functions are continuous, if they uniformly converged to a limit function $S$, then $S$ must be continuous too. However, the Argmax function is not continuous.
+> **Note:** However, this convergence is not uniform. In fact, since all of the $S_T$ functions are continuous, if they uniformly converged to a limit function $S$, then $S$ must be continuous too. However, the Argmax function is not continuous. In practical terms, this means that the  "sharpening" effect of lowering the temperature is **input-dependent**. For a logit vector where one score strongly dominates the others, even a  moderate temperature reduction will push the distribution close to deterministic. But for a logit vector where scores are nearly tied, you  may need to lower the temperature much further to achieve the same level of concentration. There is no single threshold temperature that produces the same behavior across all inputs. Simply put: *context always matters*.
 
  In the context of LLMs, this means that if we reduce the temperature to exactly 0 (or almost 0), the model's outputs—the new tokens—will become deterministic. Normally, models like GPT run at a higher default temperature, which is why you can input the same query twice and get different answers (same meaning, but different grammar or vocabulary). Lowering the temperature to 0 eliminates this variance.
  On the other hand, when we increase the temperature ($T \to +\infty$), the limit of the functions $S_T$ converges to the uniform distribution $S(v)_i=\frac{1}{n}$. This means that the model assigns the exact same weight to every word in the vocabulary, resulting in completely random and chaotic outputs.
@@ -201,6 +207,10 @@ Putting the numerator and denominator back together, the limit of the entire fra
 $$\lim_{T \to \infty} S_T(v)_i = \frac{1}{n}$$
 
 This proves that as the temperature approaches infinity, the softmax function completely ignores the original input values $v_i$. Every single class gets assigned the exact same probability of $\frac{1}{n}$, giving you a perfectly uniform distribution.
+
+
+To make these theoretical claims concrete, the following short demonstration shows what temperature actually looks like in practice on a real language  model. The same prompt is submitted multiple times at progressively different 
+temperature values 
 
 <video controls autoplay muted loop width="100%" style="border-radius: 8px;">
   <source src="./assets/videos/temperature_vid.webm" type="video/webm">
