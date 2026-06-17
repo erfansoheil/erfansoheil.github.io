@@ -116,5 +116,50 @@ $$ \lim_{T \to 0^+} S_T(v_i)= \begin{cases}
 0 & \text{otherwise}
 \end{cases} $$
 
-The above argument shows that the softmax function converges pointwise to the argmax function. However this convergences is not uniform convergence. 
+The above argument shows that the softmax function converges pointwise to the argmax function.
+> **Note:** However, this convergence is not uniform. In fact, since all of the $S_T$ functions are continuous, if they uniformly converged to a limit function $S$, then $S$ must be continuous too. However, the Argmax function is not continuous.
 
+ In the context of LLMs, this means that if we reduce the temperature to exactly 0 (or almost 0), the model's outputs—the new tokens—will become deterministic. Normally, models like GPT run at a higher default temperature, which is why you can input the same query twice and get different answers (same meaning, but different grammar or vocabulary). Lowering the temperature to 0 eliminates this variance.
+ On the other hand, when we increase the temperature ($T \to +\infty$), the limit of the functions $S_T$ converges to the uniform distribution $S(v)_i=\frac{1}{n}$. This means that the model assigns the exact same weight to every word in the vocabulary, resulting in completely random and chaotic outputs.
+
+First let us sprove the second claim : By increasing the temperature he functions $S_T$ converges to the uniform distribution $S(v)_i=\frac{1}{n}$.
+
+Here is the mathematical proof.
+
+
+**The Uniform Distribution:**
+A discrete uniform distribution over $n$ items means each item has an equal probability of occurring. The probability for each item $i$ is exactly the "mean" or equal share of the total probability mass ($1$):
+
+$$U(\mathbf{x})_i = \frac{1}{n}$$
+
+
+For each $1 \leq j \leq n$,
+
+$$\lim_{T \to \infty} e^{v_j/T} =e^{\lim_{T \to \infty} v_j/T} =  e^0 = 1$$
+
+since  $v_j$ is a constant real number.
+
+Now, we apply this to both the numerator and the denominator of our softmax function.
+
+**For the numerator:**
+
+
+$$\lim_{T \to \infty} e^{v_i/T} = 1$$
+
+**For the denominator:**
+Because the limit of a finite sum is the sum of the limits, we get:
+
+
+$$\lim_{T \to \infty} \sum_{j=1}^n e^{v_j/T} = \sum_{j=1}^n \left( \lim_{T \to \infty} e^{v_j/T} \right) = \sum_{j=1}^n 1$$
+
+Summing the number $1$ exactly $n$ times simply gives us $n$:
+
+
+$$\sum_{j=1}^n 1 = n$$
+
+
+Putting the numerator and denominator back together, the limit of the entire fraction is:
+
+$$\lim_{T \to \infty} \sigma(\mathbf{x}/T)_i = \frac{1}{n}$$
+
+This proves that as the temperature approaches infinity, the softmax function completely ignores the original input values $v_i$. Every single class gets assigned the exact same probability of $\frac{1}{n}$, giving you a perfectly uniform distribution.
