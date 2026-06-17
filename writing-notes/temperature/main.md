@@ -13,7 +13,9 @@ Before we dive into the concept of **temperature**, we first need to understand 
 
 Suppose $n \in \mathbb{N}$ represents our vocabulary size, and $v \in \mathbb{R}^n$ is a vector of raw scores (called logits). We can represent $v$ as an $n$-tuple:
 
-$$v = (v_1, v_2, \dots, v_n), \quad v_i \in \mathbb{R}$$
+$$v = (v_1, v_2, \ldots, v_n)$$
+
+with each component $v_i \in \mathbb{R}$.
 
 The **Softmax** function $S:\mathbb{R}^n \to (0,1)^n$ normalizes these scores into values between 0 and 1:
 
@@ -21,11 +23,47 @@ $$S(v_i) = \frac{e^{v_i}}{\sum_{j=1}^n e^{v_j}}$$
 
 One immediate observation is that the Softmax function outputs a valid probability distribution—the elements are all positive and sum up to 1. It transforms any arbitrary vector of real numbers into a probability vector.
 
+<div class="figure-pair">
+  <figure>
+    <img src="./assets/images/decoder_llm.png" alt="Transformer decoder layer" />
+    <figcaption><strong>Model Architecture:</strong> The final layers of a decoder LLM, highlighting the <strong>Linear → Softmax</strong> pipeline that prepares token outputs.</figcaption>
+  </figure>
+  <figure>
+    <img src="./assets/images/output_1.png" alt="Geometric softmax mapping" />
+    <figcaption><strong>Geometric Intuition:</strong> A 3D visualization showing raw logits (blue) being compressed into a bounded probability simplex (red).</figcaption>
+  </figure>
+</div>
 
-| Transformer Decoder Layer                                                                                                                          | Geometric Softmax Mapping                                                                                                         |
-| :--------------------------------------------------------------------------------------------------------------------------------------------------:| :---------------------------------------------------------------------------------------------------------------------------------:|
-| <img src="./assets/images/decoder_llm.png" height="320" />                                                                                         | <img src="./assets/images/output_1.png" height="320" />                                                                           |
-| **Model Architecture:** The final layers of a decoder LLM, highlighting the **Linear $\rightarrow$ Softmax** pipeline that prepares token outputs. | **Geometric Intuition:** A 3D visualization showing raw logits (blue) being compressed into a bounded probability simplex (red). |
+<style>
+.figure-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+  margin: 1.5rem 0;
+}
+.figure-pair figure {
+  margin: 0;
+  text-align: center;
+}
+.figure-pair img {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  margin: 0 auto;
+}
+.figure-pair figcaption {
+  margin-top: 0.75rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  text-align: left;
+}
+@media (max-width: 768px) {
+  .figure-pair {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
 ### The Token Generation Process in LLMs
 
 In a decoder-only LLM, the main objective is to predict the next token (word or sub-word) in a sequence.
