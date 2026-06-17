@@ -196,7 +196,7 @@ The Trajectory: Follow the colored line. As $T$ decreases, the output distributi
 The Color: The color gradient of the points maps to the temperature. Lighter/yellower points represent higher temperatures, while the darker/purple points show the temperature approaching $0$, where the point finally rests at the Argmax vertex.
 
 #### Interactive: Convergence to Uniform Distribution
-<iframe src="./assets/uniform_3d.html" width="8%" height="400px" frameborder="0" scrolling="no"></iframe>
+<iframe src="./assets/uniform_3d.html" width="80%" height="400px" frameborder="0" scrolling="no"></iframe>
 
 Now, let's see what happens when we heat things up. Using the exact same initial logit vector $v = [2.5, 1.0, -0.5]$, we increase the temperature from $T = 1.0$ up to $T = 50.0$.
 
