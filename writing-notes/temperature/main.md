@@ -3,7 +3,7 @@ layout: post
 title: "Temperature in Large Language Models (LLMs)"
 ---
 
-The goal of thsi arcticle is to explain what is Temperature in LLMs and how it changes the behaviour of the output of the LLMs and discuss about why the ouptus of the LLMs are nondeterministic. 
+The goal of this article is to explain what temperature is in LLMs and how it changes the behaviour of the output of the LLMs and discuss why the outputs of the LLMs are nondeterministic. 
 
 Before we dive into the concept of **temperature**, we first need to understand the *Softmax* function and how it shapes the model's choices.
 
@@ -25,7 +25,7 @@ One immediate observation is that the Softmax function outputs a valid probabili
 | Transformer Decoder Layer                                                                                                                          | Geometric Softmax Mapping                                                                                                         |
 | :--------------------------------------------------------------------------------------------------------------------------------------------------:| :---------------------------------------------------------------------------------------------------------------------------------:|
 | <img src="./assets/images/decoder_llm.png" height="320" />                                                                                         | <img src="./assets/images/output_1.png" height="320" />                                                                           |
-| **Model Architecture:** The final layers of a decoder LLM, highlighting the **Linear $\rightarrow$ Softmax** pipeline that prepares token outputs. | **Geometric Intuition:** A 3D visualization showing raw logits (blue) being compressed into a bounded  probability simplex (red). |
+| **Model Architecture:** The final layers of a decoder LLM, highlighting the **Linear $\rightarrow$ Softmax** pipeline that prepares token outputs. | **Geometric Intuition:** A 3D visualization showing raw logits (blue) being compressed into a bounded probability simplex (red). |
 ### The Token Generation Process in LLMs
 
 In a decoder-only LLM, the main objective is to predict the next token (word or sub-word) in a sequence.
@@ -54,7 +54,7 @@ Here are two ways to say that a sequence of functions $f_1, f_2, \ldots$ (each m
 
 - **Uniform convergence:** The approximation is close *everywhere at once*. For large enough $k$, $f_k(x) \approx f(x)$ for every input $x \in \mathbb{R}^n$ — not just for one $x$ at a time.
 
-> Note:  Uniform convergence is the stronger notion: uniform $\Rightarrow$ pointwise, but not the other way around.
+> Note: Uniform convergence is the stronger notion: uniform $\Rightarrow$ pointwise, but not the other way around.
 
 
 Now suppose for each $T \in \mathbb{R}$ we define 
@@ -65,10 +65,10 @@ S_T:\mathbb{R}^n \to (0,1)^n \\
 S_T(v_i) = \frac{e^{v_i/T}}{\sum_{j=1}^n e^{v_j/T}}
 $$
 
-In $S_T$ in the above equation is called **The Softmax Function with Temperature $T$**
+$S_T$ in the above equation is called the **softmax function with temperature $T$**.
 
 
-Let $M = \max_{j} v_j$, be the maximum value in the vector $v$. We want to prove that as $T \to 0^+$, the softmax distribution pointwise converges to the argmax distribution:
+Let $M = \max_{j} v_j$ be the maximum value in the vector $v$. We want to prove that as $T \to 0^+$, the softmax distribution pointwise converges to the argmax distribution:
 
 
 $$\lim_{T \to 0^+} S_T (v)_i = \text{Argmax}(v)_i$$
@@ -85,34 +85,34 @@ $$S_T(v_i) = \frac{e^{v_i/T} \cdot e^{-M/T}}{\left(\sum_{j=1}^n e^{v_j/T}\right)
 Using the exponent rule $e^a \cdot e^b = e^{a+b}$, we can rewrite this as:
 
 
-$$S_T(v_i) = \frac{e^{(v_j - M)/T}}{\sum_{j=1}^n e^{(v_j - M)/T}}$$
+$$S_T(v_i) = \frac{e^{(v_i - M)/T}}{\sum_{j=1}^n e^{(v_j - M)/T}}$$
 
-In the denominator there is one index, like $k$ such that $v_k = M. So, $(v_k - M) = 0$. Therefore, $e^{v_k-M} = e^{0/T} = e^0 = 1$. For other indices, know $v_j < M$, so $(v_j - M)$ is a strictly negative constant. Let $c_j = v_j - M < 0$. As $T \to 0^+$, the exponent $\frac{c_j}{T} \to -\infty$. Consequently, $e^{(v_j - M)/T} \to 0$.
+In the denominator there is one index, like $k$, such that $v_k = M$. So, $(v_k - M) = 0$. Therefore, $e^{v_k-M} = e^{0/T} = e^0 = 1$. For other indices, we know $v_j < M$, so $(v_j - M)$ is a strictly negative constant. Let $c_j = v_j - M < 0$. As $T \to 0^+$, the exponent $\frac{c_j}{T} \to -\infty$. Consequently, $e^{(v_j - M)/T} \to 0$.
 
 Thus, the limit of the denominator as $T \to 0^+$ is:
 
 
 $$\lim_{T \to 0^+} \sum_{j=1}^n e^{(v_j - M)/T} = 1+0 = 1$$
 
-Now, we evaluate the limit of the entire fraction by looking at the numerator for the two possible cases for $v_j$:
+Now, we evaluate the limit of the entire fraction by looking at the numerator for the two possible cases for $v_i$:
 
-**Case 1: $v_j$ is not the maximum ($v_j < M$)**
+**Case 1: $v_i$ is not the maximum ($v_i < M$)**
 
-If $v_j < M$, then $(v_j - M) < 0$.
-
-
-$$\lim_{T \to 0^+} e^{(v_j - M)/T} = 0  \Longrightarrow \lim_{T \to 0^+} S_T(v_i)= \frac{0}{1} = 0$$
-
-**Case 2: $v_j$ is the maximum ($v_j = M$)**
-
-If $v_j = M$, then $(v_j - M) = 0$.
+If $v_i < M$, then $(v_i - M) < 0$.
 
 
-$$\lim_{T \to 0^+} e^{(v_j - M)/T} = e^0 = 1  \Longrightarrow \lim_{T \to 0^+} S_T(v_i)= \frac{1}{1}= 1 $$
+$$\lim_{T \to 0^+} e^{(v_i - M)/T} = 0  \Longrightarrow \lim_{T \to 0^+} S_T(v_i)= \frac{0}{1} = 0$$
+
+**Case 2: $v_i$ is the maximum ($v_i = M$)**
+
+If $v_i = M$, then $(v_i - M) = 0$.
+
+
+$$\lim_{T \to 0^+} e^{(v_i - M)/T} = e^0 = 1  \Longrightarrow \lim_{T \to 0^+} S_T(v_i)= \frac{1}{1}= 1 $$
 
 Combining both cases, we get:
 $$ \lim_{T \to 0^+} S_T(v_i)= \begin{cases}
-1 & \text{if } v_j = \max(v) \\
+1 & \text{if } v_i = \max(v) \\
 0 & \text{otherwise}
 \end{cases} $$
 
@@ -122,7 +122,7 @@ The above argument shows that the softmax function converges pointwise to the ar
  In the context of LLMs, this means that if we reduce the temperature to exactly 0 (or almost 0), the model's outputs—the new tokens—will become deterministic. Normally, models like GPT run at a higher default temperature, which is why you can input the same query twice and get different answers (same meaning, but different grammar or vocabulary). Lowering the temperature to 0 eliminates this variance.
  On the other hand, when we increase the temperature ($T \to +\infty$), the limit of the functions $S_T$ converges to the uniform distribution $S(v)_i=\frac{1}{n}$. This means that the model assigns the exact same weight to every word in the vocabulary, resulting in completely random and chaotic outputs.
 
-First let us sprove the second claim : By increasing the temperature he functions $S_T$ converges to the uniform distribution $S(v)_i=\frac{1}{n}$.
+First let us prove the second claim: by increasing the temperature, the functions $S_T$ converge to the uniform distribution $S(v)_i=\frac{1}{n}$.
 
 Here is the mathematical proof.
 
@@ -137,7 +137,7 @@ For each $1 \leq j \leq n$,
 
 $$\lim_{T \to \infty} e^{v_j/T} =e^{\lim_{T \to \infty} v_j/T} =  e^0 = 1$$
 
-since  $v_j$ is a constant real number.
+since $v_j$ is a constant real number.
 
 Now, we apply this to both the numerator and the denominator of our softmax function.
 
@@ -160,7 +160,7 @@ $$\sum_{j=1}^n 1 = n$$
 
 Putting the numerator and denominator back together, the limit of the entire fraction is:
 
-$$\lim_{T \to \infty} \sigma(\mathbf{x}/T)_i = \frac{1}{n}$$
+$$\lim_{T \to \infty} S_T(v)_i = \frac{1}{n}$$
 
 This proves that as the temperature approaches infinity, the softmax function completely ignores the original input values $v_i$. Every single class gets assigned the exact same probability of $\frac{1}{n}$, giving you a perfectly uniform distribution.
 
@@ -176,3 +176,9 @@ This short demonstration illustrates the effect of the **temperature** parameter
 For the experiment, I use **Ollama** to run `llama3.2:3b` locally on my own machine. The command `/set parameter temperature ...` is used to modify the generation temperature, and `/clear` is used before each run to remove the previous conversation history and make the comparison cleaner. I also fix the `seed` to improve reproducibility, although the role of seed will be discussed separately in a later blog post.
 
 Since the experiment is performed with a relatively small 3B model running locally, the results should be interpreted as a practical illustration rather than a general benchmark. The goal is to provide an intuitive example of how temperature influences language model behavior.
+
+### Interactive: Convergence to Argmax
+<iframe src="./assets/argmax_3d.html" width="100%" height="600px" frameborder="0" scrolling="no"></iframe>
+
+### Interactive: Convergence to Uniform Distribution
+<iframe src="./assets/uniform_3d.html" width="100%" height="600px" frameborder="0" scrolling="no"></iframe>
