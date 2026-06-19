@@ -7,6 +7,18 @@ In this article, we will explore the concept of positional embeddings in Transfo
 Before diving into the positional aspect, however, we need to understand the foundational concept of modern **embeddings**.
 
 
+
+## Prerequisites
+
+This article assumes familiarity with the following concepts:
+
+* **Basic linear algebra**: vectors, dot products, norms, and distances.
+* **Basic trigonometry**: sine and cosine functions.
+* **Transformer attention**: a high-level understanding that attention allows tokens to interact with one another.
+
+No prior knowledge of positional embeddings, tokenization and Transformers Architecture is required.
+
+
 Throughout this article, the word **token** is used frequently. A token is a discrete unit of information processed by a model. In domain of language models, a token usually represents a word, part of a word, a punctuation mark, or another piece of text. In other domains, however, tokens may represent image patches, audio segments, time-series windows, and so on.
 
 Before a model can process an input, it must first convert it into a sequence of tokens. The tokens themselves are not directly understood by the neural network. Instead, each token is mapped to a unique integer called a **token ID**. These token IDs are then transformed into vectors through an **embedding layer**, producing numerical representations that the model can process.
@@ -16,11 +28,12 @@ As a result, the pipeline looks as follows:
 <center>Input → Tokens → Token IDs → Embeddings (Vectors)</center>
 
 The process of converting an input into tokens is called **tokenization**, while the process of converting token IDs into vectors is called **embedding**.
-In the following figure somme LLM tokenization methods are mentioned. 
 
-![Embedding mechanism](./assets/images/tokenization.png)
+#### Why do we need Token IDs after Tokenization?
+While splitting a sentence into string tokens like `["deep", "learning"]` makes sense to humans, neural networks cannot perform mathematical operations on raw text. They operate strictly on matrices and vectors of floating-point numbers. 
 
- 
+Token IDs act as the bridge. By mapping every unique token in a vocabulary to a fixed, unique integer (e.g., `"deep"` $\rightarrow$ `2534`), we create a structured lookup index that the network can process mathematically.
+
 
 ## Embeddings
 
@@ -85,6 +98,9 @@ Here $\omega_k$ is the angular frequency for the $k$-th dimension pair. Even-ind
 There are several notes on this topic for example [here](https://www.byhand.ai/p/pytorchexcel-sinusoidal-positional) and [here](https://www.geeksforgeeks.org/nlp/positional-encoding-in-transformers/).
 
 Let us mention some remarks on sinusoidal positional encoding. We start with a simple inner product concept. 
+
+> **Mathematical Note:**
+> section 1.1.1 to 1.1.6 study sinusoidal positional encodings from a geometric perspective. Familiarity with inner products, vector norms, Euclidean distance, and basic trigonometric identities will be helpful.
 
 
 #### 1.1.1. From Inner Products to Norms to Distances
@@ -181,7 +197,98 @@ Dividing by $2d$ gives $\frac{1-\cos\theta}{2} \in [0,1]$, a direct, monotonic r
 
 **Conclusion:** since the norm $r$ is fixed and the distance is just a rescaled function of $\theta$, *all* positional information (all notion of "closeness" between two positions) is encoded purely in the **angle/phase relationship** between the two vectors, never in magnitude. 
 
-#### 1.1.7. Some Examples
+#### 1.1.7. An Examples
+
+To tie the pipeline together, let us trace a single **inference forward pass** from raw text to the vectors that enter the Transformer. We use a toy setup with model dimension $d = 4$ and the original Transformer constant $\omega = 10{,}000$.
+
+**Input text:** `"The cat sat"`
+
+
+**Step 1 — Text $\rightarrow$ Tokens**
+
+The tokenizer splits the sentence into three string tokens (one per word in this simple example):
+
+$$\texttt{["The",\ "cat",\ "sat"]}$$
+
+
+**Step 2 — Tokens $\rightarrow$ Token IDs**
+
+Each token is looked up in a fixed vocabulary dictionary. The integers are arbitrary indices; what matters is that each token maps to exactly one ID:
+
+| Token | Token ID |
+|-------|----------|
+| `The` | `1996`   |
+| `cat` | `4937`   |
+| `sat` | `2938`   |
+
+$$\texttt{[1996,\ 4937,\ 2938]}$$
+
+
+**Step 3 — Token IDs $\rightarrow$ Embedding vectors**
+
+The embedding layer is a matrix $E \in \mathbb{R}^{V \times d}$, where $V$ is the vocabulary size. Each token ID selects one row. The values below are **toy numbers** (not real learned weights); they illustrate the lookup only:
+
+$$E(1996) = \begin{pmatrix} 0.2 \\ 0.5 \\ -0.3 \\ 0.1 \end{pmatrix}, \qquad
+E(4937) = \begin{pmatrix} 0.8 \\ -0.2 \\ 0.4 \\ 0.6 \end{pmatrix}, \qquad
+E(2938) = \begin{pmatrix} -0.1 \\ 0.7 \\ 0.2 \\ -0.4 \end{pmatrix}$$
+
+
+**Step 4 — Compute sinusoidal positional encodings**
+
+With $d = 4$ there are two frequency pairs. From Section 1.1.2,
+
+$$\omega_0 = \frac{1}{\omega^{0}} = 1, \qquad \omega_1 = \frac{1}{\omega^{2/4}} = \frac{1}{100} = 0.01,$$
+
+so for position $p$ (0-indexed),
+
+$$PE(p) = \big(\sin(p\,\omega_0),\ \cos(p\,\omega_0),\ \sin(p\,\omega_1),\ \cos(p\,\omega_1)\big)
+       = \big(\sin p,\ \cos p,\ \sin(0.01\,p),\ \cos(0.01\,p)\big).$$
+
+We compute $PE(p)$ for each of the three positions:
+
+| Position $p$ | Token | $PE(p)$ (rounded to 4 decimals) |
+|:---:|:---|:---|
+| $0$ | `The` | $(0,\ 1,\ 0,\ 1)$ |
+| $1$ | `cat` | $(0.8415,\ 0.5403,\ 0.0100,\ 0.9999)$ |
+| $2$ | `sat` | $(0.9093,\ -0.4161,\ 0.0200,\ 0.9998)$ |
+
+For example, at $p = 1$:
+
+$$\sin(1) \approx 0.8415, \quad \cos(1) \approx 0.5403, \quad \sin(0.01) \approx 0.0100, \quad \cos(0.01) \approx 0.9999.$$
+
+
+**Step 5 — Add token embeddings and positional encodings**
+
+The final input to the Transformer is the **element-wise sum** of the token embedding and the positional encoding at each position:
+
+$$v_p = E(\text{token ID at } p) + PE(p).$$
+
+| Position | Token | $E$ | $+$ | $PE(p)$ | $=$ | $v_p$ |
+|:---:|:---|:---|:---:|:---|:---:|:---|
+| $0$ | `The` | $(0.2,\ 0.5,\ -0.3,\ 0.1)$ | $+$ | $(0,\ 1,\ 0,\ 1)$ | $=$ | $(0.2,\ 1.5,\ -0.3,\ 1.1)$ |
+| $1$ | `cat` | $(0.8,\ -0.2,\ 0.4,\ 0.6)$ | $+$ | $(0.8415,\ 0.5403,\ 0.0100,\ 0.9999)$ | $=$ | $(1.6415,\ 0.3403,\ 0.4100,\ 1.5999)$ |
+| $2$ | `sat` | $(-0.1,\ 0.7,\ 0.2,\ -0.4)$ | $+$ | $(0.9093,\ -0.4161,\ 0.0200,\ 0.9998)$ | $=$ | $(0.8093,\ 0.2839,\ 0.2200,\ 0.5998)$ |
+
+One concrete calculation at $p = 1$ (`cat`):
+
+$$v_1 = \begin{pmatrix} 0.8 \\ -0.2 \\ 0.4 \\ 0.6 \end{pmatrix}
+     + \begin{pmatrix} 0.8415 \\ 0.5403 \\ 0.0100 \\ 0.9999 \end{pmatrix}
+     = \begin{pmatrix} 1.6415 \\ 0.3403 \\ 0.4100 \\ 1.5999 \end{pmatrix}.$$
+
+
+**Summary of the inference pipeline**
+
+$$\underbrace{\texttt{"The cat sat"}}_{\text{text}}
+\;\xrightarrow{\text{tokenize}}\;
+\underbrace{\texttt{["The", "cat", "sat"]}}_{\text{tokens}}
+\;\xrightarrow{\text{lookup}}\;
+\underbrace{\texttt{[1996, 4937, 2938]}}_{\text{token IDs}}
+\;\xrightarrow{\text{embed}}\;
+\underbrace{\big(E(1996),\, E(4937),\, E(2938)\big)}_{\text{token embeddings}}
+\;\xrightarrow{+\, PE}\;
+\underbrace{\big(v_0,\, v_1,\, v_2\big)}_{\text{input to Transformer}}$$
+
+The resulting matrix $V \in \mathbb{R}^{3 \times 4}$ (three tokens, four dimensions) is what the first Transformer layer receives. During inference, the tokenizer mapping and the sinusoidal $PE(p)$ are fixed; only the embedding rows $E(\cdot)$ were learned during training.
 
 
  
