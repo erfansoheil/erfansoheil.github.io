@@ -27,7 +27,7 @@ As a result, the pipeline looks as follows:
 
 The process of converting an input into tokens is called **tokenization**, while the process of converting token IDs into vectors is called **embedding**.
 
-#### Why do we need Token IDs after Tokenization?
+### Why do we need Token IDs after Tokenization?
 While splitting a sentence into string tokens like `["deep", "learning"]` makes sense to humans, neural networks cannot perform mathematical operations on raw text. They operate strictly on matrices and vectors of floating-point numbers. 
 
 Token IDs act as the bridge. By mapping every unique token in a vocabulary to a fixed, unique integer (e.g., `"deep"` $\rightarrow$ `2534`), we create a structured lookup index that the network can process mathematically.
@@ -101,7 +101,7 @@ Let us mention some remarks on sinusoidal positional encoding. We start with a s
 > section 1.1.1 to 1.1.6 study sinusoidal positional encodings from a geometric perspective. Familiarity with inner products, vector norms, Euclidean distance, and basic trigonometric identities will be helpful.
 
 
-#### 1.1.1. From Inner Products to Norms to Distances
+### 1.1.1. From Inner Products to Norms to Distances
 
 Before we analyze sinusoidal encodings geometrically, recall how **inner products** induce norms and distances in $\mathbb{R}^d$.
 
@@ -124,7 +124,7 @@ $$\left\lVert u-v \right\lVert^2 = \left\lVert u \right\lVert^2 + \left\lVert v 
 If $\left\lVert u \right\lVert$ and $\left\lVert v \right\lVert$ are **constant**, then the distance between $u$ and $v$ is determined entirely by their inner product $\langle u, v \rangle$.  Later on this article, we show that the norm for each positional vector after positional encoding is a constant. 
 
 
-#### 1.1.2. Setup
+### 1.1.2. Setup
 
 From  section 1.1, for model dimension $d$ (even), and frequencies
 
@@ -135,7 +135,7 @@ the positional encoding for position $p$ is:
 $$PE(p) = \big(\sin(p\,\omega_0),\ \cos(p\,\omega_0),\ \sin(p\,\omega_1),\ \cos(p\,\omega_1),\ \dots\big) \in \mathbb{R}^d$$
 
 
-#### 1.1.3. Every Positional Vector Has the Same Constant Norm
+### 1.1.3. Every Positional Vector Has the Same Constant Norm
 
 $$\left\lVert PE(p) \right\lVert^2 = \langle PE(p), PE(p)\rangle = \sum_{i=0}^{d/2-1} \Big[\sin^2(p\,\omega_i) + \cos^2(p\,\omega_i)\Big]$$
 
@@ -148,7 +148,7 @@ $$\left\lVert PE(p) \right\lVert^2 = \frac{d}{2} \quad\Longrightarrow\quad   \le
 > Geometrically: for every $p$, $PE(p)$ lies on the **same sphere of radius $r$** in $\mathbb{R}^d$,(In mathematics we denote this space as $\mathbb{S}_{r} ^{d-1}$). Varying $p$ moves the vector *around* the sphere, never off it.
 
 
-#### 1.1.4. Inner Product Between Two Different Positions
+### 1.1.4. Inner Product Between Two Different Positions
 
 For arbitrary positions $p_1, p_2$:
 
@@ -164,7 +164,7 @@ Two key properties:
 - **Depends only on $\Delta p = p_1-p_2$**: the individual positions $p_1, p_2$ vanish, and only their *difference* remains. Two pairs with the same offset give **identical** inner products.
 
 
-#### 1.1.5. Combining Norm + Inner Product: A Built-In Notion of Distance
+### 1.1.5. Combining Norm + Inner Product: A Built-In Notion of Distance
 
 From Section 1.1.1:
 
@@ -178,7 +178,7 @@ From Section 1.1.4 we know that the  last term in the above equation is bounded 
 This squared distance is **purely a function of $\Delta p$**. So even though sinusoidal PE is *constructed* as an absolute encoding (one fixed vector per position), it induces a **relative geometric structure**: positions close together ($\Delta p$ small) yield vectors close together in space, regardless of where they sit in the sequence.
 
 
-#### 1.1.6. Bounded Distance and Pure Angular Information
+### 1.1.6. Bounded Distance and Pure Angular Information
 
 From Section 1.1.5, $\left\lVert PE(p_1)-PE(p_2) \right\lVert^2 \in [0, 2d]$. Dividing by $2d$:
 
@@ -195,7 +195,7 @@ Dividing by $2d$ gives $\frac{1-\cos\theta}{2} \in [0,1]$, a direct, monotonic r
 
 **Conclusion:** since the norm $r$ is fixed and the distance is just a rescaled function of $\theta$, *all* positional information (all notion of "closeness" between two positions) is encoded purely in the **angle/phase relationship** between the two vectors, never in magnitude. 
 
-#### 1.1.7. A Worked Examples
+### 1.1.7. A Worked Examples
 
 To tie the pipeline together, let us trace a single **inference forward pass** from raw text to the vectors that enter the Transformer. We use a toy setup with model dimension $d = 4$ and the original Transformer constant $\omega = 10{,}000$.
 
@@ -244,11 +244,11 @@ $$PE(p) = \big(\sin(p\,\omega_0),\ \cos(p\,\omega_0),\ \sin(p\,\omega_1),\ \cos(
 
 We compute $PE(p)$ for each of the three positions:
 
-| Position $p$ | Token | $PE(p)$ (rounded to 4 decimals) |
-|:---:|:---|:---|
-| $0$ | `The` | $(0,\ 1,\ 0,\ 1)$ |
-| $1$ | `cat` | $(0.8415,\ 0.5403,\ 0.0100,\ 0.9999)$ |
-| $2$ | `sat` | $(0.9093,\ -0.4161,\ 0.0200,\ 0.9998)$ |
+| Position $p$ | Token | $PE(p)$ (rounded to 4 decimals)        |
+| :------------:| :------| :---------------------------------------|
+| $0$          | `The` | $(0,\ 1,\ 0,\ 1)$                      |
+| $1$          | `cat` | $(0.8415,\ 0.5403,\ 0.0100,\ 0.9999)$  |
+| $2$          | `sat` | $(0.9093,\ -0.4161,\ 0.0200,\ 0.9998)$ |
 
 For example, at $p = 1$:
 
@@ -261,11 +261,11 @@ The final input to the Transformer is the **element-wise sum** of the token embe
 
 $$v_p = E(\text{token ID at } p) + PE(p).$$
 
-| Position | Token | $E$ | $+$ | $PE(p)$ | $=$ | $v_p$ |
-|:---:|:---|:---|:---:|:---|:---:|:---|
-| $0$ | `The` | $(0.2,\ 0.5,\ -0.3,\ 0.1)$ | $+$ | $(0,\ 1,\ 0,\ 1)$ | $=$ | $(0.2,\ 1.5,\ -0.3,\ 1.1)$ |
-| $1$ | `cat` | $(0.8,\ -0.2,\ 0.4,\ 0.6)$ | $+$ | $(0.8415,\ 0.5403,\ 0.0100,\ 0.9999)$ | $=$ | $(1.6415,\ 0.3403,\ 0.4100,\ 1.5999)$ |
-| $2$ | `sat` | $(-0.1,\ 0.7,\ 0.2,\ -0.4)$ | $+$ | $(0.9093,\ -0.4161,\ 0.0200,\ 0.9998)$ | $=$ | $(0.8093,\ 0.2839,\ 0.2200,\ 0.5998)$ |
+| Position | Token | $E$                         | $+$ | $PE(p)$                                | $=$ | $v_p$                                 |
+| :--------:| :------| :----------------------------| :---:| :---------------------------------------| :---:| :--------------------------------------|
+| $0$      | `The` | $(0.2,\ 0.5,\ -0.3,\ 0.1)$  | $+$ | $(0,\ 1,\ 0,\ 1)$                      | $=$ | $(0.2,\ 1.5,\ -0.3,\ 1.1)$            |
+| $1$      | `cat` | $(0.8,\ -0.2,\ 0.4,\ 0.6)$  | $+$ | $(0.8415,\ 0.5403,\ 0.0100,\ 0.9999)$  | $=$ | $(1.6415,\ 0.3403,\ 0.4100,\ 1.5999)$ |
+| $2$      | `sat` | $(-0.1,\ 0.7,\ 0.2,\ -0.4)$ | $+$ | $(0.9093,\ -0.4161,\ 0.0200,\ 0.9998)$ | $=$ | $(0.8093,\ 0.2839,\ 0.2200,\ 0.5998)$ |
 
 One concrete calculation at $p = 1$ (`cat`):
 
