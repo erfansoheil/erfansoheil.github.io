@@ -15,14 +15,12 @@ $code-background-color: #f1f5f9;
 $smooth-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
 
+$content-width: 1100px;  // must be BEFORE @import "minima"
 
 // Import the base theme styles
 @import "minima";
 
 
-article.post .wrapper {
-  max-width: 1100px;
-}
 // 2. Global Enhancements & Animations
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -125,7 +123,7 @@ a {
   padding: 1.5rem 2rem;
   border-radius: 12px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  max-width: none; // only useful if you also widen .wrapper
+  $content-width: 1100px;  // must be BEFORE @import "minima"
 }
 
 .post-title {
