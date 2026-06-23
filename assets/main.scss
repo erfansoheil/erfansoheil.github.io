@@ -4,7 +4,7 @@
 // 1. Custom Palette & Theme Variables
 $brand-color:       #468de5; // Slightly brighter Indigo for a modern look
 $brand-color-hover: #4f46e5; // Darker Indigo for interactive hover states
-$background-color:  #f0ebe7; // warm color
+$background-color:  #ece7e3; // warm color
 $text-color:        #0f172a; // Deep slate/charcoal for premium readability
 $link-color:        $brand-color;
 
@@ -113,6 +113,12 @@ a {
     transform: translateY(-4px);
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   }
+}
+.post-content {
+  background: #ffffff;
+  padding: 1.5rem 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
 .post-title {

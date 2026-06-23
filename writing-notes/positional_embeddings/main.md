@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Positional Embeddings: A Geometric Deep Dive into Sinusoidal Encoding"
+title: "Positional Embeddings: A Geometric POV"
 ---
 
 In this article, we explore positional embeddings in Transformer architectures, with a focus on the original sinusoidal positional encoding and the geometric structure it induces. Before diving into the positional aspect, however, we need to understand the foundational concept of modern **embeddings**.
@@ -266,6 +266,19 @@ $$v_p = E(\text{token ID at } p) + PE(p).$$
 | $0$      | `The` | $(0.2,\ 0.5,\ -0.3,\ 0.1)$  | $+$ | $(0,\ 1,\ 0,\ 1)$                      | $=$ | $(0.2,\ 1.5,\ -0.3,\ 1.1)$            |
 | $1$      | `cat` | $(0.8,\ -0.2,\ 0.4,\ 0.6)$  | $+$ | $(0.8415,\ 0.5403,\ 0.0100,\ 0.9999)$  | $=$ | $(1.6415,\ 0.3403,\ 0.4100,\ 1.5999)$ |
 | $2$      | `sat` | $(-0.1,\ 0.7,\ 0.2,\ -0.4)$ | $+$ | $(0.9093,\ -0.4161,\ 0.0200,\ 0.9998)$ | $=$ | $(0.8093,\ 0.2839,\ 0.2200,\ 0.5998)$ |
+
+</div>
+<style>
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 1rem 0;
+}
+.table-scroll table {
+  min-width: 640px;
+  font-size: 0.9rem;
+}
+</style>
 
 One concrete calculation at $p = 1$ (`cat`):
 
