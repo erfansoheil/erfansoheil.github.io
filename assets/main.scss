@@ -15,10 +15,54 @@ $code-background-color: #f1f5f9;
 $smooth-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
 
-$content-width: 1100px;  // must be BEFORE @import "minima"
+$content-width: 1200px;  // must be BEFORE @import "minima"
 
 // Import the base theme styles
 @import "minima";
+
+// Wider page/post layout and safer overflow handling
+.wrapper {
+  max-width: calc(#{$content-width} - (#{$spacing-unit} * 2));
+}
+
+.page-content .wrapper {
+  max-width: 1200px;
+}
+
+.post {
+  max-width: 100%;
+}
+
+.post-content {
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
+.post-content img,
+.post-content video,
+.post-content iframe {
+  max-width: 100%;
+  height: auto;
+}
+
+.post-content pre,
+.post-content code,
+.post-content table {
+  max-width: 100%;
+}
+
+.post-content pre,
+.post-content table {
+  overflow-x: auto;
+}
+
+@media screen and (max-width: 800px) {
+  .post-content {
+    padding: 1rem;
+  }
+}
+
 
 
 // 2. Global Enhancements & Animations
@@ -123,7 +167,6 @@ a {
   padding: 1.5rem 2rem;
   border-radius: 12px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  $content-width: 1100px;  // must be BEFORE @import "minima"
 }
 
 .post-title {
