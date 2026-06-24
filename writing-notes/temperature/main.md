@@ -84,9 +84,7 @@ However, during training, the model needs to learn via gradient descent. The **A
 This is exactly why we use **Softmax**. It acts as a "soft", continuous, and fully differentiable **approximation** of Argmax, turning raw scores into a smooth probability map that allows the network to train while still identifying the most likely next tokens.
 
 
-> **Training vs. Inference:** It is worth being precise about *when* temperature plays a role. During **training**, the standard Softmax (implicitly with $T = 1$) is used to maintain differentiability and enable gradient-based learning. During **inference**, however, temperature becomes a tunable knob that controls the shape of the output distribution *after* the model's weights are frozen. Unless stated otherwise, every reference to temperature in this article refers to the **inference-time** setting.
-
- > Note: Despite its name, Softmax is not actually a soft approximation of the maximum function. Instead, it is a soft approximation of the Argmax function, which is why many researchers prefer the more accurate term *Softargmax*.
+ *Note: Despite its name, Softmax is not actually a soft approximation of the maximum function. Instead, it is a soft approximation of the Argmax function, which is why many researchers prefer the more accurate term *Softargmax*.*
 
 ### Soft (smooth) approximation
 
@@ -98,19 +96,21 @@ Here are two ways to say that a sequence of functions $f_1, f_2, \ldots$ (each m
 
 - **Uniform convergence:** The approximation is close *everywhere at once*. For large enough $k$, $f_k(x) \approx f(x)$ for every input $x \in \mathbb{R}^n$ — not just for one $x$ at a time.
 
-> Note: Uniform convergence is the stronger notion: uniform $\Rightarrow$ pointwise, but not the other way around.
+*Note: Uniform convergence is the stronger notion: uniform $\Rightarrow$ pointwise, but not the other way around.*
 
 
 Now suppose for each $T \in \mathbb{R}$ we define 
 
 $$  
-S_T:\mathbb{R}^n \to (0,1)^n \\
-
+S_T:\mathbb{R}^n \to (0,1)^n 
+$$
+$$
 S_T(v_i) = \frac{e^{v_i/T}}{\sum_{j=1}^n e^{v_j/T}}
 $$
 
 $S_T$ in the above equation is called the **softmax function with temperature $T$**.
 
+***Training vs. Inference:** It is worth being precise about *when* temperature plays a role. During **training**, the standard Softmax (implicitly with $T = 1$) is used to maintain differentiability and enable gradient-based learning. During **inference**, however, temperature becomes a tunable knob that controls the shape of the output distribution *after* the model's weights are frozen. Unless stated otherwise, every reference to temperature in this article refers to the **inference-time** setting.*
 
 Let $M = \max_{j} v_j$ be the maximum value in the vector $v$. We want to prove that as $T \to 0^+$, the softmax distribution pointwise converges to the argmax distribution:
 
@@ -161,7 +161,7 @@ $$ \lim_{T \to 0^+} S_T(v_i)= \begin{cases}
 \end{cases} $$
 
 The above argument shows that the softmax function converges pointwise to the argmax function.
-> **Note:** However, this convergence is not uniform. In fact, since all of the $S_T$ functions are continuous, if they uniformly converged to a limit function $S$, then $S$ must be continuous too. However, the Argmax function is not continuous. In practical terms, this means that the  "sharpening" effect of lowering the temperature is **input-dependent**. For a logit vector where one score strongly dominates the others, even a  moderate temperature reduction will push the distribution close to deterministic. But for a logit vector where scores are nearly tied, you  may need to lower the temperature much further to achieve the same level of concentration. There is no single threshold temperature that produces the same behavior across all inputs. Simply put: *context always matters*.
+ ***Note:** However, this convergence is not uniform. In fact, since all of the $S_T$ functions are continuous, if they uniformly converged to a limit function $S$, then $S$ must be continuous too. However, the Argmax function is not continuous. In practical terms, this means that the  "sharpening" effect of lowering the temperature is **input-dependent**. For a logit vector where one score strongly dominates the others, even a  moderate temperature reduction will push the distribution close to deterministic. But for a logit vector where scores are nearly tied, you  may need to lower the temperature much further to achieve the same level of concentration. There is no single threshold temperature that produces the same behavior across all inputs. Simply put: *context always matters*.*
 
  In the context of LLMs, this means that if we reduce the temperature to exactly 0 (or almost 0), the model's outputs—the new tokens—will become deterministic. Normally, models like GPT run at a higher default temperature, which is why you can input the same query twice and get different answers (same meaning, but different grammar or vocabulary). Lowering the temperature to 0 eliminates this variance.
  On the other hand, when we increase the temperature ($T \to +\infty$), the limit of the functions $S_T$ converges to the uniform distribution $S(v)_i=\frac{1}{n}$. This means that the model assigns the exact same weight to every word in the vocabulary, resulting in completely random and chaotic outputs.
