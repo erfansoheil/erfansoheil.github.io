@@ -99,12 +99,11 @@ Here are two ways to say that a sequence of functions $f_1, f_2, \ldots$ (each m
 *Note: Uniform convergence is the stronger notion: uniform $\Rightarrow$ pointwise, but not the other way around.*
 
 
-Now suppose for each $T \in \mathbb{R}$ we define 
+Now suppose for each $T \in \mathbb{R}$ we define,
 
 $$  
-S_T:\mathbb{R}^n \to (0,1)^n 
-$$
-$$
+S_T:\mathbb{R}^n \to (0,1)^n  \\
+
 S_T(v_i) = \frac{e^{v_i/T}}{\sum_{j=1}^n e^{v_j/T}}
 $$
 
