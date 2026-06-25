@@ -59,7 +59,9 @@ $content-width: 1200px;  // must be BEFORE @import "minima"
   border: 0;
   margin: 1rem auto;
 }
-
+.post-content iframe.iframe-sampling-explorer {
+  height: 950px; /* or min-height: 950px */
+}
 
 .post-content pre,
 .post-content table {

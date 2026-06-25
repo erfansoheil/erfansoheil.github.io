@@ -109,7 +109,7 @@ $$
 
 $S_T$ in the above equation is called the **softmax function with temperature $T$**.
 
-***Training vs. Inference:** It is worth being precise about *when* temperature plays a role. During **training**, the standard Softmax (implicitly with $T = 1$) is used to maintain differentiability and enable gradient-based learning. During **inference**, however, temperature becomes a tunable knob that controls the shape of the output distribution *after* the model's weights are frozen. Unless stated otherwise, every reference to temperature in this article refers to the **inference-time** setting.*
+* **Training vs. Inference:** It is worth being precise about *when* temperature plays a role. During **training**, the standard Softmax (implicitly with $T = 1$) is used to maintain differentiability and enable gradient-based learning. During **inference**, however, temperature becomes a tunable knob that controls the shape of the output distribution *after* the model's weights are frozen. Unless stated otherwise, every reference to temperature in this article refers to the **inference-time** setting.*
 
 Let $M = \max_{j} v_j$ be the maximum value in the vector $v$. We want to prove that as $T \to 0^+$, the softmax distribution pointwise converges to the argmax distribution:
 
@@ -316,7 +316,8 @@ Because we discarded the tail in both Top-k and Top-p, the probabilities of our 
 
 Finally, we randomly sample from this truncated, re-normalized distribution. This weighted random selection is the exact reason why submitting the identical query to an LLM multiple times will yield completely different, yet mathematically valid, responses!
 
-<iframe src="./assets/sampling_explorer.html" width="100%" height="1200px" frameborder="0" scrolling="no"></iframe>
+<!-- <iframe src="./assets/sampling_explorer.html" width="100%" height="1200px" frameborder="0" scrolling="no"></iframe> -->
+<iframe class="iframe-sampling-explorer" src="./assets/sampling_explorer.html" frameborder="0"></iframe>
 
 ### Why Don't We Learn Temperature During Training?
 
