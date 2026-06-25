@@ -84,7 +84,7 @@ However, during training, the model needs to learn via gradient descent. The **A
 This is exactly why we use **Softmax**. It acts as a "soft", continuous, and fully differentiable **approximation** of Argmax, turning raw scores into a smooth probability map that allows the network to train while still identifying the most likely next tokens.
 
 
- *Note: Despite its name, Softmax is not actually a soft approximation of the maximum function. Instead, it is a soft approximation of the Argmax function, which is why many researchers prefer the more accurate term *Softargmax*.*
+ *Note: Despite its name, Softmax is not actually a soft approximation of the maximum function (infact the softt apporixmation of the maximum function is LogSumExp: $\log \sum e^{x_i}$). Instead, it is a soft approximation of the Argmax function, which is why many researchers prefer the more accurate term *Softargmax*.*
 
 ### Soft (smooth) approximation
 
@@ -250,3 +250,86 @@ Now, let's see what happens when we heat things up. Using the exact same initial
 **The Trajectory:** Instead of moving toward a corner, the rising temperature ignores the differences between the raw scores. The point is pulled directly into the  center of the simplex (triangle), the coordinate $(1/3, 1/3, 1/3)$. At this center point, the model completely ignores the fact that $v_1$ was much larger than $v_3$. It assigns an equal $33.3\%$ probability to all three tokens, making the output completely random.
 
 **The Color:** Again, the color gradient maps the temperature. The dark points represent the starting temperature, and as the color shifts to yellow, $T$ is approaching infinity, dragging the distribution to perfect uniformity.
+
+
+
+
+
+
+
+
+
+
+
+
+### Information Theory: Temperature as an Entropy Dial
+
+To truly understand the impact of temperature, we can look at it through the lens of Information Theory. In this context, temperature acts as a dial that controls the Shannon Entropy of our output distribution.
+
+Shannon Entropy ($H$) measures the unpredictability, surprise, or "chaos" inside a probability distribution $P = (p_1, p_2, \ldots, p_n)$. It is defined as:
+
+$$H(P) = -\sum_{i=1}^n p_i \ln(p_i)$$
+
+(Note: we assume $0 \ln(0) = 0$ based on the limit $\lim_{x \to 0^+} x \ln x = 0$).
+
+When we use the temperature-scaled Softmax function to generate our probabilities ($p_i = S_T(v_i)$), changing $T$ directly manipulates the entropy of the system. Let's look at our two extremes:
+
+1. As $T \to 0^+$ (The Deterministic Limit)
+We previously proved that as temperature approaches zero, the probability of the maximum logit approaches $1$, and all others approach $0$. Our distribution becomes a one-hot vector (e.g., $[1, 0, 0, \ldots, 0]$).
+Plugging this into the entropy formula gives:
+
+
+$$H = -\left( 1 \ln(1) + 0 \ln(0) + \dots \right) = 0$$
+
+
+At zero temperature, the system has zero entropy. The LLM is utterly deterministic; there is zero "surprise" in what it will output next.
+
+2. As $T \to \infty$ (The Chaotic Limit)
+Conversely, as temperature approaches infinity, every token gets the exact same probability: $p_i = \frac{1}{n}$.
+Plugging this uniform distribution into our formula:
+
+
+$$H = -\sum_{i=1}^n \left( \frac{1}{n} \ln\left(\frac{1}{n}\right) \right) = -n \left( \frac{1}{n} \ln\left(\frac{1}{n}\right) \right) = \ln(n)$$
+
+
+Here, $\ln(n)$ represents the absolute maximum possible entropy for a system with $n$ choices.
+
+This behavior holds true for any arbitrary input vector $v$. By adjusting the temperature, we are shifting the machine (the LLM) anywhere between absolute certainty (0 entropy) and absolute randomness (maximum entropy).
+
+### Truncation Sampling: Top-k and Top-p
+
+After the Softmax function (with our chosen temperature) processes the logits, we are left with a valid probability distribution. But we are not done yet—we still need to actually pick a token.
+
+If we always choose the token with the highest probability (a strategy called Greedy Search or Argmax), the output becomes highly repetitive, robotic, and boring. To achieve natural language and creativity, we need to treat the distribution like a weighted roulette wheel and sample from it.
+
+However, LLMs have vocabulary sizes in the tens of thousands. Even with temperature scaling, there is a "long tail" of thousands of irrelevant, ungrammatical, or nonsensical tokens that still possess a tiny fractional probability. If you generate a long essay, the model will eventually "roll" a bad number and pick one of these nonsense words. To prevent this, we use Truncation Sampling to cut off the tail before we sample.
+
+Top-k Sampling
+Instead of considering the whole vocabulary, we sort the tokens by probability and only keep the top $K$ tokens (e.g., $K=50$). The probability of all other tokens is forced to $0$.
+
+Top-p (Nucleus) Sampling
+Top-k is rigid; it keeps exactly $K$ tokens regardless of the model's confidence. Top-p is dynamic. We sort the tokens by probability and keep adding them to a pool until their cumulative probability crosses a threshold $p$ (e.g., $p=0.90$). If the model is highly confident in 2 tokens, the pool is small. If the model is unsure and probabilities are flat, it might keep 100 tokens to reach the 90% threshold.
+
+Re-normalization and Sampling
+Because we discarded the tail in both Top-k and Top-p, the probabilities of our surviving tokens no longer sum to $1$. We must re-normalize them by dividing each surviving probability by the new total sum.
+
+Finally, we randomly sample from this truncated, re-normalized distribution. This weighted random selection is the exact reason why submitting the identical query to an LLM multiple times will yield completely different, yet mathematically valid, responses!
+
+<iframe src="./assets/sampling_explorer.html" width="100%" height="800px" frameborder="0" scrolling="no"></iframe>
+
+### Why Don't We Learn Temperature During Training?
+
+A natural question arises: if temperature is so powerful at controlling the model's confidence, why is it only used at inference time? Why don't we set $T$ as a trainable parameter and let gradient descent optimize it?
+
+During standard training, temperature is strictly set to $T = 1$. There are two main mathematical reasons for this: Scale Invariance and Gradient Instability.
+
+Let's look at the derivative of the Softmax function $S_T(v)_i$ with respect to a specific input logit $v_j$.
+If we define $\delta_{ij}$ as the Kronecker delta (1 if $i = j$, and 0 otherwise), the gradient is:
+
+$$\frac{\partial S_T(v)_i}{\partial v_j} = \frac{1}{T} S_T(v)_i (\delta_{ij} - S_T(v)_j)$$
+
+Notice the $\frac{1}{T}$ multiplier at the front.
+If we were to allow $T$ to be a learnable parameter, we introduce severe instability to the backpropagation process. If the model pushes $T$ toward $0$, the gradients will explode (due to division by a tiny number). If $T$ grows large, the gradients vanish, halting learning entirely.
+
+Furthermore, $T$ is mathematically redundant due to scale invariance. The logits $v$ are produced by the final linear layer: $v = Wx + b$. Because the temperature divides the logits ($\frac{v_i}{T}$), the model can achieve the exact same effect as changing $T$ by simply scaling its weights $W$ and biases $b$.
+By fixing $T=1$, we force the model to learn the actual absolute magnitudes of its weights to express confidence, keeping the optimization landscape identifiable and stable.
