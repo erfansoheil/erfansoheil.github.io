@@ -315,7 +315,7 @@ Because we discarded the tail in both Top-k and Top-p, the probabilities of our 
 
 Finally, we randomly sample from this truncated, re-normalized distribution. This weighted random selection is the exact reason why submitting the identical query to an LLM multiple times will yield completely different, yet mathematically valid, responses!
 
-<iframe src="./assets/sampling_explorer.html" width="100%" height="800px" frameborder="0" scrolling="no"></iframe>
+<iframe src="./assets/sampling_explorer.html" width="100%" height="1000px" frameborder="0" scrolling="no"></iframe>
 
 ### Why Don't We Learn Temperature During Training?
 
