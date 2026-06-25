@@ -315,7 +315,7 @@ Because we discarded the tail in both Top-k and Top-p, the probabilities of our 
 
 Finally, we randomly sample from this truncated, re-normalized distribution. This weighted random selection is the exact reason why submitting the identical query to an LLM multiple times will yield completely different, yet mathematically valid, responses!
 
-<iframe src="./assets/sampling_explorer.html" width="100%" height="1000px" frameborder="0" scrolling="no"></iframe>
+<iframe src="./assets/sampling_explorer.html" width="100%" height="1200px" frameborder="0" scrolling="no"></iframe>
 
 ### Why Don't We Learn Temperature During Training?
 
@@ -324,6 +324,7 @@ A natural question arises: if temperature is so powerful at controlling the mode
 During standard training, temperature is strictly set to $T = 1$. There are two main mathematical reasons for this: Scale Invariance and Gradient Instability.
 
 Let's look at the derivative of the Softmax function $S_T(v)_i$ with respect to a specific input logit $v_j$.
+
 If we define $\delta_{ij}$ as the Kronecker delta (1 if $i = j$, and 0 otherwise), the gradient is:
 
 $$\frac{\partial S_T(v)_i}{\partial v_j} = \frac{1}{T} S_T(v)_i (\delta_{ij} - S_T(v)_j)$$
