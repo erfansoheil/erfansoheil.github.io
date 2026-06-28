@@ -250,14 +250,17 @@ For the experiment, I used **Ollama** to run `llama3.2:3b` locally on my own mac
 
 Since the experiment is performed with a relatively small 3B model running locally, the results should be interpreted as a practical illustration rather than a general benchmark. The goal is to provide an intuitive example of how temperature influences language model behavior.
 
+## Interactive Exploration: Mapping Temperature in 3D
 
-To truly grasp how temperature warps the model's output, it helps to look at it geometrically. Because the Softmax function outputs probabilities that sum to 1, any 3-dimensional output (for a vocabulary of 3 words) must live on a flat, triangular surface called a probability simplex. This triangle connects the absolute certainty points: $(1,0,0)$, $(0,1,0)$, and $(0,0,1)$.
+<!-- To truly grasp how temperature warps the model's output, it helps to look at it geometrically. Because the Softmax function outputs probabilities that sum to 1, any 3-dimensional output (for a vocabulary of 3 words) must live on a flat, triangular surface called a probability simplex.  -->
+To really see how temperature shifts the model's decision-making, lets look at it geometrically. Since Softmax forces all output probabilities to sum to 1, we can visualize the model's choices for a three-word vocabulary as a single point moving across a flat, triangular surface (mathematicians call a probability simplex). By watching how temperature drags this point around the triangle, we can see exactly how the model transitions from rigid confidence to total randomness. This triangle connects the absolute certainty points: $(1,0,0)$, $(0,1,0)$, and $(0,0,1)$.
 
 Let's fix a raw logit vector to observe how temperature moves the output probability across this space. In the following interactive plots, our model has output the raw scores²: 
 
 $$v = [2.5, 1.0, -0.5]$$ 
 
-#### Interactive: Convergence to Argmax
+**Convergence to Argmax**
+
 <iframe src="./assets/argmax_3d.html" width="80%" height="400px" frameborder="0" scrolling="no"></iframe>
 
 In this first visualization, we lower the temperature from $T = 2.0$ down to near zero.
@@ -268,7 +271,7 @@ The Space: The $P_1$, $P_2$, and $P_3$ axes represent the probability assigned t
 
 **The Color**: The color gradient of the points maps to the temperature. Lighter/yellower points represent higher temperatures, while the darker/purple points show the temperature approaching $0$, where the point finally rests at the Argmax vertex.
 
-#### Interactive: Convergence to Uniform Distribution
+**Convergence to Uniform Distribution**
 <iframe src="./assets/uniform_3d.html" width="80%" height="400px" frameborder="0" scrolling="no"></iframe>
 
 Now, let's see what happens when we heat things up. Using the exact same initial logit vector $v = [2.5, 1.0, -0.5]$, we increase the temperature from $T = 1.0$ up to $T = 50.0$.
