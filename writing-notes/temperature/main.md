@@ -114,7 +114,7 @@ Here are two ways to say that a sequence of functions $f_1, f_2, \ldots$ (each m
 
 - **Uniform convergence:** The approximation is close *everywhere at once*. For large enough $k$, $f_k(x) \approx f(x)$ for every input $x \in \mathbb{R}^n$ — not just for one $x$ at a time.
 
-*Note: Uniform convergence is the stronger notion: uniform $\Rightarrow$ pointwise, but not the other way around. We do not dig deep in the concept of convergence since the main objective ofthis article is about softmax role in LLMs. However the cutios reader can refer tho this very illustraive video[here](https://www.youtube.com/watch?v=GsORKmBCLuI).*
+*Note: Uniform convergence is the stronger notion: uniform $\Rightarrow$ pointwise, but not the other way around. We do not dig deep in the concept of convergence since the main objective ofthis article is about softmax role in LLMs. However the cutios reader can refer tho this very illustrative video: [here](https://www.youtube.com/watch?v=GsORKmBCLuI).*
 
 
 Now suppose for each $T \in \mathbb{R}$ we define,
