@@ -120,7 +120,7 @@ Here are two ways to say that a sequence of functions $f_1, f_2, \ldots$ (each m
 Now suppose for each $T \in \mathbb{R}$ we define,
 
 $$  
-S_T:\mathbb{R}^n \to (0,1)^n  \\
+S_T:\mathbb{R}^n \to (0,1)^n \\
 S_T(v_i) = \frac{e^{v_i/T}}{\sum_{j=1}^n e^{v_j/T}}
 $$
 
@@ -129,6 +129,7 @@ $S_T$ in the above equation is called the **softmax function with temperature $T
 
 *Note*: It is worth being precise about *when* temperature plays a role. During **training**, the standard Softmax (implicitly with $T = 1$) is used to maintain differentiability and enable gradient-based learning. During **inference**, however, temperature becomes a tunable knob that controls the shape of the output distribution *after* the model's weights are frozen. Unless stated otherwise, every reference to temperature in this article refers to the **inference-time** setting.
 
+**$S_T \stackrel{T \to 0}{=} \text{Argmax} $**
 Let $M = \max_{j} v_j$ be the maximum value in the vector $v$. We want to prove that as $T \to 0^+$, the softmax distribution pointwise converges to the argmax distribution:
 
 
