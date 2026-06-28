@@ -5,6 +5,8 @@ title: "Temperature in Large Language Models (LLMs)"
 
 The goal of this article is to explain what temperature is in LLMs and how it changes the behaviour of the output of the LLMs.
 
+I am focusing on this topic because temperature has become a critical lever in modern prompt engineering. A less-known parameter that users now frequently adjust to balance precision against creativity. To provide a clear, technical foundation, this article focuses exclusively on the role of temperature during inference, where it functions as an active control knob rather than a fixed model weight.
+
 Before diving into the math, it helps to have a clear picture of what an LLM is actually doing at inference time. At its core, a decoder-only language model is a next-token predictor: given a sequence of tokens  (words or sub-words), it tries to predict which token should come next.  To do this, the model's final linear layer produces a raw score, called  a **logit**, for every token in its vocabulary, which can easily be in  the tens of thousands. These logits are then converted into probabilities, from which the model samples its next output. The mechanism that performs  this conversion, and the parameter that controls *how* it samples, are 
 exactly what this article is about. 
 
