@@ -36,7 +36,7 @@ The **Softmax** function $S:\mathbb{R}^n \to (0,1)^n$ normalizes these scores in
 
 $$S(v_i) = \frac{e^{v_i}}{\sum_{j=1}^n e^{v_j}}$$
 
-One immediate observation is that the Softmax function outputs a valid probability distribution—the elements are all positive and sum up to 1. It transforms any arbitrary vector of real numbers into a probability vector.
+One immediate observation is that the Softmax function outputs a valid probability distribution, meanin the elements are all positive and sum up to 1. It transforms any arbitrary vector of real numbers into a probability vector.
 
 <div class="figure-pair">
   <figure>
@@ -79,11 +79,15 @@ One immediate observation is that the Softmax function outputs a valid probabili
   }
 }
 </style>
+
+
+Now that we have established how the Softmax function turns arbitrary logits into a valid probability distribution, we can look at how the model actually uses this probability map to generate text during inference
+
 ## The Token Generation Process in LLMs
 
 In a decoder-only LLM, the main objective is to predict the next token (word or sub-word) in a sequence.
 
-Right before the final output stage, the model's last linear layer produces a vector of unnormalized scores (logits), where each element corresponds to a specific word in our vocabulary. If we wanted the model to pick only the single absolute best token, we would theoretically want an output vector that contains a `1` at the index of that best word and a `0` everywhere else.
+Right before the final output stage, the model's last linear layer produces a vector of unnormalized scores (logits) of the size of the vocabulary, where each element corresponds to a specific word in our vocabulary. If we wanted the model to pick only the single absolute best token, we would theoretically want an output vector that contains a `1` at the index of that best word and a `0` everywhere else.
 
 Mathematically, this hard selection is represented by the **Argmax** function:
 
@@ -96,7 +100,7 @@ However, during training, the model needs to learn via gradient descent. The **A
 This is exactly why we use **Softmax**. It acts as a "soft", continuous, and fully differentiable **approximation** of Argmax, turning raw scores into a smooth probability map that allows the network to train while still identifying the most likely next tokens.
 
 
- *Note: Despite its name, Softmax is not actually a soft approximation of the maximum function (infact the softt apporixmation of the maximum function is LogSumExp: $\log \sum e^{x_i}$). Instead, it is a soft approximation of the Argmax function, which is why many researchers prefer the more accurate term Softargmax.*
+ *Note: Despite its name, Softmax is not actually a soft approximation of the maximum function (infact the soft apporixmation of the maximum function is LogSumExp: $\log \sum e^{x_i}$). Instead, it is a soft approximation of the Argmax function, which is why many researchers prefer the more accurate term Softargmax.*
 
 ## **Soft (smooth) approximation**
 
@@ -110,20 +114,20 @@ Here are two ways to say that a sequence of functions $f_1, f_2, \ldots$ (each m
 
 - **Uniform convergence:** The approximation is close *everywhere at once*. For large enough $k$, $f_k(x) \approx f(x)$ for every input $x \in \mathbb{R}^n$ — not just for one $x$ at a time.
 
-*Note: Uniform convergence is the stronger notion: uniform $\Rightarrow$ pointwise, but not the other way around.*
+*Note: Uniform convergence is the stronger notion: uniform $\Rightarrow$ pointwise, but not the other way around. We do not dig deep in the concept of convergence since the main objective ofthis article is about softmax role in LLMs. However the cutios reader can refer tho this very illustraive video[here](https://www.youtube.com/watch?v=GsORKmBCLuI).*
 
 
 Now suppose for each $T \in \mathbb{R}$ we define,
 
 $$  
 S_T:\mathbb{R}^n \to (0,1)^n  \\
-
 S_T(v_i) = \frac{e^{v_i/T}}{\sum_{j=1}^n e^{v_j/T}}
 $$
 
 $S_T$ in the above equation is called the **softmax function with temperature $T$**.
 
-* **Training vs. Inference:** It is worth being precise about *when* temperature plays a role. During **training**, the standard Softmax (implicitly with $T = 1$) is used to maintain differentiability and enable gradient-based learning. During **inference**, however, temperature becomes a tunable knob that controls the shape of the output distribution *after* the model's weights are frozen. Unless stated otherwise, every reference to temperature in this article refers to the **inference-time** setting.*
+
+*Note*: It is worth being precise about *when* temperature plays a role. During **training**, the standard Softmax (implicitly with $T = 1$) is used to maintain differentiability and enable gradient-based learning. During **inference**, however, temperature becomes a tunable knob that controls the shape of the output distribution *after* the model's weights are frozen. Unless stated otherwise, every reference to temperature in this article refers to the **inference-time** setting.
 
 Let $M = \max_{j} v_j$ be the maximum value in the vector $v$. We want to prove that as $T \to 0^+$, the softmax distribution pointwise converges to the argmax distribution:
 
