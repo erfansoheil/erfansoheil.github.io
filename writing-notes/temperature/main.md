@@ -67,7 +67,7 @@ One immediate observation is that the Softmax function outputs a valid probabili
   }
 }
 </style>
-### The Token Generation Process in LLMs
+## The Token Generation Process in LLMs
 
 In a decoder-only LLM, the main objective is to predict the next token (word or sub-word) in a sequence.
 
@@ -86,9 +86,11 @@ This is exactly why we use **Softmax**. It acts as a "soft", continuous, and ful
 
  *Note: Despite its name, Softmax is not actually a soft approximation of the maximum function (infact the softt apporixmation of the maximum function is LogSumExp: $\log \sum e^{x_i}$). Instead, it is a soft approximation of the Argmax function, which is why many researchers prefer the more accurate term Softargmax.*
 
-### Soft (smooth) approximation
+## **Soft (smooth) approximation**
 
 What does it mean when we say **Softmax** is a soft **approximation** of Argmax? 
+
+In simple terms, we are about to prove two extremes: if we drop the temperature to zero, the model becomes completely deterministic (Argmax). If we crank it to infinity, the model becomes completely random (Uniform Distribution). In th following we first mathematically define *approximation* and  prove exactly how two extremes happen.
 
 Here are two ways to say that a sequence of functions $f_1, f_2, \ldots$ (each mapping $\mathbb{R}^n \to [0,1]^n$) gets closer to a target function $f$.
 
@@ -159,7 +161,7 @@ $$ \lim_{T \to 0^+} S_T(v_i)= \begin{cases}
 0 & \text{otherwise}
 \end{cases} $$
 
-The above argument shows that the softmax function converges pointwise to the argmax function.
+The above argument shows that the softmax function converges pointwise to the argmax function. This is why setting temperature$=0$ in an API call gives you the exact same response every time. The distribution collapses into a single point, forcing the model to always greedily pick the most likely token.
 
  *Note: However, this convergence is not uniform. In fact, since all of the $S_T$ functions are continuous, if they uniformly converged to a limit function $S$, then $S$ must be continuous too. However, the Argmax function is not continuous. In practical terms, this means that the  "sharpening" effect of lowering the temperature is **input-dependent**. For a logit vector where one score strongly dominates the others, even a  moderate temperature reduction will push the distribution close to deterministic. But for a logit vector where scores are nearly tied, you  may need to lower the temperature much further to achieve the same level of concentration. There is no single threshold temperature that produces the same behavior across all inputs. Simply put: **context always matters**.*
 
@@ -263,7 +265,7 @@ Now, let's see what happens when we heat things up. Using the exact same initial
 
 
 
-### Information Theory: Temperature as an Entropy Dial
+## Information Theory: Temperature as an Entropy Dial
 
 To truly understand the impact of temperature, we can look at it through the lens of Information Theory. In this context, temperature acts as a dial that controls the Shannon Entropy of our output distribution.
 
@@ -297,7 +299,7 @@ Here, $\ln(n)$ represents the absolute maximum possible entropy for a system wit
 
 This behavior holds true for any arbitrary input vector $v$. By adjusting the temperature, we are shifting the machine (the LLM) anywhere between absolute certainty (0 entropy) and absolute randomness (maximum entropy).
 
-### Truncation Sampling: Top-k and Top-p
+## Truncation Sampling: Top-k and Top-p
 
 After the Softmax function (with our chosen temperature) processes the logits, we are left with a valid probability distribution. But we are not done yet—we still need to actually pick a token.
 
@@ -319,7 +321,7 @@ Finally, we randomly sample from this truncated, re-normalized distribution. Thi
 <!-- <iframe src="./assets/sampling_explorer.html" width="100%" height="1200px" frameborder="0" scrolling="no"></iframe> -->
 <iframe class="iframe-sampling-explorer" src="./assets/sampling_explorer.html" frameborder="0"></iframe>
 
-### Why Don't We Learn Temperature During Training?
+## Why Don't We Learn Temperature During Training?
 
 A natural question arises: if temperature is so powerful at controlling the model's confidence, why is it only used at inference time? Why don't we set $T$ as a trainable parameter and let gradient descent optimize it?
 
