@@ -269,7 +269,6 @@ The Space: The $P_1$, $P_2$, and $P_3$ axes represent the probability assigned t
 
 **The Trajectory**: Follow the colored line. As $T$ decreases, the output distribution is aggressively pulled toward the corner vertex $(1, 0, 0)$. The model becomes 100% confident in $v_1$ (the maximum logit) and assigns 0% probability to the others.
 
-**The Color**: The color gradient of the points maps to the temperature. Lighter/yellower points represent higher temperatures, while the darker/purple points show the temperature approaching $0$, where the point finally rests at the Argmax vertex.
 
 **Convergence to Uniform Distribution**
 <iframe src="./assets/uniform_3d.html" width="40%" height="500px" frameborder="0" scrolling="no"></iframe>
@@ -277,8 +276,6 @@ The Space: The $P_1$, $P_2$, and $P_3$ axes represent the probability assigned t
 Now, let's see what happens when we heat things up. Using the exact same initial logit vector $v = [2.5, 1.0, -0.5]$, we increase the temperature from $T = 1.0$ up to $T = 50.0$.
 
 **The Trajectory:** Instead of moving toward a corner, the rising temperature ignores the differences between the raw scores. The point is pulled directly into the  center of the simplex (triangle), the coordinate $(1/3, 1/3, 1/3)$. At this center point, the model completely ignores the fact that $v_1$ was much larger than $v_3$. It assigns an equal $33.3\%$ probability to all three tokens, making the output completely random.
-
-**The Color:** Again, the color gradient maps the temperature. The dark points represent the starting temperature, and as the color shifts to yellow, $T$ is approaching infinity, dragging the distribution to perfect uniformity.
 
 
 
