@@ -261,7 +261,7 @@ $$v = [2.5, 1.0, -0.5]$$
 
 **Convergence to Argmax**
 
-<iframe src="./assets/argmax_3d.html" width="80%" height="500px" frameborder="0" scrolling="no"></iframe>
+<iframe src="./assets/argmax_3d.html" width="40%" height="500px" frameborder="0" scrolling="no"></iframe>
 
 In this first visualization, we lower the temperature from $T = 2.0$ down to near zero.
 
@@ -272,7 +272,7 @@ The Space: The $P_1$, $P_2$, and $P_3$ axes represent the probability assigned t
 **The Color**: The color gradient of the points maps to the temperature. Lighter/yellower points represent higher temperatures, while the darker/purple points show the temperature approaching $0$, where the point finally rests at the Argmax vertex.
 
 **Convergence to Uniform Distribution**
-<iframe src="./assets/uniform_3d.html" width="80%" height="500px" frameborder="0" scrolling="no"></iframe>
+<iframe src="./assets/uniform_3d.html" width="40%" height="500px" frameborder="0" scrolling="no"></iframe>
 
 Now, let's see what happens when we heat things up. Using the exact same initial logit vector $v = [2.5, 1.0, -0.5]$, we increase the temperature from $T = 1.0$ up to $T = 50.0$.
 
