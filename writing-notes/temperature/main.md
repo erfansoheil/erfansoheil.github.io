@@ -186,7 +186,7 @@ The above argument shows that the softmax function converges pointwise to the ar
 
 
 <!-- **$S_T \stackrel{T \to \infity}{=} \frac{1}{n} $** -->
-$\boldsymbol{S_T \stackrel{T \to \infrty}{=} \frac{1}{n}}$
+$\boldsymbol{S_T \stackrel{T \to \infty}{=} \frac{1}{n}}$
 
 
 let us prove the claim: by increasing the temperature, the functions $S_T$ converge to the uniform distribution $S(v)_i=\frac{1}{n}$.
