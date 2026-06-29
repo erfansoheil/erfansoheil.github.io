@@ -36,7 +36,7 @@ The **Softmax** function $S:\mathbb{R}^n \to (0,1)^n$ normalizes these scores in
 
 $$S(v_i) = \frac{e^{v_i}}{\sum_{j=1}^n e^{v_j}}$$
 
-One immediate observation is that the Softmax function outputs a valid probability distribution, meanin the elements are all positive and sum up to 1. It transforms any arbitrary vector of real numbers into a probability vector.
+One immediate observation is that the Softmax function outputs a valid probability distribution, meaning the elements are all positive and sum up to 1. It transforms any arbitrary vector of real numbers into a probability vector.
 
 <div class="figure-pair">
   <figure>
@@ -100,13 +100,13 @@ However, during training, the model needs to learn via gradient descent. The **A
 This is exactly why we use **Softmax**. It acts as a "soft", continuous, and fully differentiable **approximation** of Argmax, turning raw scores into a smooth probability map that allows the network to train while still identifying the most likely next tokens.
 
 
- *Note: Despite its name, Softmax is not actually a soft approximation of the maximum function (infact the soft apporixmation of the maximum function is LogSumExp: $\log \sum e^{x_i}$). Instead, it is a soft approximation of the Argmax function, which is why many researchers prefer the more accurate term Softargmax.*
+ *Note: Despite its name, Softmax is not actually a soft approximation of the maximum function (in fact the soft approximation of the maximum function is LogSumExp: $\log \sum e^{x_i}$). Instead, it is a soft approximation of the Argmax function, which is why many researchers prefer the more accurate term Softargmax.*
 
 ## **Soft (smooth) approximation**
 
 What does it mean when we say **Softmax** is a soft **approximation** of Argmax? 
 
-In simple terms, we are about to prove two extremes: if we drop the temperature to zero, the model becomes completely deterministic (Argmax). If we crank it to infinity, the model becomes completely random (Uniform Distribution). In th following we first mathematically define *approximation* and  prove exactly how two extremes happen.
+In simple terms, we are about to prove two extremes: if we drop the temperature to zero, the model becomes completely deterministic (Argmax). If we crank it to infinity, the model becomes completely random (Uniform Distribution). In the following we first mathematically define *approximation* and prove exactly how these two extremes happen.
 
 Here are two ways to say that a sequence of functions $f_1, f_2, \ldots$ (each mapping $\mathbb{R}^n \to [0,1]^n$) gets closer to a target function $f$.
 
@@ -114,7 +114,7 @@ Here are two ways to say that a sequence of functions $f_1, f_2, \ldots$ (each m
 
 - **Uniform convergence:** The approximation is close *everywhere at once*. For large enough $k$, $f_k(x) \approx f(x)$ for every input $x \in \mathbb{R}^n$ — not just for one $x$ at a time.
 
-*Note: Uniform convergence is the stronger notion: uniform $\Rightarrow$ pointwise, but not the other way around. We do not dig deep in the concept of convergence since the main objective ofthis article is about softmax role in LLMs. However the cutios reader can refer tho this very illustrative video: [here](https://www.youtube.com/watch?v=GsORKmBCLuI).*
+*Note: Uniform convergence is the stronger notion: uniform $\Rightarrow$ pointwise, but not the other way around. We do not dig deep into the concept of convergence since the main objective of this article is about the role of softmax in LLMs. However the curious reader can refer to this very illustrative video: [here](https://www.youtube.com/watch?v=GsORKmBCLuI).*
 
 
 Now suppose for each $T \in \mathbb{R}$ we define,
@@ -150,7 +150,7 @@ Using the exponent rule $e^a \cdot e^b = e^{a+b}$, we can rewrite this as:
 
 $$S_T(v_i) = \frac{e^{(v_i - M)/T}}{\sum_{j=1}^n e^{(v_j - M)/T}}$$
 
-In the denominator there is one index, like $k$, such that $v_k = M$. So, $(v_k - M) = 0$. Therefore, $e^{v_k-M} = e^{0/T} = e^0 = 1$. For other indices, we know $v_j < M$, so $(v_j - M)$ is a strictly negative constant. Let $c_j = v_j - M < 0$. As $T \to 0^+$, the exponent $\frac{c_j}{T} \to -\infty$. Consequently, $e^{(v_j - M)/T} \to 0$.
+In the denominator there is one index, like $k$, such that $v_k = M$. So, $(v_k - M) = 0$. Therefore, $e^{(v_k - M)/T} = e^{0/T} = e^0 = 1$. For other indices, we know $v_j < M$, so $(v_j - M)$ is a strictly negative constant. Let $c_j = v_j - M < 0$. As $T \to 0^+$, the exponent $\frac{c_j}{T} \to -\infty$. Consequently, $e^{(v_j - M)/T} \to 0$.
 
 Thus, the limit of the denominator as $T \to 0^+$ is:
 
@@ -179,17 +179,17 @@ $$ \lim_{T \to 0^+} S_T(v_i)= \begin{cases}
 0 & \text{otherwise}
 \end{cases} $$
 
-The above argument shows that the softmax function converges pointwise to the argmax function. This is why setting temperature$=0$ in an API call gives you the exact same response every time. The distribution collapses into a single point, forcing the model to always greedily pick the most likely token.
+The above argument shows that the softmax function converges pointwise to the argmax function. This is why setting temperature $= 0$ in an API call gives you the exact same response every time. The distribution collapses into a single point, forcing the model to always greedily pick the most likely token.
 
  *Note: However, this convergence is not uniform. In fact, since all of the $S_T$ functions are continuous, if they uniformly converged to a limit function $S$, then $S$ must be continuous too. However, the Argmax function is not continuous. In practical terms, this means that the  "sharpening" effect of lowering the temperature is **input-dependent**. For a logit vector where one score strongly dominates the others, even a  moderate temperature reduction will push the distribution close to deterministic. But for a logit vector where scores are nearly tied, you  may need to lower the temperature much further to achieve the same level of concentration. There is no single threshold temperature that produces the same behavior across all inputs. Simply put: **context always matters**.*
 
 
 
-<!-- **$S_T \stackrel{T \to \infity}{=} \frac{1}{n} $** -->
+<!-- **$S_T \stackrel{T \to \infty}{=} \frac{1}{n} $** -->
 $\boldsymbol{S_T \stackrel{T \to \infty}{=} \frac{1}{n}}$
 
 
-let us prove the claim: by increasing the temperature, the functions $S_T$ converge to the uniform distribution $S(v)_i=\frac{1}{n}$.
+Let us prove the claim: by increasing the temperature, the functions $S_T$ converge to the uniform distribution $S(v)_i=\frac{1}{n}$.
 
 Here is the mathematical proof.
 
@@ -234,8 +234,7 @@ This proves that as the temperature approaches infinity, the softmax function co
  In the context of LLMs, this means that if we reduce the temperature to exactly 0 (or almost 0), the model's outputs—the new tokens—will become deterministic. Normally, models like GPT run at a higher default temperature, which is why you can input the same query twice and get different answers (same meaning, but different grammar or vocabulary). Lowering the temperature to 0 eliminates this variance.
  On the other hand, when we increase the temperature ($T \to +\infty$), the limit of the functions $S_T$ converges to the uniform distribution $S(v)_i=\frac{1}{n}$. This means that the model assigns the exact same weight to every word in the vocabulary, resulting in completely random and chaotic outputs.
 
-To make these theoretical claims concrete, the following short demonstration shows what temperature actually looks like in practice on a real language  model. The same prompt is submitted multiple times at progressively different 
-temperature values 
+To make these theoretical claims concrete, the following short demonstration shows what temperature actually looks like in practice on a real language model. The same prompt is submitted multiple times at progressively different temperature values.
 
 <video controls autoplay muted loop width="100%" style="border-radius: 8px;">
   <source src="./assets/videos/temperature_vid.webm" type="video/webm">
@@ -253,9 +252,9 @@ Since the experiment is performed with a relatively small 3B model running local
 ## Interactive Exploration: Mapping Temperature in 3D
 
 <!-- To truly grasp how temperature warps the model's output, it helps to look at it geometrically. Because the Softmax function outputs probabilities that sum to 1, any 3-dimensional output (for a vocabulary of 3 words) must live on a flat, triangular surface called a probability simplex.  -->
-To really see how temperature shifts the model's decision-making, lets look at it geometrically. Since Softmax forces all output probabilities to sum to 1, we can visualize the model's choices for a three-word vocabulary as a single point moving across a flat, triangular surface (mathematicians call a probability simplex). By watching how temperature drags this point around the triangle, we can see exactly how the model transitions from rigid confidence to total randomness. This triangle connects the absolute certainty points: $(1,0,0)$, $(0,1,0)$, and $(0,0,1)$.
+To really see how temperature shifts the model's decision-making, let's look at it geometrically. Since Softmax forces all output probabilities to sum to 1, we can visualize the model's choices for a three-word vocabulary as a single point moving across a flat, triangular surface (mathematicians call a probability simplex). By watching how temperature drags this point around the triangle, we can see exactly how the model transitions from rigid confidence to total randomness. This triangle connects the absolute certainty points: $(1,0,0)$, $(0,1,0)$, and $(0,0,1)$.
 
-Let's fix a raw logit vector to observe how temperature moves the output probability across this space. In the following interactive plots, our model has output the raw scores²: 
+Let's fix a raw logit vector to observe how temperature moves the output probability across this space. In the following interactive plots, our model has output the raw scores: 
 
 $$v = [2.5, 1.0, -0.5]$$ 
 
@@ -275,7 +274,7 @@ The Space: The $P_1$, $P_2$, and $P_3$ axes represent the probability assigned t
 
 Now, let's see what happens when we heat things up. Using the exact same initial logit vector $v = [2.5, 1.0, -0.5]$, we increase the temperature from $T = 1.0$ up to $T = 50.0$.
 
-**The Trajectory:** Instead of moving toward a corner, the rising temperature ignores the differences between the raw scores. The point is pulled directly into the  center of the simplex (triangle), the coordinate $(1/3, 1/3, 1/3)$. At this center point, the model completely ignores the fact that $v_1$ was much larger than $v_3$. It assigns an equal $33.3\%$ probability to all three tokens, making the output completely random.
+**The Trajectory:** Instead of moving toward a corner, the rising temperature ignores the differences between the raw scores. The point is pulled directly into the center of the simplex (triangle), the coordinate $(1/3, 1/3, 1/3)$. At this center point, the model completely ignores the fact that $v_1$ was much larger than $v_3$. It assigns an equal $33.3\%$ probability to all three tokens, making the output completely random.
 
 
 
@@ -289,7 +288,7 @@ Now, let's see what happens when we heat things up. Using the exact same initial
 
 ## Truncation Sampling: Top-k and Top-p
 
-After the Softmax function (with our chosen temperature) processes the logits, we are left with a valid probability distribution. But we are not done yet—we still need to actually pick a token from our vocabulary and add the the previous tokens (genrative process).
+After the Softmax function (with our chosen temperature) processes the logits, we are left with a valid probability distribution. But we are not done yet—we still need to actually pick a token from our vocabulary and add to the previous tokens (generative process).
 
 If we always choose the token with the highest probability (a strategy called Greedy Search or Argmax), the output becomes highly repetitive, robotic, and boring. 
 
@@ -332,7 +331,7 @@ Finally, we randomly sample from this truncated, re-normalized distribution. Thi
 <!-- <iframe src="./assets/sampling_explorer.html" width="100%" height="1200px" frameborder="0" scrolling="no"></iframe> -->
 <iframe class="iframe-sampling-explorer" src="./assets/sampling_explorer.html" frameborder="0"></iframe>
 
-Together, temperature scaling, truncation, and stochastic sampling form the inference-time pipeline that turns raw logits into a single next token and repeated, into a full completion. Every  hyperparameters we have discussed so far is applied after the model has already been trained (meaning in inference time). 
+Together, temperature scaling, truncation, and stochastic sampling form the inference-time pipeline that turns raw logits into a single next token and, when repeated, into a full completion. Every hyperparameter we have discussed so far is applied after the model has already been trained (meaning at inference time). 
 
 A natural question arises: if temperature is so powerful at controlling the model's confidence, why is it only used at inference time? Why don't we set $T$ as a trainable parameter and let gradient descent optimize it?
 
@@ -360,14 +359,14 @@ There is another way to look at the same effect: through **Shannon entropy**.
 
 Shannon entropy measures how uncertain or spread out a probability distribution is. If almost all the probability is assigned to one token, the entropy is low. If the probability is distributed more evenly across many possible tokens, the entropy is higher. 
 
-In the follwoing section we discussa little bit about the realtion between entropy and temperature. 
+In the following section we discuss a little bit about the relation between entropy and temperature. 
 
 This section is not essential for the main discussion, and the article can be understood without it. I include it only as a short side note, because entropy gives another natural language for describing the same idea of temperature: how concentrated or spread out a probability distribution is.
 
 
 ## Information Theory: Temperature as an Entropy Dial  
 
-In the context Information Theory, temperature acts as a dial that controls the Shannon Entropy of our output distribution.
+In the context of Information Theory, temperature acts as a dial that controls the Shannon Entropy of our output distribution.
 
 Shannon Entropy ($H$) measures the unpredictability, surprise, or "chaos" inside a probability distribution $P = (p_1, p_2, \ldots, p_n)$. It is defined as:
 
