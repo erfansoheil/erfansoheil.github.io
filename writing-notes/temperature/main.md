@@ -399,3 +399,20 @@ $$H = -\sum_{i=1}^n \left( \frac{1}{n} \ln\left(\frac{1}{n}\right) \right) = -n 
 Here, $\ln(n)$ represents the absolute maximum possible entropy for a system with $n$ choices.
 
 This behavior holds true for any arbitrary input vector $v$. By adjusting the temperature, we are shifting the machine (the LLM) anywhere between absolute certainty (0 entropy) and absolute randomness (maximum entropy).
+
+## Conclusion
+
+We started with a simple question: how does a language model turn a vector of raw scores into an actual word? The answer required three pieces:
+- the **Softmax** function, which converts logits into a valid probability distribution; 
+- **temperature**, which controls how concentrated or diffuse that distribution is; 
+- and **truncation sampling** (Top-k, Top-p), which prunes the long tail before the final draw.
+
+Along the way, we proved two limiting cases rigorously.
+- As $T \to 0^+$, the Softmax collapses pointwise to Argmax, the model becomes fully deterministic. 
+- As $T \to \infty$, it converges to the uniform distribution , the model becomes fully random. 
+
+Every practical temperature setting lives somewhere between these two extremes, and the entropy framing makes this precise: temperature is a dial that moves the output distribution between zero entropy and $\ln(n)$.
+
+One thing worth keeping in mind is that all of this happens *after* training. Temperature is not a learned parameter. Not because it is unimportant, but because it is mathematically redundant (the weights can absorb any constant scaling) and numerically dangerous to optimize (the gradient scales as $\frac{1}{T}$, which explodes near zero). Fixing $T = 1$ during training keeps the optimization landscape stable and identifiable.
+
+ The core takeaway is this: temperature does not change what the model *knows* , it changes how *confidently* it acts on what it knows.
