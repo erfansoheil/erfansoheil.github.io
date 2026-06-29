@@ -338,7 +338,7 @@ A natural question arises: if temperature is so powerful at controlling the mode
 
 ## Why Don't We Learn Temperature During Training?
 
-During standard training, temperature is strictly set to $T = 1$. There are two main mathematical reasons for this: Scale Invariance and Gradient Instability.
+During standard training, temperature is strictly set to $T = 1$. There are two main mathematical reasons for this: **Scale Invariance** and **Gradient Instability**.
 
 Let's look at the derivative of the Softmax function $S_T(v)_i$ with respect to a specific input logit $v_j$.
 
