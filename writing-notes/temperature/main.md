@@ -300,12 +300,12 @@ For example, suppose the model has to complete the sentence:
 After applying Softmax, the model may assign probabilities like this:
 
 | Token | Probability |
-| ----- | ----------: |
-| mat   |        0.50 |
-| sofa  |        0.25 |
-| floor |        0.15 |
-| roof  |        0.09 |
-| moon  |        0.01 |
+| -------| ------------:|
+| mat   | 0.50        |
+| sofa  | 0.25        |
+| floor | 0.15        |
+| roof  | 0.09        |
+| moon  | 0.01        |
 
 With greedy search, the model always chooses **“mat”**, because it has the highest probability. So every time we run the model in the same situation, we get the same completion:
 
@@ -315,13 +315,16 @@ To achieve natural language and creativity, we need to treat the distribution li
 
 However, LLMs have vocabulary sizes in the tens of thousands (commonly 30k-60k). Even with temperature scaling, there is a "long tail" of thousands of irrelevant, ungrammatical, or nonsensical tokens that still possess a tiny fractional probability. If you generate a long essay, the model will eventually "roll" a bad number and pick one of these nonsense words. To prevent this, we use Truncation Sampling to cut off the tail before we sample.
 
-Top-k Sampling
+**Top-k Sampling** :
+
 Instead of considering the whole vocabulary, we sort the tokens by probability and only keep the top $K$ tokens (e.g., $K=50$). The probability of all other tokens is forced to $0$.
 
-Top-p (Nucleus) Sampling
+**Top-p (Nucleus) Sampling**:
+
 Top-k is rigid; it keeps exactly $K$ tokens regardless of the model's confidence. Top-p is dynamic. We sort the tokens by probability and keep adding them to a pool until their cumulative probability crosses a threshold $p$ (e.g., $p=0.90$). If the model is highly confident in 2 tokens, the pool is small. If the model is unsure and probabilities are flat, it might keep 100 tokens to reach the 90% threshold.
 
-Re-normalization and Sampling
+**Re-normalization and Sampling**
+
 Because we discarded the tail in both Top-k and Top-p, the probabilities of our surviving tokens no longer sum to $1$. We must re-normalize them by dividing each surviving probability by the new total sum.
 
 Finally, we randomly sample from this truncated, re-normalized distribution. This weighted random selection is the exact reason why submitting the identical query to an LLM multiple times will yield completely different, yet mathematically valid, responses!
