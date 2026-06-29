@@ -332,9 +332,11 @@ Finally, we randomly sample from this truncated, re-normalized distribution. Thi
 <!-- <iframe src="./assets/sampling_explorer.html" width="100%" height="1200px" frameborder="0" scrolling="no"></iframe> -->
 <iframe class="iframe-sampling-explorer" src="./assets/sampling_explorer.html" frameborder="0"></iframe>
 
-## Why Don't We Learn Temperature During Training?
+Together, temperature scaling, truncation, and stochastic sampling form the inference-time pipeline that turns raw logits into a single next token and repeated, into a full completion. Every  hyperparameters we have discussed so far is applied after the model has already been trained (meaning in inference time). 
 
 A natural question arises: if temperature is so powerful at controlling the model's confidence, why is it only used at inference time? Why don't we set $T$ as a trainable parameter and let gradient descent optimize it?
+
+## Why Don't We Learn Temperature During Training?
 
 During standard training, temperature is strictly set to $T = 1$. There are two main mathematical reasons for this: Scale Invariance and Gradient Instability.
 
