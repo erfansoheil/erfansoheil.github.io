@@ -287,41 +287,6 @@ Now, let's see what happens when we heat things up. Using the exact same initial
 
 
 
-
-## Information Theory: Temperature as an Entropy Dial
-
-To truly understand the impact of temperature, we can look at it through the lens of Information Theory. In this context, temperature acts as a dial that controls the Shannon Entropy of our output distribution.
-
-Shannon Entropy ($H$) measures the unpredictability, surprise, or "chaos" inside a probability distribution $P = (p_1, p_2, \ldots, p_n)$. It is defined as:
-
-$$H(P) = -\sum_{i=1}^n p_i \ln(p_i)$$
-
-(Note: we assume $0 \ln(0) = 0$ based on the limit $\lim_{x \to 0^+} x \ln x = 0$).
-
-When we use the temperature-scaled Softmax function to generate our probabilities ($p_i = S_T(v_i)$), changing $T$ directly manipulates the entropy of the system. Let's look at our two extremes:
-
-1. As $T \to 0^+$ (The Deterministic Limit)
-We previously proved that as temperature approaches zero, the probability of the maximum logit approaches $1$, and all others approach $0$. Our distribution becomes a one-hot vector (e.g., $[1, 0, 0, \ldots, 0]$).
-Plugging this into the entropy formula gives:
-
-
-$$H = -\left( 1 \ln(1) + 0 \ln(0) + \dots \right) = 0$$
-
-
-At zero temperature, the system has zero entropy. The LLM is utterly deterministic; there is zero "surprise" in what it will output next.
-
-2. As $T \to \infty$ (The Chaotic Limit)
-Conversely, as temperature approaches infinity, every token gets the exact same probability: $p_i = \frac{1}{n}$.
-Plugging this uniform distribution into our formula:
-
-
-$$H = -\sum_{i=1}^n \left( \frac{1}{n} \ln\left(\frac{1}{n}\right) \right) = -n \left( \frac{1}{n} \ln\left(\frac{1}{n}\right) \right) = \ln(n)$$
-
-
-Here, $\ln(n)$ represents the absolute maximum possible entropy for a system with $n$ choices.
-
-This behavior holds true for any arbitrary input vector $v$. By adjusting the temperature, we are shifting the machine (the LLM) anywhere between absolute certainty (0 entropy) and absolute randomness (maximum entropy).
-
 ## Truncation Sampling: Top-k and Top-p
 
 After the Softmax function (with our chosen temperature) processes the logits, we are left with a valid probability distribution. But we are not done yet—we still need to actually pick a token.
@@ -361,3 +326,50 @@ If we were to allow $T$ to be a learnable parameter, we introduce severe instabi
 
 Furthermore, $T$ is mathematically redundant due to scale invariance. The logits $v$ are produced by the final linear layer: $v = Wx + b$. Because the temperature divides the logits ($\frac{v_i}{T}$), the model can achieve the exact same effect as changing $T$ by simply scaling its weights $W$ and biases $b$.
 By fixing $T=1$, we force the model to learn the actual absolute magnitudes of its weights to express confidence, keeping the optimization landscape identifiable and stable.
+
+
+
+So far, we have looked at temperature mainly as a sampling control: a parameter that changes how sharply or softly the model chooses the next token. Lower temperature concentrates probability mass on the most likely tokens, while higher temperature spreads probability mass across more alternatives.
+
+There is another way to look at the same effect: through **Shannon entropy**.
+
+Shannon entropy measures how uncertain or spread out a probability distribution is. If almost all the probability is assigned to one token, the entropy is low. If the probability is distributed more evenly across many possible tokens, the entropy is higher. 
+
+In the follwoing section we discussa little bit about the realtion between entropy and temperature. 
+
+This section is not essential for the main discussion, and the article can be understood without it. I include it only as a short side note, because entropy gives another natural language for describing the same idea of temperature: how concentrated or spread out a probability distribution is.
+
+
+## Information Theory: Temperature as an Entropy Dial  
+
+In the context Information Theory, temperature acts as a dial that controls the Shannon Entropy of our output distribution.
+
+Shannon Entropy ($H$) measures the unpredictability, surprise, or "chaos" inside a probability distribution $P = (p_1, p_2, \ldots, p_n)$. It is defined as:
+
+$$H(P) = -\sum_{i=1}^n p_i \ln(p_i)$$
+
+(Note: we assume $0 \ln(0) = 0$ based on the limit $\lim_{x \to 0^+} x \ln x = 0$).
+
+When we use the temperature-scaled Softmax function to generate our probabilities ($p_i = S_T(v_i)$), changing $T$ directly manipulates the entropy of the system. Let's look at our two extremes:
+
+1. As $T \to 0^+$ (The Deterministic Limit)
+We previously proved that as temperature approaches zero, the probability of the maximum logit approaches $1$, and all others approach $0$. Our distribution becomes a one-hot vector (e.g., $[1, 0, 0, \ldots, 0]$).
+Plugging this into the entropy formula gives:
+
+
+$$H = -\left( 1 \ln(1) + 0 \ln(0) + \dots \right) = 0$$
+
+
+At zero temperature, the system has zero entropy. The LLM is utterly deterministic; there is zero "surprise" in what it will output next.
+
+2. As $T \to \infty$ (The Chaotic Limit)
+Conversely, as temperature approaches infinity, every token gets the exact same probability: $p_i = \frac{1}{n}$.
+Plugging this uniform distribution into our formula:
+
+
+$$H = -\sum_{i=1}^n \left( \frac{1}{n} \ln\left(\frac{1}{n}\right) \right) = -n \left( \frac{1}{n} \ln\left(\frac{1}{n}\right) \right) = \ln(n)$$
+
+
+Here, $\ln(n)$ represents the absolute maximum possible entropy for a system with $n$ choices.
+
+This behavior holds true for any arbitrary input vector $v$. By adjusting the temperature, we are shifting the machine (the LLM) anywhere between absolute certainty (0 entropy) and absolute randomness (maximum entropy).
