@@ -119,9 +119,11 @@ Here are two ways to say that a sequence of functions $f_1, f_2, \ldots$ (each m
 
 Now suppose for each $T \in \mathbb{R}$ we define,
 
-$$  
+$$
+\begin{gather}
 S_T:\mathbb{R}^n \to (0,1)^n \\
 S_T(v_i) = \frac{e^{v_i/T}}{\sum_{j=1}^n e^{v_j/T}}
+\end{gather}
 $$
 
 $S_T$ in the above equation is called the **softmax function with temperature $T$**.
