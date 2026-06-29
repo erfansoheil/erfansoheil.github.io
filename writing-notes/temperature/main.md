@@ -129,7 +129,7 @@ $S_T$ in the above equation is called the **softmax function with temperature $T
 
 *Note*: It is worth being precise about *when* temperature plays a role. During **training**, the standard Softmax (implicitly with $T = 1$) is used to maintain differentiability and enable gradient-based learning. During **inference**, however, temperature becomes a tunable knob that controls the shape of the output distribution *after* the model's weights are frozen. Unless stated otherwise, every reference to temperature in this article refers to the **inference-time** setting.
 
-$\boldsymbol{S_T \stackrel{T \to 0}{=} \bold{\text{Argmax}}}$
+$\boldsymbol{S_T \stackrel{T \to 0}{=} {\text{Argmax}}}$
 
 Let $M = \max_{j} v_j$ be the maximum value in the vector $v$. We want to prove that as $T \to 0^+$, the softmax distribution pointwise converges to the argmax distribution:
 
@@ -289,11 +289,31 @@ Now, let's see what happens when we heat things up. Using the exact same initial
 
 ## Truncation Sampling: Top-k and Top-p
 
-After the Softmax function (with our chosen temperature) processes the logits, we are left with a valid probability distribution. But we are not done yet—we still need to actually pick a token.
+After the Softmax function (with our chosen temperature) processes the logits, we are left with a valid probability distribution. But we are not done yet—we still need to actually pick a token from our vocabulary and add the the previous tokens (genrative process).
 
-If we always choose the token with the highest probability (a strategy called Greedy Search or Argmax), the output becomes highly repetitive, robotic, and boring. To achieve natural language and creativity, we need to treat the distribution like a weighted roulette wheel and sample from it.
+If we always choose the token with the highest probability (a strategy called Greedy Search or Argmax), the output becomes highly repetitive, robotic, and boring. 
 
-However, LLMs have vocabulary sizes in the tens of thousands. Even with temperature scaling, there is a "long tail" of thousands of irrelevant, ungrammatical, or nonsensical tokens that still possess a tiny fractional probability. If you generate a long essay, the model will eventually "roll" a bad number and pick one of these nonsense words. To prevent this, we use Truncation Sampling to cut off the tail before we sample.
+For example, suppose the model has to complete the sentence:
+
+> The cat is sitting on the ___
+
+After applying Softmax, the model may assign probabilities like this:
+
+| Token | Probability |
+| ----- | ----------: |
+| mat   |        0.50 |
+| sofa  |        0.25 |
+| floor |        0.15 |
+| roof  |        0.09 |
+| moon  |        0.01 |
+
+With greedy search, the model always chooses **“mat”**, because it has the highest probability. So every time we run the model in the same situation, we get the same completion:
+
+> The cat is sitting on the mat.
+
+To achieve natural language and creativity, we need to treat the distribution like a more flexible object (which is one of the properties of distributions) and sample from it.
+
+However, LLMs have vocabulary sizes in the tens of thousands (commonly 30k-60k). Even with temperature scaling, there is a "long tail" of thousands of irrelevant, ungrammatical, or nonsensical tokens that still possess a tiny fractional probability. If you generate a long essay, the model will eventually "roll" a bad number and pick one of these nonsense words. To prevent this, we use Truncation Sampling to cut off the tail before we sample.
 
 Top-k Sampling
 Instead of considering the whole vocabulary, we sort the tokens by probability and only keep the top $K$ tokens (e.g., $K=50$). The probability of all other tokens is forced to $0$.
