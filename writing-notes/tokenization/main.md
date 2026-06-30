@@ -1,3 +1,17 @@
+---
+layout: post
+title: "Tpkenization VS Token Representation"
+---
+
+The idea of this article came to my mind when I was readig about LLM archtiectures and was trying to understand the difference between **Token**, **Tokenization**, **Token IDs** and **Token Represenations**. At first all of these look the same to me and it took some time for me to categorize them in my mind. This articel is a try to create a mental map for someone who wants to go deep in these topics. 
+
+In this artcile I first discuss about *Token* and *Tokenization* process in LLMs. Then we disucss about *Token Representations* process. Before that lets recall the trasdformers architecture since it is our building block of thsi article. 
+
+![Transformers Architecture](./assets/images/tr_arch.png)
+
+## First Part: Tokenization
+
+
 Throughout this article, the word **token** is used frequently. A token is a discrete unit of information processed by a model. In domain of language models, a token usually represents a word, part of a word, a punctuation mark, or another piece of text. In other domains, however, tokens may represent image patches, audio segments, time-series windows, and so on.
 
 Before a model can process an input, it must first convert it into a sequence of tokens. The tokens themselves are not directly understood by the neural network. Instead, each token is mapped to a unique integer called a **token ID**. These token IDs are then transformed into vectors through an **embedding layer**, producing numerical representations that the model can process.
