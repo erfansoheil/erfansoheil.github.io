@@ -17,7 +17,9 @@ In the above figure you can see the **Input** and **Output** embeddings moduls. 
 
 Throughout this article, the word **token** is used frequently. A token is a **discrete unit of information processed by a model**. In domain of language models, a token usually represents a word, part of a word, a punctuation mark, or another piece of text. In other domains, however, tokens may represent image patches, audio segments, time-series windows, and so on.
 
-Before a model can process an input, it must first convert it into a sequence of tokens. The tokens themselves are not directly understood by the neural network. Instead, each token is mapped to a unique integer called a **token ID**. These token IDs are then transformed into vectors through an **embedding layer**, producing numerical representations that the model can process.
+Before a model can process an input, it must first convert it into a sequence of tokens. The tokens themselves are not directly understood by the neural network. Instead, they must be converted into numbers using the model's Vocabulary—which is a fixed master list of every token the model is trained to recognize.
+
+The total number of unique items in this list is the Vocabulary Size. Each token is mapped to its exact index number in this vocabulary, known as a Token ID. These token IDs are then transformed into meaningful vectors through an **embedding layer**, producing numerical representations that the model can process.
 
 As a result, the pipeline looks as follows:
 
@@ -32,18 +34,37 @@ The process of converting an input into tokens is called **tokenization**. Lets 
 
 **Exmple :**
 
+Let’s see how a simple sentence moves through the first two steps of the pipeline using a standard subword tokenizer (like the one used by GPT models).
+
+- Input (Raw Text): > "Tokenization is fun!"
+
+- Tokens (Discrete Units): The tokenizer chops the text into pieces. Notice how "Tokenization" is broken into smaller subword units:
+$["\text{Token}", "\text{ization}", " \text{is}", " \text{fun}", "\text{!}"]$
+
+- Token IDs (Unique Integers): Each token is looked up in the model's pre-defined vocabulary dictionary and replaced by its corresponding mathematical ID:
+$[30121, 1634, 318, 1257, 0]$
 
 
 
 **Why do we need Token IDs after Tokenization?**
-It is tempting to think that once we split a sentence into string-based tokens like `["deep", "learning"]`, the hard part is over. However, computers and neural networks cannot perform mathematical operations on raw text strings. They operate strictly on matrices and vectors of floating-point numbers. 
 
-Token IDs act as the bridge. By assigning every unique token in our vocabulary a fixed, unique integer index (e.g., `"deep"` $\rightarrow$ `2534`), we create a structured lookup system that the neural network can interact with mathematically.
+It is tempting to think that once we split a sentence into string-based tokens like `["Token", "ization","is","fun","!"]`, the hard part is over. However, computers and neural networks cannot perform mathematical operations on raw text strings. They operate strictly on matrices and vectors of floating-point numbers. 
 
-### Are Token IDs Fixed or Learned?
+Token IDs act as the bridge. By assigning every unique token in our vocabulary a fixed, unique integer index (e.g., `"token"` $\rightarrow$ `2534`), we create a structured lookup system that the neural network can interact with mathematically.
+
+Think of this lookup table as a simple, two-way dictionary that handles two distinct phases:
+
+* **Token to ID (Encoding):** When processing your input text, the system looks up each string token to find its corresponding index number.
+  $$\text{"Token"} \longrightarrow \text{Lookup Table} \longrightarrow 30121$$
+
+* **ID to Token (Decoding):** When the model generates a response, it outputs a raw number. This number is run backward through the exact same table to turn it back into a readable word for humans.
+  $$30121 \longrightarrow \text{Lookup Table} \longrightarrow \text{"Token"}$$
+**Are Token IDs Fixed or Learned?**
+
 A common point of confusion is whether these IDs change as the model learns. **Token IDs are entirely fixed.** Once a tokenizer is trained and its vocabulary dictionary is locked in, the ID for a specific token never changes. For instance, in a BERT tokenizer, the token `"the"` will always map to the integer ID `1996`. What *does* change during the LLM's training are the **embedding vectors** associated with those IDs. The integer ID is simply a stable index used to point the model to the correct row in its embedding matrix.
 
-### The Multi-Step Role of the Tokenizer
+**The Multi-Step Role of the Tokenizer**
+
 While we often use "tokenization" to refer to the whole text-to-ID pipeline, the tokenizer object in modern NLP libraries (like Hugging Face) actually handles several distinct steps in sequence:
 
 1. **Normalization:** Cleaning the text (e.g., stripping whitespace, handling casing, removing accents).
