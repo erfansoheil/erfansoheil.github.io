@@ -59,9 +59,94 @@ Think of this lookup table as a simple, two-way dictionary that handles two dist
 
 * **ID to Token (Decoding):** When the model generates a response, it outputs a raw number. This number is run backward through the exact same table to turn it back into a readable word for humans.
   $$30121 \longrightarrow \text{Lookup Table} \longrightarrow \text{"Token"}$$
-**Are Token IDs Fixed or Learned?**
 
-A common point of confusion is whether these IDs change as the model learns. **Token IDs are entirely fixed.** Once a tokenizer is trained and its vocabulary dictionary is locked in, the ID for a specific token never changes. For instance, in a BERT tokenizer, the token `"the"` will always map to the integer ID `1996`. What *does* change during the LLM's training are the **embedding vectors** associated with those IDs. The integer ID is simply a stable index used to point the model to the correct row in its embedding matrix.
+<!-- **Are Token IDs Fixed or Learned?**
+
+A common point of confusion is whether these IDs change as the model learns. **Token IDs are entirely fixed.** Once a tokenizer is trained and its vocabulary dictionary is locked in, the ID for a specific token never changes. For instance, in a BERT tokenizer, the token `"the"` will always map to the integer ID `1996`. What *does* change during the LLM's training are the **embedding vectors** associated with those IDs. The integer ID is simply a stable index used to point the model to the correct row in its embedding matrix. -->
+
+
+
+**Where Do These Numbers Come From?**
+
+A natural question arises: **how do we come up with these specific numbers in the first place?** 
+
+This mapping isn't random, nor is it done manually. The process of tokenization is handled via a **Tokenizer Model** (such as Byte-Pair Encoding or WordPiece). Before the main Large Language Model (LLM) can even begin reading text, this tokenizer model must go through its own independent training phase.
+
+When we say a tokenizer is "trained," we don't mean it uses complex neural networks. Instead, tokenizer training is a statistical optimization process. Its entire goal is to read a massive sample dataset of raw text, analyze it, and find the most efficient balance between character-level chunks and whole-word chunks to build its vocabulary list.
+
+Modern LLMs rely on three primary algorithmic flavors to construct their vocabulary:
+
+* **Byte-Pair Encoding (BPE)**: Starts with individual characters and iteratively merges the most frequent adjacent pairs. (Used by: GPT models, LLaMA).
+
+* **WordPiece**: Similar to BPE, but instead of choosing the most frequent pair, it picks pairs based on a statistical likelihood that maximizes predictability. (Used by: BERT).
+
+* **Unigram**: Starts with a massive vocabulary of full words and iteratively removes (prunes) the least useful tokens. (Used by: T5).
+
+In the followig we dezcribe these three methods individually. 
+
+
+**Method 1: Byte-Pair Encoding (BPE)**
+
+**Byte-Pair Encoding (BPE)** is a bottom-up tokenization algorithm. It begins by looking at text at the absolute lowest level (characters) and systematically builds whole words and subwords based on frequency. It is the core tokenizer architecture behind models like GPT-2, GPT-4, LLaMA, and Mistral.
+
+#### **How BPE is Trained (Step-by-Step)**
+
+1. **Tokenize into Characters:** The training algorithm splits every single word in the text dataset into its individual characters. A special end-of-word symbol (like `</w>`) is added to remember where whole words naturally end.
+2. **Count Neighboring Pairs:** The algorithm counts every instance of two characters appearing right next to each other. For example, across millions of words, how many times does `d` sit right next to `e`?
+3. **Merge the Champion Pair:** The single most frequent pair of adjacent characters is merged into a brand-new, combined token. If `d` + `e` has the highest count, a new token `de` is born.
+4. **Iterate and Expand:** The algorithm rescans the entire dataset, treating `de` as a single unit now, and counts the next most frequent adjacent pair (which could be `de` + `r`). This loop repeats until the target vocabulary size is filled.
+
+ **Method 2: WordPiece**
+
+**WordPiece** is very similar to BPE in that it starts with individual characters and iteratively merges them upward into larger units. However, instead of simply picking the most *frequent* pair, WordPiece uses a statistical calculation to pick the pair that makes the language most predictable. It is famously used by Google's BERT model.
+
+
+
+**How WordPiece is Trained (Step-by-Step)**
+
+1. **Initialize Base Vocabulary:** Just like BPE, it starts by extracting all basic characters and punctuation marks from the training text corpus.
+2. **Build a Candidate Scoring Matrix:** The algorithm looks at all adjacent pairs, but instead of counting pure frequency, it scores them using a formula:
+   $$\text{Score} = \frac{\text{Frequency of Pair }(A, B)}{\text{Frequency of } A \times \text{Frequency of } B}$$
+   *Why this matters:* If the letter `z` and `q` are rare, but whenever they appear they are *always* next to each other, this score will be incredibly high, meaning they belong together as a single token.
+3. **Merge the Highest-Scoring Pair:** The pair that maximizes this statistical likelihood is merged into a new subword unit.
+4. **Iterate:** The corpus is updated, and the scoring system runs again until the user-defined vocabulary size is reached.
+
+ **Method 3: Unigram Language Modeling**
+
+Unlike BPE and WordPiece, which start small (characters) and build up, **Unigram** goes in reverse. It is a top-down algorithm that starts with a massive, over-inflated vocabulary list and systematically weeds out the least useful tokens. It is widely used in Google's T5 model and SentencePiece implementations.
+
+**How Unigram is Trained (Step-by-Step)**
+
+1. **Initialize a Massive Vocabulary:** The algorithm extracts all full words and highly common substrings from the training text, creating a massive initial vocabulary list that is much larger than the desired final size.
+2. **Train a Probabilistic Model:** It estimates the probability of every single token occurring in the text dataset assuming all tokens are independent (a unigram model).
+3. **Calculate "Loss" for Every Token:** The algorithm simulates what would happen if it deleted a specific token from the dictionary. If removing a token (like `"ing"`) forces the tokenizer to chop words into clumsy, inefficient pieces, that token has a high "loss value" (meaning it is highly useful). If removing a token makes almost no difference, its loss value is low.
+4. **Prune the Bottom 10-20%:** It ranks all tokens by their usefulness and permanently drops the bottom percentage of tokens with the lowest scores.
+5. **Repeat Until Trimmed:** Steps 2 through 4 are repeated. The vocabulary shrinks iteration by iteration until it is trimmed down exactly to the target vocabulary size.
+
+
+ **A Concrete Training Example**
+
+Imagine our training text dataset is tiny, consisting only of these three words repeated multiple times: `"hug"`, `"pug"`, and `"pun"`.
+
+1. **Base Vocab Created:** `["h", "u", "g", "p", "n"]`
+2. **First Scan & Merge:** The algorithm notices that the pair `["u"]` and `["g"]` appears frequently in "hug" and "pug". It merges them into a new token $\rightarrow$ `─> "ug"`.
+3. **Second Scan & Merge:** It notices `["p"]` and the new `["ug"]` chunk are highly frequent together. It merges them into a new token $\rightarrow$ `─> "pug"`.
+
+By the end of training, the static lookup dictionary looks like this:
+
+| Assigned Token ID | String Token | Type |
+| :--- | :--- | :--- |
+| **0** | `"h"` | Base Character |
+| **1** | `"u"` | Base Character |
+| **2** | `"g"` | Base Character |
+| **3** | `"ug"` | Subword Chunk |
+| **4** | `"pug"` | Full Word |
+
+### **The Golden Rule: Once Learned, It is Frozen**
+
+This brings us to a crucial rule: **Token IDs are entirely fixed and never change during the LLM's life.** 
+
+Once the tokenizer algorithm finishes its training phase and locks in its vocabulary table, the ID for a specific token is set in stone. The token `"pug"` will *always* map to the integer ID `4`. Whether the model is being trained to understand language or is generating text for a user, this lookup table remains completely frozen.
 
 **The Multi-Step Role of the Tokenizer**
 
@@ -73,20 +158,8 @@ While we often use "tokenization" to refer to the whole text-to-ID pipeline, the
 4. **Post-Processing:** Injecting model-specific special tokens (such as `[CLS]`, `[SEP]`, or `<|endoftext|>`).
 5. **ID Mapping:** Converting the final array of tokens into their corresponding Token IDs.
 
----
 
-### How is a Tokenizer Trained?
-Unlike the primary Language Model, which learns grammar and facts via backpropagation, a tokenizer is trained using algorithmic statistics on a large corpus of raw text. The goal is to build an optimal vocabulary of a target size (e.g., 32,000 or 50,257 tokens). 
 
-Take **Byte-Pair Encoding (BPE)**, one of the most popular tokenization algorithms, as an example:
-
-* **Initialization:** The vocabulary starts with individual characters (the alphabet, numbers, and basic punctuation). Every word in the training text is split into characters.
-* **Iterative Merging:** The algorithm scans the text to find the most frequently occurring pair of adjacent tokens (e.g., if `e` and `s` appear next to each other more than any other pair, they are merged into a new token: `es`).
-* **Growing the Vocab:** This single new token `es` is added to the vocabulary. The algorithm repeats this counting and merging process over and over until the vocabulary reaches its pre-defined capacity.
-
-Other methods like **WordPiece** or **Unigram** use slightly different statistical criteria (like maximizing data likelihood rather than raw frequency), but the underlying philosophy remains data-driven vocabulary building.
-
----
 
 ### Beyond Words and Characters: Advanced Tokenization
 While word, subword, and character tokenization are standard for text, the frontier of AI relies on alternative methods:
