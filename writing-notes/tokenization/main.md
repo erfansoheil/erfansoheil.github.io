@@ -7,7 +7,7 @@ The idea of this article came to my mind when I was readig about LLM archtiectur
 
 In this artcile I first discuss about *Token* and *Tokenization* process in LLMs. Then we disucss about *Token Representations* process. Before that lets recall the trasdformers architecture since it is our building block of thsi article. 
 
-![Transformers Architecture](./assets/images/tr_arch.png)
+![Transformers Architecture](./assets/images/trans_arch.png)
 
 ## First Part: Tokenization
 
