@@ -124,7 +124,7 @@ Unlike BPE and WordPiece, which start small (characters) and build up, **Unigram
 5. **Repeat Until Trimmed:** Steps 2 through 4 are repeated. The vocabulary shrinks iteration by iteration until it is trimmed down exactly to the target vocabulary size.
 
 
- **A Concrete Training Example**
+**A Concrete Training Example**
 
 Imagine our training text dataset is tiny, consisting only of these three words repeated multiple times: `"hug"`, `"pug"`, and `"pun"`.
 
