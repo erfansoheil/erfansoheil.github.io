@@ -5,14 +5,17 @@ title: "Tpkenization VS Token Representation"
 
 The idea of this article came to my mind when I was readig about LLM archtiectures and was trying to understand the difference between **Token**, **Tokenization**, **Token IDs** and **Token Represenations**. At first all of these look the same to me and it took some time for me to categorize them in my mind. This articel is a try to create a mental map for someone who wants to go deep in these topics. 
 
-In this artcile I first discuss about *Token* and *Tokenization* process in LLMs. Then we disucss about *Token Representations* process. Before that lets recall the trasdformers architecture since it is our building block of thsi article. 
+In this artcile I first discuss about *Token* and *Tokenization* process in LLMs. Then we disucss about *Token Representations* process. Before that lets recall the trasdformers architecture since it is our building block of this article. 
 
 ![Transformers Architecture](./assets/images/trans_arch.png)
+
+
+In the above figure you can see the **Input** and **Output** embeddings moduls. The whole process of tokenization happens before embedding process (later we see that thsi step called *Token Representation*)
 
 ## First Part: Tokenization
 
 
-Throughout this article, the word **token** is used frequently. A token is a discrete unit of information processed by a model. In domain of language models, a token usually represents a word, part of a word, a punctuation mark, or another piece of text. In other domains, however, tokens may represent image patches, audio segments, time-series windows, and so on.
+Throughout this article, the word **token** is used frequently. A token is a **discrete unit of information processed by a model**. In domain of language models, a token usually represents a word, part of a word, a punctuation mark, or another piece of text. In other domains, however, tokens may represent image patches, audio segments, time-series windows, and so on.
 
 Before a model can process an input, it must first convert it into a sequence of tokens. The tokens themselves are not directly understood by the neural network. Instead, each token is mapped to a unique integer called a **token ID**. These token IDs are then transformed into vectors through an **embedding layer**, producing numerical representations that the model can process.
 
@@ -20,9 +23,9 @@ As a result, the pipeline looks as follows:
 
 <center>Input → Tokens → Token IDs → Embeddings (Vectors)</center>
 
-The process of converting an input into tokens is called **tokenization**, while the process of converting token IDs into vectors is called **embedding**.
+The process of converting an input into tokens is called **tokenization**.
+<!-- , while the process of converting token IDs into vectors is called **embedding**. -->
 
----
 
 ### Why do we need Token IDs after Tokenization?
 It is tempting to think that once we split a sentence into string-based tokens like `["deep", "learning"]`, the hard part is over. However, computers and neural networks cannot perform mathematical operations on raw text strings. They operate strictly on matrices and vectors of floating-point numbers. 
