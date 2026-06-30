@@ -39,7 +39,7 @@ Let’s see how a simple sentence moves through the first two steps of the pipel
 - Input (Raw Text): > "Tokenization is fun!"
 
 - Tokens (Discrete Units): The tokenizer chops the text into pieces. Notice how "Tokenization" is broken into smaller subword units:
-$["\text{Token}", "\text{ization}", " \text{is}", " \text{fun}", "\text{!}"]$
+$[\text{Token}, \text{ization}, \text{is}, \text{fun}, \text{!}]$
 
 - Token IDs (Unique Integers): Each token is looked up in the model's pre-defined vocabulary dictionary and replaced by its corresponding mathematical ID:
 $[30121, 1634, 318, 1257, 0]$
