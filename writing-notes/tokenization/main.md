@@ -23,11 +23,19 @@ As a result, the pipeline looks as follows:
 
 <center>Input → Tokens → Token IDs → Embeddings (Vectors)</center>
 
-The process of converting an input into tokens is called **tokenization**.
+The process of converting an input into tokens is called **tokenization**. Lets make an example of the fist two steps the above process, meaning :
+
+<center>Input → Tokens → Token IDs </center>
+
+
 <!-- , while the process of converting token IDs into vectors is called **embedding**. -->
 
+**Exmple :**
 
-### Why do we need Token IDs after Tokenization?
+
+
+
+**Why do we need Token IDs after Tokenization?**
 It is tempting to think that once we split a sentence into string-based tokens like `["deep", "learning"]`, the hard part is over. However, computers and neural networks cannot perform mathematical operations on raw text strings. They operate strictly on matrices and vectors of floating-point numbers. 
 
 Token IDs act as the bridge. By assigning every unique token in our vocabulary a fixed, unique integer index (e.g., `"deep"` $\rightarrow$ `2534`), we create a structured lookup system that the neural network can interact with mathematically.
