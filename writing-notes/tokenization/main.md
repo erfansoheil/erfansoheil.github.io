@@ -147,7 +147,18 @@ $$
 
 However, standard BPE does not search over all possible merge sequences, as that would be computationally expensive. Instead, it uses a greedy approximation: at each step, it chooses the merge with the best immediate gain.
 
-**Key Insight**
+Algorithm 3 of the paper (*A Formal Perspective on Byte-Pair Encoding*)[https://arxiv.org/abs/2306.16837] gives a useful way to understand what “optimal BPE” would mean.
+
+* Standard BPE is greedy: at each step, it merges the most frequent adjacent pair. This gives the best immediate compression gain, but it does not guarantee the best final vocabulary. A merge that looks good now may prevent a better sequence of merges later.
+
+* Algorithm 3 takes a different approach. Instead of committing immediately to the most frequent pair, it searches over possible merge sequences and keeps the sequence that gives the best final compression. In other words, standard BPE asks, “Which pair should I merge now?”, while Algorithm 3 asks, “Which full sequence of merges gives the shortest final representation?”
+
+This makes Algorithm 3 an exact method for finding an optimal BPE vocabulary under the compression objective. However, it is computationally expensive, so it is mainly useful for theoretical analysis rather than for training large real-world tokenizers.
+
+For a practical and minimal implementation of standard BPE, Andrej Karpathy’s (*minbpe*)[https://github.com/karpathy/minbpe] repository is a good reference. It implements the usual greedy version of BPE: count adjacent pairs, merge the most frequent pair, update the text, and repeat. This is different from Algorithm 3 in the formal paper, which searches for an optimal merge sequence. So `minbpe` is useful for understanding how BPE is used in practice, while Algorithm 3 is useful for understanding what an optimal BPE vocabulary would mean mathematically.
+
+
+<!-- **Key Insight**
 
 This means BPE is not guaranteed to find the globally optimal vocabulary. A locally frequent pair may not always be the best choice in the long run. However, theoretical work shows that BPE is not just an arbitrary heuristic: it can be understood as a greedy algorithm for a submodular compression problem, and its greedy behavior has a formal approximation guarantee.
 
@@ -157,24 +168,15 @@ $$
 }
 $$
 
----
+--- -->
 
-**Why BPE Works Well**
+**Why BPE Works Well in LLMs**
 
 * Frequent patterns become tokens
 * Rare words can still be decomposed into smaller pieces
 * The model avoids relying only on a fixed word-level vocabulary
 
 This balance makes BPE an effective and widely used tokenization method in modern language models.
-
-<!-- **Byte-Pair Encoding (BPE)** is a bottom-up tokenization algorithm. It begins by looking at text at the absolute lowest level (characters) and systematically builds whole words and subwords based on frequency. It is the core tokenizer architecture behind models like GPT-2, GPT-4, LLaMA, and Mistral. -->
-
-**How BPE is Trained (Step-by-Step)**
-
-1. **Tokenize into Characters:** The training algorithm splits every single word in the text dataset into its individual characters. A special end-of-word symbol (like `</w>`) is added to remember where whole words naturally end.
-2. **Count Neighboring Pairs:** The algorithm counts every instance of two characters appearing right next to each other. For example, across millions of words, how many times does `d` sit right next to `e`?
-3. **Merge the Champion Pair:** The single most frequent pair of adjacent characters is merged into a brand-new, combined token. If `d` + `e` has the highest count, a new token `de` is born.
-4. **Iterate and Expand:** The algorithm rescans the entire dataset, treating `de` as a single unit now, and counts the next most frequent adjacent pair (which could be `de` + `r`). This loop repeats until the target vocabulary size is filled.
 
  **Method 2: WordPiece**
 
