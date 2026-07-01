@@ -416,3 +416,27 @@ Every practical temperature setting lives somewhere between these two extremes, 
 One thing worth keeping in mind is that all of this happens *after* training. Temperature is not a learned parameter. Not because it is unimportant, but because it is mathematically redundant (the weights can absorb any constant scaling) and numerically dangerous to optimize (the gradient scales as $\frac{1}{T}$, which explodes near zero). Fixing $T = 1$ during training keeps the optimization landscape stable and identifiable.
 
  The core takeaway is this: temperature does not change what the model *knows* , it changes how *confidently* it acts on what it knows.
+
+
+
+## References
+
+1. Ackley, D. H., Hinton, G. E., & Sejnowski, T. J. (1985). *A Learning Algorithm for Boltzmann Machines*. Cognitive Science, 9(1), 147–169. — Origin of temperature-based sampling from statistical mechanics.
+
+2. Bridle, J. S. (1990). *Probabilistic Interpretation of Feedforward Classification Network Outputs, with Relationships to Statistical Pattern Recognition*. In Neurocomputing (NATO ASI Series), Springer. — Introduces the Softmax function in its modern neural network form.
+
+3. Fan, A., Lewis, M., & Dauphin, Y. (2018). *Hierarchical Neural Story Generation*. Proceedings of the 56th Annual Meeting of the Association for Computational Linguistics (ACL), 889–898. [arXiv:1805.04833](https://arxiv.org/abs/1805.04833) — Introduces Top-k sampling.
+
+4. Holtzman, A., Buys, J., Du, L., Forbes, M., & Choi, Y. (2020). *The Curious Case of Neural Text Degeneration*. International Conference on Learning Representations (ICLR). [arXiv:1904.09751](https://arxiv.org/abs/1904.09751) — Introduces Nucleus (Top-p) Sampling.
+
+5. Shannon, C. E. (1948). *A Mathematical Theory of Communication*. Bell System Technical Journal, 27(3), 379–423. — Foundational definition of entropy used in the information-theoretic view of temperature.
+
+6. Cover, T. M., & Thomas, J. A. (2006). *Elements of Information Theory* (2nd ed.). Wiley-Interscience. — Standard reference for the formal properties of Shannon entropy used in the entropy-dial argument.
+
+7. Vaswani, A., Shazeer, N., Parmar, N., Uszkoreit, J., Jones, L., Gomez, A. N., Kaiser, Ł., & Polosukhin, I. (2017). *Attention Is All You Need*. Advances in Neural Information Processing Systems (NeurIPS), 30. [arXiv:1706.03762](https://arxiv.org/abs/1706.03762) — Introduces the transformer architecture underlying decoder-only LLMs.
+
+8. Radford, A., Wu, J., Child, R., Luan, D., Amodei, D., & Sutskever, I. (2019). *Language Models Are Unsupervised Multitask Learners*. OpenAI Technical Report (GPT-2). — Decoder-only LM using temperature and top-k sampling at inference time.
+
+9. Hinton, G., Vinyals, O., & Dean, J. (2015). *Distilling the Knowledge in a Neural Network*. [arXiv:1503.02531](https://arxiv.org/abs/1503.02531) — Uses a raised softmax temperature to produce softened target distributions, an alternate use of temperature distinct from inference-time sampling.
+
+10. Goodfellow, I., Bengio, Y., & Courville, A. (2016). *Deep Learning*. MIT Press. — General reference for Softmax, gradient backpropagation through non-differentiable functions like Argmax, and related fundamentals.

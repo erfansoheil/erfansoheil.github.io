@@ -87,9 +87,89 @@ In the followig we dezcribe these three methods individually.
 
 **Method 1: Byte-Pair Encoding (BPE)**
 
-**Byte-Pair Encoding (BPE)** is a bottom-up tokenization algorithm. It begins by looking at text at the absolute lowest level (characters) and systematically builds whole words and subwords based on frequency. It is the core tokenizer architecture behind models like GPT-2, GPT-4, LLaMA, and Mistral.
+**Byte-Pair Encoding (BPE)** is a bottom-up subword tokenization method. It starts from a small base alphabet, usually characters or bytes, and gradually builds larger units by merging frequent adjacent pairs.
 
-#### **How BPE is Trained (Step-by-Step)**
+BPE was not originally designed for language models. It comes from **data compression**: the idea was to replace frequently repeated symbol pairs with a new symbol, making the sequence shorter. Modern NLP adapted the same idea for tokenization. Instead of only compressing text, BPE also produces a vocabulary of useful subword units.
+
+**Intuition**
+
+The core idea is:
+
+$$
+\text{frequent pair} \quad \Rightarrow \quad \text{good candidate for a new token}
+$$
+
+For example, if the pair `d` + `e` appears many times in the corpus, BPE may create a new token `de`. Later, if `de` + `r` is frequent, it may create `der`. In this way, BPE gradually builds larger subwords and sometimes full words.
+
+
+**How BPE is Trained**
+
+1. **Start from a base vocabulary**
+   The corpus is first represented using a small set of atomic symbols, such as characters or bytes. In some versions, an end-of-word marker like `</w>` is added so that the algorithm can distinguish word boundaries.
+
+2. **Count adjacent pairs**
+   BPE scans the corpus and counts how often each neighboring pair of symbols appears. For example, it may count pairs such as `d e`, `e r`, `t h`, or `i n`.
+
+3. **Choose the best immediate merge**
+   The most frequent adjacent pair is selected. This is a greedy decision: BPE chooses the merge that gives the largest immediate reduction in sequence length.
+
+   If a pair appears many times, replacing each occurrence of two symbols by one new symbol shortens the corpus:
+
+   $$
+   (a, b) \rightarrow ab
+   $$
+
+4. **Update the corpus**
+   All selected occurrences of that pair are replaced by the new merged token. The corpus is now represented using this larger unit.
+
+5. **Repeat until the vocabulary budget is reached**
+   The algorithm repeats this process until it has learned the desired number of merge rules or reached the target vocabulary size.
+
+**A Mathematical Perspective**
+
+From a mathematical perspective, BPE is trying to find a sequence of merges:
+
+$$
+\mu = (\mu_1, \mu_2, \dots, \mu_M)
+$$
+
+that maximizes the *compression* utility of the corpus:
+
+$$
+\kappa_x(\mu)
+$$
+
+Here, $(\kappa_x(\mu))$ measures how much shorter the sequence becomes after applying the merge sequence $(\mu)$. The ideal objective would be:
+
+$$
+\mu^\star = \arg\max_{\mu} \kappa_x(\mu)
+$$
+
+However, standard BPE does not search over all possible merge sequences, as that would be computationally expensive. Instead, it uses a greedy approximation: at each step, it chooses the merge with the best immediate gain.
+
+**Key Insight**
+
+This means BPE is not guaranteed to find the globally optimal vocabulary. A locally frequent pair may not always be the best choice in the long run. However, theoretical work shows that BPE is not just an arbitrary heuristic: it can be understood as a greedy algorithm for a submodular compression problem, and its greedy behavior has a formal approximation guarantee.
+
+$$
+\boxed{
+\text{BPE learns a vocabulary by greedily compressing the corpus}
+}
+$$
+
+---
+
+**Why BPE Works Well**
+
+* Frequent patterns become tokens
+* Rare words can still be decomposed into smaller pieces
+* The model avoids relying only on a fixed word-level vocabulary
+
+This balance makes BPE an effective and widely used tokenization method in modern language models.
+
+<!-- **Byte-Pair Encoding (BPE)** is a bottom-up tokenization algorithm. It begins by looking at text at the absolute lowest level (characters) and systematically builds whole words and subwords based on frequency. It is the core tokenizer architecture behind models like GPT-2, GPT-4, LLaMA, and Mistral. -->
+
+**How BPE is Trained (Step-by-Step)**
 
 1. **Tokenize into Characters:** The training algorithm splits every single word in the text dataset into its individual characters. A special end-of-word symbol (like `</w>`) is added to remember where whole words naturally end.
 2. **Count Neighboring Pairs:** The algorithm counts every instance of two characters appearing right next to each other. For example, across millions of words, how many times does `d` sit right next to `e`?
