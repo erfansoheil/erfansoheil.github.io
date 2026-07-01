@@ -147,7 +147,7 @@ $$
 
 However, standard BPE does not search over all possible merge sequences, as that would be computationally expensive. Instead, it uses a greedy approximation: at each step, it chooses the merge with the best immediate gain.
 
-Algorithm 3 of the paper (*A Formal Perspective on Byte-Pair Encoding*)[https://arxiv.org/abs/2306.16837] gives a useful way to understand what “optimal BPE” would mean.
+Algorithm 3 of the paper [*A Formal Perspective on Byte-Pair Encoding*](https://arxiv.org/abs/2306.16837) gives a useful way to understand what “optimal BPE” would mean.
 
 * Standard BPE is greedy: at each step, it merges the most frequent adjacent pair. This gives the best immediate compression gain, but it does not guarantee the best final vocabulary. A merge that looks good now may prevent a better sequence of merges later.
 
@@ -155,20 +155,13 @@ Algorithm 3 of the paper (*A Formal Perspective on Byte-Pair Encoding*)[https://
 
 This makes Algorithm 3 an exact method for finding an optimal BPE vocabulary under the compression objective. However, it is computationally expensive, so it is mainly useful for theoretical analysis rather than for training large real-world tokenizers.
 
-For a practical and minimal implementation of standard BPE, Andrej Karpathy’s (*minbpe*)[https://github.com/karpathy/minbpe] repository is a good reference. It implements the usual greedy version of BPE: count adjacent pairs, merge the most frequent pair, update the text, and repeat. This is different from Algorithm 3 in the formal paper, which searches for an optimal merge sequence. So `minbpe` is useful for understanding how BPE is used in practice, while Algorithm 3 is useful for understanding what an optimal BPE vocabulary would mean mathematically.
+For a practical and minimal implementation of standard BPE, Andrej Karpathy’s [*minbpe*](https://github.com/karpathy/minbpe) repository is a good reference. It implements the usual greedy version of BPE: count adjacent pairs, merge the most frequent pair, update the text, and repeat. This is different from Algorithm 3 in the formal paper, which searches for an optimal merge sequence. So `minbpe` is useful for understanding how BPE is used in practice, while Algorithm 3 is useful for understanding what an optimal BPE vocabulary would mean mathematically.
 
 
-<!-- **Key Insight**
 
-This means BPE is not guaranteed to find the globally optimal vocabulary. A locally frequent pair may not always be the best choice in the long run. However, theoretical work shows that BPE is not just an arbitrary heuristic: it can be understood as a greedy algorithm for a submodular compression problem, and its greedy behavior has a formal approximation guarantee.
 
-$$
-\boxed{
-\text{BPE learns a vocabulary by greedily compressing the corpus}
-}
-$$
 
---- -->
+
 
 **Why BPE Works Well in LLMs**
 
