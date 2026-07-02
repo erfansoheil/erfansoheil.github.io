@@ -177,45 +177,210 @@ This balance makes BPE an effective and widely used tokenization method in moder
 
 
 
-**How WordPiece is Trained (Step-by-Step)**
+**Method 1: Byte-Pair Encoding (BPE)**
 
-1. **Initialize Base Vocabulary:** Just like BPE, it starts by extracting all basic characters and punctuation marks from the training text corpus.
-2. **Build a Candidate Scoring Matrix:** The algorithm looks at all adjacent pairs, but instead of counting pure frequency, it scores them using a formula:
-   $$\text{Score} = \frac{\text{Frequency of Pair }(A, B)}{\text{Frequency of } A \times \text{Frequency of } B}$$
-   *Why this matters:* If the letter `z` and `q` are rare, but whenever they appear they are *always* next to each other, this score will be incredibly high, meaning they belong together as a single token.
-3. **Merge the Highest-Scoring Pair:** The pair that maximizes this statistical likelihood is merged into a new subword unit.
-4. **Iterate:** The corpus is updated, and the scoring system runs again until the user-defined vocabulary size is reached.
+**Byte-Pair Encoding (BPE)** is a bottom-up subword tokenization method. It starts from a small base alphabet, usually characters or bytes, and gradually builds larger units by merging frequent adjacent pairs.
 
- **Method 3: Unigram Language Modeling**
+BPE was not originally designed for language models. It comes from **data compression**: the idea was to replace frequently repeated symbol pairs with a new symbol, making the sequence shorter. Modern NLP adapted the same idea for tokenization. Instead of only compressing text, BPE also produces a vocabulary of useful subword units.
 
-Unlike BPE and WordPiece, which start small (characters) and build up, **Unigram** goes in reverse. It is a top-down algorithm that starts with a massive, over-inflated vocabulary list and systematically weeds out the least useful tokens. It is widely used in Google's T5 model and SentencePiece implementations.
+**Intuition**
 
-**How Unigram is Trained (Step-by-Step)**
+The core idea is:
 
-1. **Initialize a Massive Vocabulary:** The algorithm extracts all full words and highly common substrings from the training text, creating a massive initial vocabulary list that is much larger than the desired final size.
-2. **Train a Probabilistic Model:** It estimates the probability of every single token occurring in the text dataset assuming all tokens are independent (a unigram model).
-3. **Calculate "Loss" for Every Token:** The algorithm simulates what would happen if it deleted a specific token from the dictionary. If removing a token (like `"ing"`) forces the tokenizer to chop words into clumsy, inefficient pieces, that token has a high "loss value" (meaning it is highly useful). If removing a token makes almost no difference, its loss value is low.
-4. **Prune the Bottom 10-20%:** It ranks all tokens by their usefulness and permanently drops the bottom percentage of tokens with the lowest scores.
-5. **Repeat Until Trimmed:** Steps 2 through 4 are repeated. The vocabulary shrinks iteration by iteration until it is trimmed down exactly to the target vocabulary size.
+$$
+\text{frequent pair} \quad \Rightarrow \quad \text{good candidate for a new token}
+$$
+
+For example, if the pair `d` + `e` appears many times in the corpus, BPE may create a new token `de`. Later, if `de` + `r` is frequent, it may create `der`. In this way, BPE gradually builds larger subwords and sometimes full words.
 
 
-**A Concrete Training Example**
+**How BPE is Trained**
 
-Imagine our training text dataset is tiny, consisting only of these three words repeated multiple times: `"hug"`, `"pug"`, and `"pun"`.
+1. **Start from a base vocabulary**
+   The corpus is first represented using a small set of atomic symbols, such as characters or bytes. In some versions, an end-of-word marker like `</w>` is added so that the algorithm can distinguish word boundaries.
 
-1. **Base Vocab Created:** `["h", "u", "g", "p", "n"]`
-2. **First Scan & Merge:** The algorithm notices that the pair `["u"]` and `["g"]` appears frequently in "hug" and "pug". It merges them into a new token $\rightarrow$ `─> "ug"`.
-3. **Second Scan & Merge:** It notices `["p"]` and the new `["ug"]` chunk are highly frequent together. It merges them into a new token $\rightarrow$ `─> "pug"`.
+2. **Count adjacent pairs**
+   BPE scans the corpus and counts how often each neighboring pair of symbols appears. For example, it may count pairs such as `d e`, `e r`, `t h`, or `i n`.
 
-By the end of training, the static lookup dictionary looks like this:
+3. **Choose the best immediate merge**
+   The most frequent adjacent pair is selected. This is a greedy decision: BPE chooses the merge that gives the largest immediate reduction in sequence length.
 
-| Assigned Token ID | String Token | Type |
-| :--- | :--- | :--- |
-| **0** | `"h"` | Base Character |
-| **1** | `"u"` | Base Character |
-| **2** | `"g"` | Base Character |
-| **3** | `"ug"` | Subword Chunk |
-| **4** | `"pug"` | Full Word |
+   If a pair appears many times, replacing each occurrence of two symbols by one new symbol shortens the corpus:
+
+   $$
+   (a, b) \rightarrow ab
+   $$
+
+4. **Update the corpus**
+   All selected occurrences of that pair are replaced by the new merged token. The corpus is now represented using this larger unit.
+
+5. **Repeat until the vocabulary budget is reached**
+   The algorithm repeats this process until it has learned the desired number of merge rules or reached the target vocabulary size.
+
+**A Mathematical Perspective**
+
+From a mathematical perspective, BPE is trying to find a sequence of merges:
+
+$$
+\mu = (\mu_1, \mu_2, \dots, \mu_M)
+$$
+
+that maximizes the *compression* utility of the corpus:
+
+$$
+\kappa_x(\mu)
+$$
+
+Here, $\kappa_x(\mu)$ measures how much shorter the sequence becomes after applying the merge sequence $\mu$. The ideal objective would be:
+
+$$
+\mu^\star = \arg\max_{\mu} \kappa_x(\mu)
+$$
+
+However, standard BPE does not search over all possible merge sequences, as that would be computationally expensive. Instead, it uses a greedy approximation: at each step, it chooses the merge with the best immediate gain.
+
+Algorithm 3 of the paper [*A Formal Perspective on Byte-Pair Encoding*](https://arxiv.org/abs/2306.16837) gives a useful way to understand what “optimal BPE” would mean.
+
+* Standard BPE is greedy: at each step, it merges the most frequent adjacent pair. This gives the best immediate compression gain, but it does not guarantee the best final vocabulary. A merge that looks good now may prevent a better sequence of merges later.
+
+* Algorithm 3 takes a different approach. Instead of committing immediately to the most frequent pair, it searches over possible merge sequences and keeps the sequence that gives the best final compression. In other words, standard BPE asks, “Which pair should I merge now?”, while Algorithm 3 asks, “Which full sequence of merges gives the shortest final representation?”
+
+This makes Algorithm 3 an exact method for finding an optimal BPE vocabulary under the compression objective. However, it is computationally expensive, so it is mainly useful for theoretical analysis rather than for training large real-world tokenizers.
+
+For a practical and minimal implementation of standard BPE, Andrej Karpathy’s [*minbpe*](https://github.com/karpathy/minbpe) repository is a good reference. It implements the usual greedy version of BPE: count adjacent pairs, merge the most frequent pair, update the text, and repeat. This is different from Algorithm 3 in the formal paper, which searches for an optimal merge sequence. So `minbpe` is useful for understanding how BPE is used in practice, while Algorithm 3 is useful for understanding what an optimal BPE vocabulary would mean mathematically.
+
+**Why BPE Works Well in LLMs**
+
+* Frequent patterns become tokens
+* Rare words can still be decomposed into smaller pieces
+* The model avoids relying only on a fixed word-level vocabulary
+
+This balance makes BPE an effective and widely used tokenization method in modern language models.
+
+
+**Method 2: WordPiece**
+
+**WordPiece** is another bottom-up subword tokenization method, heavily utilized by models like BERT and DistilBERT. Structurally it is similar with BPE. Meaning, both of thel starting from a base alphabet and iteratively expanding the vocabulary. However then merging strategy is grounded in probability and information theory rather than raw frequency.
+
+**Intuition**
+
+Instead of merging the most *frequent* adjacent pair, WordPiece merges the pair that **maximizes the likelihood of the training data** according to a unigram language model. 
+
+The core idea can be expressed as:
+
+$$
+\text{highest relative mutual information} \quad \Rightarrow \quad \text{good candidate for a new token}
+$$
+
+For example, if the individual characters `p` and `h` are highly frequent on their own (appearing in many words like `up`, `hope`, `hot`, `pet`), but they rarely appear together, a simple frequency-based method might still merge them if the corpus is large enough. WordPiece, however, evaluates how much *more likely* they are to appear together than we would expect by chance. It creates a new token `ph` only if the combination carries high predictive value.
+
+To manage word boundaries, WordPiece uses a special prefix—usually **`##`**—to mark subwords that must be attached to a preceding token (e.g., `pre`, `##train`, `##ing`).
+
+**How WordPiece is Trained**
+
+1. **Initialize the vocabulary**
+   The vocabulary is seeded with all basic characters, punctuation marks, and special symbols present in the corpus. Suffix characters are duplicated with the `##` prefix to handle inside-word pieces.
+
+2. **Build a unigram language model**
+   The algorithm treats the current vocabulary as independent units and estimates a language model over the text. 
+
+3. **Score all adjacent pairs**
+   WordPiece evaluates every neighboring pair of symbols $(A, B)$ in the text using a scoring metric derived from their individual and joint frequencies:
+
+   $$
+   \text{Score}(A, B) = \frac{\text{Count}(AB)}{\text{Count}(A) \times \text{Count}(B)}
+   $$
+
+4. **Select and merge the highest-scoring pair**
+   The pair that yields the maximum score is chosen and added to the vocabulary as a new merged token $AB$. 
+
+5. **Repeat until the vocabulary budget is reached**
+   The text is updated, frequencies are re-computed, and the process repeats until the predefined vocabulary size is filled.
+
+**A Mathematical Perspective**
+
+Mathematically, WordPiece optimizes a probabilistic objective. Given a text corpus $X = (x_1, x_2, \dots, x_N)$ and a vocabulary $V$, a unigram language model assumes that the probability of the corpus is the product of the probabilities of its constituent tokens:
+
+$$
+P(X) = \prod_{i=1}^{N} P(t_i)
+$$
+
+Where each token $t_i \in V$, and its probability is estimated via maximum likelihood: $P(t) = \frac{\text{Count}(t)}{\sum_{t' \in V} \text{Count}(t')}$.
+
+When WordPiece considers merging two adjacent tokens $A$ and $B$ into a new token $AB$, it evaluates how this merge alters the total log-likelihood of the corpus. The change in log-likelihood is directly proportional to the pointwise mutual information (PMI) of the two tokens:
+
+$$
+\log \left( \frac{P(AB)}{P(A)P(B)} \right) = \log P(AB) - \log P(A) - \log P(B)
+$$
+
+By picking the pair that maximizes $\frac{\text{Count}(AB)}{\text{Count}(A) \times \text{Count}(B)}$, WordPiece greedily selects the merge rule that provides the greatest immediate increase (or smallest decrease) to the corpus likelihood.
+
+---
+
+### Concrete Tokenization Examples
+
+To illustrate how these trained vocabularies behave in practice, let us examine how both BPE and WordPiece process a sample sentence once training is complete.
+
+Assume both tokenizers have been trained on an English corpus containing a mix of common and rare words, resulting in the following simplified vocabularies:
+* **BPE Vocabulary:** `["the", "cat", "walk", "ed", "strang", "ely", "s", "a", "b", "c", ...]` (plus the end-of-word marker `</w>`)
+* **WordPiece Vocabulary:** `["the", "cat", "walk", "##ed", "strang", "##ely", "##e", "a", "b", "c", ...]`
+
+#### 1. BPE Tokenization Example
+BPE tokenizes text in a **bottom-up** fashion by looking up its learned *merge rules* in the exact chronological order they were discovered during training. 
+
+Input word: `"strangely"`
+1. The word is split into individual characters with an end-of-word marker: `s  t  r  a  n  g  e  l  y  </w>`
+2. The tokenizer scans its merge rules list. The earliest rule matching any pair here is the one that created `strang`. The sequence becomes: `strang  e  l  y  </w>`
+3. The next highest-priority merge rule in the vocabulary is for `ely`. The sequence becomes: `strang  ely  </w>`
+4. No further valid merge rules apply.
+* **Final BPE Tokens:** `["strang", "ely</w>"]` (often rendered simply as `["strang", "ely"]` with space indicators like `Ġstrang`, `ely` depending on the exact implementation).
+
+#### 2. WordPiece Tokenization Example
+WordPiece tokenizes text in a **top-down, greedy** fashion using an algorithm called **MaxMatch** (Maximum Matching). Instead of executing merge rules chronologically, it scans an isolated word from left to right, hunting for the longest string starting from the current position that exists in the vocabulary.
+
+Input word: `"strangely"`
+1. It looks at the whole string `"strangely"`. It is not in the vocabulary.
+2. It chops letters off the end until it finds a match: `"strangely"` $\rightarrow$ `"strangel"` $\rightarrow$ `"strange"` $\rightarrow$ **`"strang"`** (Match found!).
+3. The remaining substring is `"ely"`. Because it is a continuation of a word, the tokenizer looks for pieces prefixed with `##`.
+4. It looks for `"##ely"`. (Match found!).
+* **Final WordPiece Tokens:** `["strang", "##ely"]`
+
+---
+
+### Why BPE Lacks an Unknown Token, But WordPiece Has One
+
+In practice, WordPiece relies on an explicit **`[UNK]`** (unknown) token to handle unexpected characters, whereas modern implementations of BPE (such as those used by GPT-4 or LLaMA) guarantee a **0% out-of-vocabulary rate** without needing an unknown fallback. This difference stems from how they construct their initial base vocabularies:
+
+#### WordPiece and `[UNK]`
+WordPiece initializes its base alphabet using characters (Unicode code points) discovered within its training corpus. If a user inputs text during inference that contains a completely novel character—such as an emoji, a specialized mathematical symbol, or a character from a foreign alphabet that was entirely absent from the training data—WordPiece cannot decompose it. 
+
+When the MaxMatch algorithm encounters a character or substring for which no individual base character exists in the vocabulary, the entire lookup routine fails. Because it cannot output a valid sequence of tokens, it maps the unrecognized token to a catch-all sequence: `[UNK]`.
+
+#### BPE and Byte-Level Representation
+Modern NLP implementations of BPE circumvent this limitation by shifting the base vocabulary down from the character level to the **byte level**. 
+
+Instead of initializing the alphabet with thousands of unique Unicode characters, Byte-Level BPE (BBPE) initializes its base vocabulary with exactly **256 fundamental tokens**, representing every possible value of a raw byte ($0\text{x}00$ through $0\text{x}\text{FF}$). Any text string, no matter how rare or bizarre the character, can be encoded into a sequence of UTF-8 bytes. Because all 256 bytes are permanently locked into the base vocabulary, the tokenizer can *always* fall back to individual byte tokens if it encounters a character it has never seen before. It is mathematically impossible to produce a sequence that cannot be decomposed, rendering an `[UNK]` token obsolete.
+
+---
+
+### Standard WordPiece vs. Fast WordPiece
+
+When exploring WordPiece implementations, a distinction is frequently made between **Standard WordPiece** and **Fast WordPiece** (often associated with Google's linear-time implementations and Hugging Face's Rust-based `tokenizers` library). This distinction centers purely on the execution efficiency of the tokenization step rather than the underlying vocabulary rules.
+
+#### Standard WordPiece ($\mathcal{O}(n^2)$ or $\mathcal{O}(nm)$ Complexity)
+The traditional MaxMatch algorithm used in standard WordPiece requires nested iterations over the input text:
+* It sets a pointer at the beginning of the word and scans forward to check if the substring matches a vocabulary entry.
+* If a match fails, it backtracks, shortens the candidate substring by one character, and tries again.
+
+If a word has a length of $n$ and the maximum token length in the vocabulary is $m$, this backtracking search results in a worst-case time complexity of $\mathcal{O}(n^2)$ or $\mathcal{O}(nm)$ per word. When processing billions of tokens during large-scale pre-training or high-throughput real-time inference, this computational overhead becomes a noticeable bottleneck.
+
+#### Fast WordPiece ($\mathcal{O}(n)$ Complexity)
+Fast WordPiece eliminates backtracking entirely by modeling the vocabulary as a specialized data structure known as a **Trie** (a prefix tree), augmented with advanced search mechanisms inspired by the **Aho-Corasick** string-matching algorithm.
+
+* **Failure Links & Failure Pops:** In Fast WordPiece, every node in the vocabulary trie contains precomputed "failure links". If the tokenizer is stepping through the tree matching characters (e.g., tracking `s` $\rightarrow$ `t` $\rightarrow$ `r` $\rightarrow$ `a`) and hits a character that fails to match an edge, it does not reset and backtrack to the beginning of the word. Instead, it immediately follows a failure link to another precomputed node in the trie where a valid sub-match exists, emitting the tokens along the way ("failure pops").
+* **Single-Pass End-to-End Processing:** While standard tokenizers use a two-step approach—first splitting an entire sentence into raw words using whitespaces/punctuation (pre-tokenization) and then passing each word individually to the subword loop—Fast WordPiece handles both simultaneously. It streams the entire raw sentence text through the trie in a **single linear pass**.
+
+As a result, Fast WordPiece processes text in **strict $\mathcal{O}(n)$ time complexity** relative to the sentence length $n$, executing up to 5 to 8 times faster than traditional implementations without altering the final tokenized output.
 
 ### **The Golden Rule: Once Learned, It is Frozen**
 
