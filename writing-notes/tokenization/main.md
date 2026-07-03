@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Tpkenization VS Token Representation"
+title: "Tokenization VS Token Representation"
 ---
 
 The idea of this article came to my mind when I was readig about LLM archtiectures and was trying to understand the difference between **Token**, **Tokenization**, **Token IDs** and **Token Represenations**. At first all of these look the same to me and it took some time for me to categorize them in my mind. This articel is a try to create a mental map for someone who wants to go deep in these topics. 
