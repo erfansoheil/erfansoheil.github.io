@@ -171,7 +171,6 @@ For a practical and minimal implementation of standard BPE, Andrej Karpathy’s 
 
 This balance makes BPE an effective and widely used tokenization method in modern language models.
 
- **Method 2: WordPiece**
 
 **WordPiece** is very similar to BPE in that it starts with individual characters and iteratively merges them upward into larger units. However, instead of simply picking the most *frequent* pair, WordPiece uses a statistical calculation to pick the pair that makes the language most predictable. It is famously used by Google's BERT model.
 
@@ -315,9 +314,8 @@ $$
 
 By picking the pair that maximizes $\frac{\text{Count}(AB)}{\text{Count}(A) \times \text{Count}(B)}$, WordPiece greedily selects the merge rule that provides the greatest immediate increase (or smallest decrease) to the corpus likelihood.
 
----
 
-### Concrete Tokenization Examples
+**Concrete Tokenization Examples**
 
 To illustrate how these trained vocabularies behave in practice, let us examine how both BPE and WordPiece process a sample sentence once training is complete.
 
@@ -347,7 +345,7 @@ Input word: `"strangely"`
 
 ---
 
-### Why BPE Lacks an Unknown Token, But WordPiece Has One
+**Why BPE Lacks an Unknown Token, But WordPiece Has One**
 
 In practice, WordPiece relies on an explicit **`[UNK]`** (unknown) token to handle unexpected characters, whereas modern implementations of BPE (such as those used by GPT-4 or LLaMA) guarantee a **0% out-of-vocabulary rate** without needing an unknown fallback. This difference stems from how they construct their initial base vocabularies:
 
@@ -361,9 +359,8 @@ Modern NLP implementations of BPE circumvent this limitation by shifting the bas
 
 Instead of initializing the alphabet with thousands of unique Unicode characters, Byte-Level BPE (BBPE) initializes its base vocabulary with exactly **256 fundamental tokens**, representing every possible value of a raw byte ($0\text{x}00$ through $0\text{x}\text{FF}$). Any text string, no matter how rare or bizarre the character, can be encoded into a sequence of UTF-8 bytes. Because all 256 bytes are permanently locked into the base vocabulary, the tokenizer can *always* fall back to individual byte tokens if it encounters a character it has never seen before. It is mathematically impossible to produce a sequence that cannot be decomposed, rendering an `[UNK]` token obsolete.
 
----
 
-### Standard WordPiece vs. Fast WordPiece
+**Standard WordPiece vs. Fast WordPiece**
 
 When exploring WordPiece implementations, a distinction is frequently made between **Standard WordPiece** and **Fast WordPiece** (often associated with Google's linear-time implementations and Hugging Face's Rust-based `tokenizers` library). This distinction centers purely on the execution efficiency of the tokenization step rather than the underlying vocabulary rules.
 
@@ -382,13 +379,17 @@ Fast WordPiece eliminates backtracking entirely by modeling the vocabulary as a 
 
 As a result, Fast WordPiece processes text in **strict $\mathcal{O}(n)$ time complexity** relative to the sentence length $n$, executing up to 5 to 8 times faster than traditional implementations without altering the final tokenized output.
 
-### **The Golden Rule: Once Learned, It is Frozen**
+
+### Some Remarks on TOkenization
+
+
+1- **The Golden Rule: Once Learned, It is Frozen**
 
 This brings us to a crucial rule: **Token IDs are entirely fixed and never change during the LLM's life.** 
 
 Once the tokenizer algorithm finishes its training phase and locks in its vocabulary table, the ID for a specific token is set in stone. The token `"pug"` will *always* map to the integer ID `4`. Whether the model is being trained to understand language or is generating text for a user, this lookup table remains completely frozen.
 
-**The Multi-Step Role of the Tokenizer**
+2- **The Multi-Step Role of the Tokenizer**
 
 While we often use "tokenization" to refer to the whole text-to-ID pipeline, the tokenizer object in modern NLP libraries (like Hugging Face) actually handles several distinct steps in sequence:
 
@@ -401,33 +402,15 @@ While we often use "tokenization" to refer to the whole text-to-ID pipeline, the
 
 
 
-### Beyond Words and Characters: Advanced Tokenization
-While word, subword, and character tokenization are standard for text, the frontier of AI relies on alternative methods:
 
-* **Byte-level Tokenization:** Instead of characters, text is broken down into raw UTF-8 bytes (ranging from 0 to 255). Used by modern models like GPT-4, this guarantees the model can process *any* language, symbol, or emoji without ever generating an "Unknown Token" (`[UNK]`) error.
-* **Visual Patching:** In Vision-Language models, images are sliced into a grid of uniform pixel squares (e.g., $16 \times 16$ patches). Each patch is projected linearly and treated exactly like a text token.
-* **Structural/Graph Tokenization:** Used in highly specialized models for code parsing (ASTs) or biology (DNA sequencing and SMILES strings for molecular chemistry), where structure dictates token boundaries more than spacing does.
 
----
 
-### The One-Pass Lifecycle: Training vs. Inference
-To see how these concepts fit together, let's trace a single pass from text to embedding vector, highlighting how the mechanics differ when a model is predicting versus when it is learning.
 
-#### During Inference (Forward Pass)
-1. **Input:** The user types `"Deep learning"`.
-2. **Tokenizer Loop:** The tokenizer splits the text into tokens and looks up their integers in its dictionary, producing `[2534, 4671]`.
-3. **Index Retrieval:** These IDs are passed to the model's Embedding Layer. The layer treats the IDs as row indices. If an ID is `2534`, it extracts row `2534` from its internal weight matrix.
-4. **Output:** The model receives a sequence of static, floating-point vectors ready for Transformer computation.
 
-#### During Training (Forward + Backward Pass)
-1. **Tokenizer Loop:** The process is identical to inference. The tokenizer text-to-ID mapping is static and **does not update** during model training.
-2. **Index Retrieval:** The model grabs the vectors for `[2534, 4671]`.
-3. **Optimization:** The model passes these vectors forward, makes a prediction, computes the error (loss), and calculates mathematical gradients via backpropagation.
-4. **Weight Update:** The numerical values *inside* the rows `2534` and `4671` of the embedding matrix are slightly modified. Over millions of steps, these vectors shift positions in vector space to accurately capture the semantic meaning of "Deep learning".
 
----
 
-### Engineering Distinction: Tokenizers vs. Embeddings in Frameworks
+
+## Part III: Tokenizers vs. Token Represenation
 From a software engineering perspective, it is critical to realize that **tokenizing and embedding are separate architectural modules.**
 
 In frameworks like Hugging Face `transformers`:
