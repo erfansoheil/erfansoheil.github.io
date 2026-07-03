@@ -165,56 +165,119 @@ For a practical and minimal implementation of standard BPE, Andrej Karpathy’s 
 
 **Intuition**
 
-Instead of merging the most *frequent* adjacent pair, WordPiece merges the pair that **maximizes the likelihood of the training data** according to a unigram language model. 
-
-The core idea can be expressed as:
+Instead of merging the most *frequent* adjacent pair, WordPiece merges the pair that gives the largest **increase in likelihood** when added to the vocabulary — a score closely related to *pointwise mutual information*:
 
 $$
-\text{highest relative mutual information} \quad \Rightarrow \quad \text{good candidate for a new token}
+\text{score}(a, b) = \frac{\text{count}(a, b)}{\text{count}(a) \cdot \text{count}(b)}
 $$
 
-For example, if the individual characters `p` and `h` are highly frequent on their own (appearing in many words like `up`, `hope`, `hot`, `pet`), but they rarely appear together, a simple frequency-based method might still merge them if the corpus is large enough. WordPiece, however, evaluates how much *more likely* they are to appear together than we would expect by chance. It creates a new token `ph` only if the combination carries high predictive value.
+A pair is a good merge candidate not because it's common, but because it's *more common together than its individual frequencies would predict*.
 
-To manage word boundaries, WordPiece uses a special prefix—usually **`##`**—to mark subwords that must be attached to a preceding token (e.g., `pre`, `##train`, `##ing`).
 
 **How WordPiece is Trained**
 
 1. **Initialize the vocabulary**
-   The vocabulary is seeded with all basic characters, punctuation marks, and special symbols present in the corpus. Suffix characters are duplicated with the `##` prefix to handle inside-word pieces.
+   Start with every individual character, punctuation mark, and special symbol found in the corpus (e.g., `p`, `h`, `e`, `t`, `##e`, `##t`...). The `##` prefix marks a character as one that only ever appears *inside* a word, never at its start — this is what lets the tokenizer later distinguish `##ing` (a suffix) from `ing` (a standalone word).
 
-2. **Build a unigram language model**
-   The algorithm treats the current vocabulary as independent units and estimates a language model over the text. 
+2. **Count pair frequencies**
+   Scan the corpus and count how often each adjacent symbol pair occurs — both together, e.g. `Count(p, ##h)`, and individually, e.g. `Count(p)` and `Count(##h)`.
 
 3. **Score all adjacent pairs**
-   WordPiece evaluates every neighboring pair of symbols $(A, B)$ in the text using a scoring metric derived from their individual and joint frequencies:
+   For every neighboring pair $(A, B)$, compute:
 
    $$
    \text{Score}(A, B) = \frac{\text{Count}(AB)}{\text{Count}(A) \times \text{Count}(B)}
    $$
 
-4. **Select and merge the highest-scoring pair**
-   The pair that yields the maximum score is chosen and added to the vocabulary as a new merged token $AB$. 
+   This score is high when $A$ and $B$ co-occur more often than their individual frequencies would predict — not simply when $AB$ is common.
+
+4. **Merge the highest-scoring pair**
+   The pair with the highest score is merged into a new token. For instance, if `##p` and `##h` score highest, they merge into `##ph`, which is added to the vocabulary.
 
 5. **Repeat until the vocabulary budget is reached**
-   The text is updated, frequencies are re-computed, and the process repeats until the predefined vocabulary size is filled.
+   Re-scan the (now updated) corpus with the new token in place, recompute scores, and merge again. This repeats — one merge per iteration — until the vocabulary reaches its target size (e.g., 30,000 tokens).
 
 **A Mathematical Perspective**
+**Method 2: WordPiece**
 
-Mathematically, WordPiece optimizes a probabilistic objective. Given a text corpus $X = (x_1, x_2, \dots, x_N)$ and a vocabulary $V$, a unigram language model assumes that the probability of the corpus is the product of the probabilities of its constituent tokens:
+**WordPiece** is another bottom-up subword tokenization method, heavily utilized by models like BERT and DistilBERT. Structurally, it is similar to BPE. Meaning, both of them start from a base alphabet and iteratively expand the vocabulary. However, their merging strategy is grounded in probability and information theory rather than raw frequency.
 
-$$
-P(X) = \prod_{i=1}^{N} P(t_i)
-$$
+**Intuition**
 
-Where each token $t_i \in V$, and its probability is estimated via maximum likelihood: $P(t) = \frac{\text{Count}(t)}{\sum_{t' \in V} \text{Count}(t')}$.
-
-When WordPiece considers merging two adjacent tokens $A$ and $B$ into a new token $AB$, it evaluates how this merge alters the total log-likelihood of the corpus. The change in log-likelihood is directly proportional to the pointwise mutual information (PMI) of the two tokens:
+Instead of merging the most *frequent* adjacent pair, WordPiece merges the pair that gives the largest **increase in likelihood** when added to the vocabulary — a score closely related to *pointwise mutual information*:
 
 $$
-\log \left( \frac{P(AB)}{P(A)P(B)} \right) = \log P(AB) - \log P(A) - \log P(B)
+\text{score}(a, b) = \frac{\text{count}(a, b)}{\text{count}(a) \cdot \text{count}(b)}
 $$
 
-By picking the pair that maximizes $\frac{\text{Count}(AB)}{\text{Count}(A) \times \text{Count}(B)}$, WordPiece greedily selects the merge rule that provides the greatest immediate increase (or smallest decrease) to the corpus likelihood.
+A pair is a good merge candidate not because it's common, but because it's *more common together than its individual frequencies would predict*.
+
+
+**How WordPiece is Trained**
+
+1. **Initialize the vocabulary**
+   Start with every individual character, punctuation mark, and special symbol found in the corpus (e.g., `p`, `h`, `e`, `t`, `##e`, `##t`...). The `##` prefix marks a character as one that only ever appears *inside* a word, never at its start — this is what lets the tokenizer later distinguish `##ing` (a suffix) from `ing` (a standalone word).
+
+2. **Count pair frequencies**
+   Scan the corpus and count how often each adjacent symbol pair occurs — both together, e.g., `Count(p, ##h)`, and individually, e.g., `Count(p)` and `Count(##h)`.
+
+3. **Score all adjacent pairs**
+   For every neighboring pair $(A, B)$, compute:
+
+   $$
+   \text{Score}(A, B) = \frac{\text{Count}(AB)}{\text{Count}(A) \times \text{Count}(B)}
+   $$
+
+   This score is high when $A$ and $B$ co-occur more often than their individual frequencies would predict — not simply when $AB$ is common.
+
+4. **Merge the highest-scoring pair**
+   The pair with the highest score is merged into a new token. For instance, if `##p` and `##h` score highest, they merge into `##ph`, which is added to the vocabulary.
+
+5. **Repeat until the vocabulary budget is reached**
+   Re-scan the (now updated) corpus with the new token in place, recompute scores, and merge again. This repeats — one merge per iteration — until the vocabulary reaches its target size (e.g., 30,000 tokens).
+
+**Mathematical Properties of the WordPiece**
+
+To understand the theoretical foundation of WordPiece, we must look at the mathematical implications of its scoring function. While Byte-Pair Encoding (BPE) relies on a simple linear frequency count, WordPiece introduces a probabilistic lens that fundamentally changes which tokens are prioritized.
+
+#### **1. Connection to Information Theory and Asymmetry**
+The WordPiece scoring function is directly derived from **Pointwise Mutual Information (PMI)**. If we divide the counts in the scoring formula by the total number of tokens $N$, we convert counts into probabilities:
+
+$$
+\text{score}(a, b) = \frac{P(a, b)}{P(a)P(b)}
+$$
+
+Taking the logarithm of this ratio yields the exact formula for PMI. From an information-theoretic perspective, WordPiece asks: *How much does the presence of token $A$ reduce our uncertainty about the immediate presence of token $B$?* However, there is a crucial mathematical distinction between classical PMI and the WordPiece score regarding **symmetry**. In classical information theory, mutual information is symmetric: $\text{PMI}(X; Y) = \text{PMI}(Y; X)$. But WordPiece operates on *ordered sequential pairs*. The event of token $A$ being followed by token $B$ is completely distinct from token $B$ being followed by token $A$. Therefore:
+
+$$
+\text{Count}(A, B) \neq \text{Count}(B, A) \implies \text{Score}(A, B) \neq \text{Score}(B, A)
+$$
+
+The algorithm evaluates the directed sequence, not just general co-occurrence.
+
+#### **2. The Dynamic Probability Space**
+It is vital to recognize that the WordPiece training algorithm does not operate on a static distribution. **Every time a merge occurs, the underlying probability space changes.** When tokens $A$ and $B$ are merged into a new token $AB$, three mathematical shifts happen instantly in the corpus distribution:
+* The independent counts $\text{Count}(A)$ and $\text{Count}(B)$ decrease.
+* A new frequency $\text{Count}(AB)$ is introduced to the vocabulary.
+* The denominator and numerator for *every other adjacent pair* containing $A$ or $B$ in the entire corpus are altered.
+
+Because of this shifting distribution, WordPiece is mathematically a **greedy algorithm**. At step $t$, it makes the mathematically optimal merge for that specific, isolated snapshot of the probability space. It does not look ahead, meaning an early merge might alter the probability space in a way that traps the algorithm in a local optimum, preventing a globally optimal vocabulary that would minimize the log-likelihood of the total corpus.
+
+#### **3. Mathematical Bounds: Maximums and Minimums**
+By analyzing the count-based scoring function, we can pinpoint exactly when the algorithm reaches its extreme values:
+
+* **The Minimum Score ($0$):** The score is mathematically minimized to exactly $0$ when $A$ and $B$ never appear next to each other in the corpus ($\text{Count}(AB) = 0$). Practically, pairs with massive individual frequencies ($\text{Count}(A)$ and $\text{Count}(B)$ are huge) but very low co-occurrence will also asymptotically approach $0$.
+* **The Maximum Score ($1$):** Because $\text{Count}(AB)$ can never be larger than $\text{Count}(A)$ or $\text{Count}(B)$, the highest possible theoretical value for the count-based score is $1$. 
+    
+    This maximum is achieved under a very specific—and problematic—condition: when $A$ and $B$ perfectly co-occur, meaning they *only* ever appear together and never apart. In this scenario, $\text{Count}(AB) = \text{Count}(A) = \text{Count}(B) = k$. Plugging this into the formula gives:
+    
+    $$
+    \text{Score}(A, B) = \frac{k}{k \times k} = \frac{1}{k}
+    $$
+    
+    To hit the absolute mathematical maximum of $1$, the value of $k$ must be $1$. Therefore, the absolute highest score is awarded to **a pair of tokens that appear adjacent exactly once in the entire corpus and nowhere else.**
+
+This reveals the most glaring mathematical flaw in the WordPiece heuristic: its **extreme low-frequency bias**. As the absolute frequency of perfectly co-occurring pairs increases, their score mathematically decreases. A random typo that appears exactly once yields a maximum score of $1$, while a perfectly co-occurring word part that appears 1,000 times yields a score of $0.001$. *(Note: In practice, implementations circumvent this mathematical flaw by introducing strict minimum-frequency thresholds, such as ignoring any pair where $\text{Count}(AB) < 2$, before calculating the score).*
 
 
 **Concrete Tokenization Examples**
@@ -236,7 +299,7 @@ Input word: `"strangely"`
 * **Final BPE Tokens:** `["strang", "ely</w>"]` (often rendered simply as `["strang", "ely"]` with space indicators like `Ġstrang`, `ely` depending on the exact implementation).
 
 #### 2. WordPiece Tokenization Example
-WordPiece tokenizes text in a **top-down, greedy** fashion using an algorithm called **MaxMatch** (Maximum Matching). Instead of executing merge rules chronologically, it scans an isolated word from left to right, hunting for the longest string starting from the current position that exists in the vocabulary.
+  WordPiece tokenizes text in a **top-down, greedy** fashion using an algorithm called **MaxMatch** (Maximum Matching). Instead of executing merge rules chronologically, it scans an isolated word from left to right, hunting for the longest string starting from the current position that exists in the vocabulary.
 
 Input word: `"strangely"`
 1. It looks at the whole string `"strangely"`. It is not in the vocabulary.
