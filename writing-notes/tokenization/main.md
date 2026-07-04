@@ -12,7 +12,7 @@ In this artcile I first discuss about *Token* and *Tokenization* process in LLMs
 
 In the above figure you can see the **Input** and **Output** embeddings moduls. The whole process of tokenization happens before embedding process (later we see that thsi step called *Token Representation*)
 
-## First Part: Tokenization
+## **Part I: Tokenization**
 
 
 Throughout this article, the word **token** is used frequently. A token is a **discrete unit of information processed by a model**. In domain of language models, a token usually represents a word, part of a word, a punctuation mark, or another piece of text. In other domains, however, tokens may represent image patches, audio segments, time-series windows, and so on.
@@ -279,6 +279,25 @@ By analyzing the count-based scoring function, we can pinpoint exactly when the 
 
 This reveals the most glaring mathematical flaw in the WordPiece heuristic: its **extreme low-frequency bias**. As the absolute frequency of perfectly co-occurring pairs increases, their score mathematically decreases. A random typo that appears exactly once yields a maximum score of $1$, while a perfectly co-occurring word part that appears 1,000 times yields a score of $0.001$. *(Note: In practice, implementations circumvent this mathematical flaw by introducing strict minimum-frequency thresholds, such as ignoring any pair where $\text{Count}(AB) < 2$, before calculating the score).*
 
+**Standard WordPiece vs. Fast WordPiece**
+
+When exploring WordPiece implementations, a distinction is frequently made between **Standard WordPiece** and **Fast WordPiece** (often associated with Google's linear-time implementations and Hugging Face's Rust-based `tokenizers` library). This distinction centers purely on the execution efficiency of the tokenization step rather than the underlying vocabulary rules.
+
+#### Standard WordPiece ($\mathcal{O}(n^2)$ or $\mathcal{O}(nm)$ Complexity)
+The traditional MaxMatch algorithm used in standard WordPiece requires nested iterations over the input text:
+* It sets a pointer at the beginning of the word and scans forward to check if the substring matches a vocabulary entry.
+* If a match fails, it backtracks, shortens the candidate substring by one character, and tries again.
+
+If a word has a length of $n$ and the maximum token length in the vocabulary is $m$, this backtracking search results in a worst-case time complexity of $\mathcal{O}(n^2)$ or $\mathcal{O}(nm)$ per word. When processing billions of tokens during large-scale pre-training or high-throughput real-time inference, this computational overhead becomes a noticeable bottleneck.
+
+#### Fast WordPiece ($\mathcal{O}(n)$ Complexity)
+Fast WordPiece eliminates backtracking entirely by modeling the vocabulary as a specialized data structure known as a **Trie** (a prefix tree), augmented with advanced search mechanisms inspired by the **Aho-Corasick** string-matching algorithm.
+
+* **Failure Links & Failure Pops:** In Fast WordPiece, every node in the vocabulary trie contains precomputed "failure links". If the tokenizer is stepping through the tree matching characters (e.g., tracking `s` $\rightarrow$ `t` $\rightarrow$ `r` $\rightarrow$ `a`) and hits a character that fails to match an edge, it does not reset and backtrack to the beginning of the word. Instead, it immediately follows a failure link to another precomputed node in the trie where a valid sub-match exists, emitting the tokens along the way ("failure pops").
+* **Single-Pass End-to-End Processing:** While standard tokenizers use a two-step approach—first splitting an entire sentence into raw words using whitespaces/punctuation (pre-tokenization) and then passing each word individually to the subword loop—Fast WordPiece handles both simultaneously. It streams the entire raw sentence text through the trie in a **single linear pass**.
+
+As a result, Fast WordPiece processes text in **strict $\mathcal{O}(n)$ time complexity** relative to the sentence length $n$, executing up to 5 to 8 times faster than traditional implementations without altering the final tokenized output.
+
 
 **Concrete Tokenization Examples**
 
@@ -308,7 +327,6 @@ Input word: `"strangely"`
 4. It looks for `"##ely"`. (Match found!).
 * **Final WordPiece Tokens:** `["strang", "##ely"]`
 
----
 
 **Why BPE Lacks an Unknown Token, But WordPiece Has One**
 
@@ -325,24 +343,7 @@ Modern NLP implementations of BPE circumvent this limitation by shifting the bas
 Instead of initializing the alphabet with thousands of unique Unicode characters, Byte-Level BPE (BBPE) initializes its base vocabulary with exactly **256 fundamental tokens**, representing every possible value of a raw byte ($0\text{x}00$ through $0\text{x}\text{FF}$). Any text string, no matter how rare or bizarre the character, can be encoded into a sequence of UTF-8 bytes. Because all 256 bytes are permanently locked into the base vocabulary, the tokenizer can *always* fall back to individual byte tokens if it encounters a character it has never seen before. It is mathematically impossible to produce a sequence that cannot be decomposed, rendering an `[UNK]` token obsolete.
 
 
-**Standard WordPiece vs. Fast WordPiece**
 
-When exploring WordPiece implementations, a distinction is frequently made between **Standard WordPiece** and **Fast WordPiece** (often associated with Google's linear-time implementations and Hugging Face's Rust-based `tokenizers` library). This distinction centers purely on the execution efficiency of the tokenization step rather than the underlying vocabulary rules.
-
-#### Standard WordPiece ($\mathcal{O}(n^2)$ or $\mathcal{O}(nm)$ Complexity)
-The traditional MaxMatch algorithm used in standard WordPiece requires nested iterations over the input text:
-* It sets a pointer at the beginning of the word and scans forward to check if the substring matches a vocabulary entry.
-* If a match fails, it backtracks, shortens the candidate substring by one character, and tries again.
-
-If a word has a length of $n$ and the maximum token length in the vocabulary is $m$, this backtracking search results in a worst-case time complexity of $\mathcal{O}(n^2)$ or $\mathcal{O}(nm)$ per word. When processing billions of tokens during large-scale pre-training or high-throughput real-time inference, this computational overhead becomes a noticeable bottleneck.
-
-#### Fast WordPiece ($\mathcal{O}(n)$ Complexity)
-Fast WordPiece eliminates backtracking entirely by modeling the vocabulary as a specialized data structure known as a **Trie** (a prefix tree), augmented with advanced search mechanisms inspired by the **Aho-Corasick** string-matching algorithm.
-
-* **Failure Links & Failure Pops:** In Fast WordPiece, every node in the vocabulary trie contains precomputed "failure links". If the tokenizer is stepping through the tree matching characters (e.g., tracking `s` $\rightarrow$ `t` $\rightarrow$ `r` $\rightarrow$ `a`) and hits a character that fails to match an edge, it does not reset and backtrack to the beginning of the word. Instead, it immediately follows a failure link to another precomputed node in the trie where a valid sub-match exists, emitting the tokens along the way ("failure pops").
-* **Single-Pass End-to-End Processing:** While standard tokenizers use a two-step approach—first splitting an entire sentence into raw words using whitespaces/punctuation (pre-tokenization) and then passing each word individually to the subword loop—Fast WordPiece handles both simultaneously. It streams the entire raw sentence text through the trie in a **single linear pass**.
-
-As a result, Fast WordPiece processes text in **strict $\mathcal{O}(n)$ time complexity** relative to the sentence length $n$, executing up to 5 to 8 times faster than traditional implementations without altering the final tokenized output.
 
 
 ### Some Remarks on TOkenization
