@@ -285,15 +285,37 @@ This reveals the most glaring mathematical flaw in the WordPiece heuristic: its 
 
 When exploring WordPiece implementations, a distinction is frequently made between **Standard WordPiece** and **Fast WordPiece** (often associated with Google's linear-time implementations and Hugging Face's Rust-based `tokenizers` library). This distinction centers purely on the execution efficiency of the tokenization step rather than the underlying vocabulary rules.
 
-**Standard WordPiece ($\mathcal{O}(n^2)$ or $\mathcal{O}(nm)$ Complexity)**
+**Standard WordPiece**
 
-The traditional MaxMatch algorithm used in standard WordPiece requires nested iterations over the input text:
-* It sets a pointer at the beginning of the word and scans forward to check if the substring matches a vocabulary entry.
-* If a match fails, it backtracks, shortens the candidate substring by one character, and tries again.
+Suppose we are given a word with $(m)$ characters and vocabulary ize of $(n)$.
 
-If a word has a length of $n$ and the maximum token length in the vocabulary is $m$, this backtracking search results in a worst-case time complexity of $\mathcal{O}(n^2)$ or $\mathcal{O}(nm)$ per word. When processing billions of tokens during large-scale pre-training or high-throughput real-time inference, this computational overhead becomes a noticeable bottleneck.
+One way to describe the cost is in terms of vocabulary lookup. If each candidate substring must be compared naively against a vocabulary of size (n), then in the **worst case the tokenizer may perform as many as
+$
+[
+\mathcal{O}(mn)
+]
+$
+comparisons: for each of the (m) possible character positions, it may need to search through all vocabulary entries to find whether a valid token exists.
 
-**Fast WordPiece ($\mathcal{O}(n)$ Complexity)**
+Therefore, the inefficiency of standard WordPiece does not come from the vocabulary itself. It comes from the **search procedure**.
+
+This is why standard WordPiece is often described as having worst-case complexity around
+$
+[
+\mathcal{O}(m^2)
+]
+$
+or, depending on the lookup implementation,
+$
+[
+\mathcal{O}(mn).
+]
+$
+For large-scale pretraining, where billions or trillions of words must be tokenized, this repeated backtracking can become a significant bottleneck.
+
+* Note: In practice, vocabularies are usually stored in hash tables or tries, so lookup is much faster than a naive scan over all (n) tokens. 
+
+**Fast WordPiece**
 
 
 Fast WordPiece eliminates backtracking entirely by modeling the vocabulary as a specialized data structure known as a **Trie** (a prefix tree), augmented with advanced search mechanisms inspired by the **Aho-Corasick** string-matching algorithm.
@@ -338,22 +360,35 @@ Input word: `"strangely"`
 
 **The `[UNK]` Token**
 
-In practice, WordPiece relies on an explicit **`[UNK]`** (unknown) token to handle unexpected characters, whereas modern implementations of BPE (such as those used by GPT-4 or LLaMA) guarantee a **0% out-of-vocabulary rate** without needing an unknown fallback. This difference stems from how they construct their initial base vocabularies:
+The role of `[UNK]` becomes clear if we ask a simple question:
 
-**WordPiece and `[UNK]`**
+> What are the smallest units the tokenizer is allowed to use?
 
-WordPiece initializes its base alphabet using characters (Unicode code points) discovered within its training corpus. If a user inputs text during inference that contains a completely novel character—such as an emoji, a specialized mathematical symbol, or a character from a foreign alphabet that was entirely absent from the training data—WordPiece cannot decompose it. 
+A tokenizer can only decompose text into units that exist in its vocabulary. If the smallest units are **characters**, then every character that may appear at inference time must already be known. If the tokenizer sees a character that was never included in its base vocabulary, it has no smaller unit to fall back to.
 
-When the MaxMatch algorithm encounters a character or substring for which no individual base character exists in the vocabulary, the entire lookup routine fails. Because it cannot output a valid sequence of tokens, it maps the unrecognized token to a catch-all sequence: `[UNK]`.
+This is the situation with standard WordPiece.
 
-**BPE and Byte-Level Representation**
+Suppose the WordPiece vocabulary was built from English text and contains characters such as: a, b, c, ..., z.
 
-Modern NLP implementations of BPE circumvent this limitation by shifting the base vocabulary down from the character level to the **byte level**. 
+Now imagine the model receives the word: cat🙂
+The tokenizer can handle , a,b,c , but if the emoji `🙂` was never included in the base vocabulary, WordPiece cannot split it any further. The emoji is already a single Unicode character from the tokenizer’s point of view. There is no smaller known unit available. So the tokenizer gives up and outputs: `[UNK]`
 
-Instead of initializing the alphabet with thousands of unique Unicode characters, Byte-Level BPE (BBPE) initializes its base vocabulary with exactly **256 fundamental tokens**, representing every possible value of a raw byte ($0\text{x}00$ through $0\text{x}\text{FF}$). Any text string, no matter how rare or bizarre the character, can be encoded into a sequence of UTF-8 bytes. Because all 256 bytes are permanently locked into the base vocabulary, the tokenizer can *always* fall back to individual byte tokens if it encounters a character it has never seen before. It is mathematically impossible to produce a sequence that cannot be decomposed, rendering an `[UNK]` token obsolete.
+The same problem can happen with rare mathematical symbols, foreign alphabets, or unusual Unicode characters. The issue is not that WordPiece is “bad”; the issue is that its fallback level is usually the **character level**, and the vocabulary is nor **rich** enough to cover every possible input.
+
+Classical BPE can have the same problem if it also starts from a fixed character vocabulary. 
+
+Byte-level BPE solves this by changing the **byte** level.
+
+Instead of starting from characters, byte-level BPE starts from **bytes**. Every text string on a computer can be represented as a sequence of bytes, for example using UTF-8 encoding. So the base vocabulary has at least  256 possible byte values:
 
 
+Byte-level BPE includes all 256 bytes in its base vocabulary. Therefore, even if the tokenizer sees a completely new character, it can always decompose that character into its underlying bytes.
 
+For example: 🙂,
+
+may be unknown as a character, but it is still representable as a sequence of UTF-8 bytes. Since those bytes are guaranteed to exist in the vocabulary, the tokenizer never gets stuck.
+
+This is why WordPiece usually needs an explicit `[UNK]` token, while byte-level BPE can avoid it.
 
 
 ### **1.3 Some Remarks on Tkenization**
