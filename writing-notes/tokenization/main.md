@@ -240,7 +240,7 @@ A pair is a good merge candidate not because it's common, but because it's *more
 
 To understand the theoretical foundation of WordPiece, we must look at the mathematical implications of its scoring function. While Byte-Pair Encoding (BPE) relies on a simple linear frequency count, WordPiece introduces a probabilistic lens that fundamentally changes which tokens are prioritized.
 
-#### **1. Connection to Information Theory and Asymmetry**
+#### **Connection to Information Theory and Asymmetry**
 The WordPiece scoring function is directly derived from **Pointwise Mutual Information (PMI)**. If we divide the counts in the scoring formula by the total number of tokens $N$, we convert counts into probabilities:
 
 $$
@@ -255,7 +255,7 @@ $$
 
 The algorithm evaluates the directed sequence, not just general co-occurrence.
 
-#### **2. The Dynamic Probability Space**
+#### **The Dynamic Probability Space**
 It is vital to recognize that the WordPiece training algorithm does not operate on a static distribution. **Every time a merge occurs, the underlying probability space changes.** When tokens $A$ and $B$ are merged into a new token $AB$, three mathematical shifts happen instantly in the corpus distribution:
 * The independent counts $\text{Count}(A)$ and $\text{Count}(B)$ decrease.
 * A new frequency $\text{Count}(AB)$ is introduced to the vocabulary.
@@ -263,7 +263,7 @@ It is vital to recognize that the WordPiece training algorithm does not operate 
 
 Because of this shifting distribution, WordPiece is mathematically a **greedy algorithm**. At step $t$, it makes the mathematically optimal merge for that specific, isolated snapshot of the probability space. It does not look ahead, meaning an early merge might alter the probability space in a way that traps the algorithm in a local optimum, preventing a globally optimal vocabulary that would minimize the log-likelihood of the total corpus.
 
-#### **3. Mathematical Bounds: Maximums and Minimums**
+#### **Mathematical Bounds: Maximums and Minimums**
 By analyzing the count-based scoring function, we can pinpoint exactly when the algorithm reaches its extreme values:
 
 * **The Minimum Score ($0$):** The score is mathematically minimized to exactly $0$ when $A$ and $B$ never appear next to each other in the corpus ($\text{Count}(AB) = 0$). Practically, pairs with massive individual frequencies ($\text{Count}(A)$ and $\text{Count}(B)$ are huge) but very low co-occurrence will also asymptotically approach $0$.
@@ -283,14 +283,15 @@ This reveals the most glaring mathematical flaw in the WordPiece heuristic: its 
 
 When exploring WordPiece implementations, a distinction is frequently made between **Standard WordPiece** and **Fast WordPiece** (often associated with Google's linear-time implementations and Hugging Face's Rust-based `tokenizers` library). This distinction centers purely on the execution efficiency of the tokenization step rather than the underlying vocabulary rules.
 
-#### Standard WordPiece ($\mathcal{O}(n^2)$ or $\mathcal{O}(nm)$ Complexity)
+#### **Standard WordPiece ($\mathcal{O}(n^2)$ or $\mathcal{O}(nm)$ Complexity)**
 The traditional MaxMatch algorithm used in standard WordPiece requires nested iterations over the input text:
 * It sets a pointer at the beginning of the word and scans forward to check if the substring matches a vocabulary entry.
 * If a match fails, it backtracks, shortens the candidate substring by one character, and tries again.
 
 If a word has a length of $n$ and the maximum token length in the vocabulary is $m$, this backtracking search results in a worst-case time complexity of $\mathcal{O}(n^2)$ or $\mathcal{O}(nm)$ per word. When processing billions of tokens during large-scale pre-training or high-throughput real-time inference, this computational overhead becomes a noticeable bottleneck.
 
-#### Fast WordPiece ($\mathcal{O}(n)$ Complexity)
+#### **Fast WordPiece ($\mathcal{O}(n)$ Complexity)**
+
 Fast WordPiece eliminates backtracking entirely by modeling the vocabulary as a specialized data structure known as a **Trie** (a prefix tree), augmented with advanced search mechanisms inspired by the **Aho-Corasick** string-matching algorithm.
 
 * **Failure Links & Failure Pops:** In Fast WordPiece, every node in the vocabulary trie contains precomputed "failure links". If the tokenizer is stepping through the tree matching characters (e.g., tracking `s` $\rightarrow$ `t` $\rightarrow$ `r` $\rightarrow$ `a`) and hits a character that fails to match an edge, it does not reset and backtrack to the beginning of the word. Instead, it immediately follows a failure link to another precomputed node in the trie where a valid sub-match exists, emitting the tokens along the way ("failure pops").
@@ -307,7 +308,8 @@ Assume both tokenizers have been trained on an English corpus containing a mix o
 * **BPE Vocabulary:** `["the", "cat", "walk", "ed", "strang", "ely", "s", "a", "b", "c", ...]` (plus the end-of-word marker `</w>`)
 * **WordPiece Vocabulary:** `["the", "cat", "walk", "##ed", "strang", "##ely", "##e", "a", "b", "c", ...]`
 
-#### 1. BPE Tokenization Example
+**BPE Tokenization Example**
+
 BPE tokenizes text in a **bottom-up** fashion by looking up its learned *merge rules* in the exact chronological order they were discovered during training. 
 
 Input word: `"strangely"`
@@ -317,7 +319,8 @@ Input word: `"strangely"`
 4. No further valid merge rules apply.
 * **Final BPE Tokens:** `["strang", "ely</w>"]` (often rendered simply as `["strang", "ely"]` with space indicators like `Ġstrang`, `ely` depending on the exact implementation).
 
-#### 2. WordPiece Tokenization Example
+**2. WordPiece Tokenization Example**
+
   WordPiece tokenizes text in a **top-down, greedy** fashion using an algorithm called **MaxMatch** (Maximum Matching). Instead of executing merge rules chronologically, it scans an isolated word from left to right, hunting for the longest string starting from the current position that exists in the vocabulary.
 
 Input word: `"strangely"`
@@ -328,16 +331,18 @@ Input word: `"strangely"`
 * **Final WordPiece Tokens:** `["strang", "##ely"]`
 
 
-**Why BPE Lacks an Unknown Token, But WordPiece Has One**
+**The `[UNK]` Token**
 
 In practice, WordPiece relies on an explicit **`[UNK]`** (unknown) token to handle unexpected characters, whereas modern implementations of BPE (such as those used by GPT-4 or LLaMA) guarantee a **0% out-of-vocabulary rate** without needing an unknown fallback. This difference stems from how they construct their initial base vocabularies:
 
-#### WordPiece and `[UNK]`
+**WordPiece and `[UNK]`**
+
 WordPiece initializes its base alphabet using characters (Unicode code points) discovered within its training corpus. If a user inputs text during inference that contains a completely novel character—such as an emoji, a specialized mathematical symbol, or a character from a foreign alphabet that was entirely absent from the training data—WordPiece cannot decompose it. 
 
 When the MaxMatch algorithm encounters a character or substring for which no individual base character exists in the vocabulary, the entire lookup routine fails. Because it cannot output a valid sequence of tokens, it maps the unrecognized token to a catch-all sequence: `[UNK]`.
 
-#### BPE and Byte-Level Representation
+**BPE and Byte-Level Representation**
+
 Modern NLP implementations of BPE circumvent this limitation by shifting the base vocabulary down from the character level to the **byte level**. 
 
 Instead of initializing the alphabet with thousands of unique Unicode characters, Byte-Level BPE (BBPE) initializes its base vocabulary with exactly **256 fundamental tokens**, representing every possible value of a raw byte ($0\text{x}00$ through $0\text{x}\text{FF}$). Any text string, no matter how rare or bizarre the character, can be encoded into a sequence of UTF-8 bytes. Because all 256 bytes are permanently locked into the base vocabulary, the tokenizer can *always* fall back to individual byte tokens if it encounters a character it has never seen before. It is mathematically impossible to produce a sequence that cannot be decomposed, rendering an `[UNK]` token obsolete.
@@ -346,7 +351,7 @@ Instead of initializing the alphabet with thousands of unique Unicode characters
 
 
 
-### Some Remarks on TOkenization
+### Some Remarks on Tkenization
 
 
 1- **The Golden Rule: Once Learned, It is Frozen**
