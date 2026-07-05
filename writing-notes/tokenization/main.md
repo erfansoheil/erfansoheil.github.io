@@ -391,14 +391,13 @@ may be unknown as a character, but it is still representable as a sequence of UT
 This is why WordPiece usually needs an explicit `[UNK]` token, while byte-level BPE can avoid it.
 
 
-### **1.3 Some Remarks on Tkenization**
+### **1.3 Some Remarks on Tokenization**
 
 
 1- **The Golden Rule: Once Learned, It is Frozen**
 
-This brings us to a crucial rule: **Token IDs are entirely fixed and never change during the LLM's life.** 
+Once the tokenizer algorithm finishes its training phase and locks in its vocabulary table, the ID for a specific token is fixed. For example the token `"pug"` will *always* map to the integer ID `4`. Whether the model is being trained to understand language or is generating text for a user, this lookup table remains completely frozen. In short : **Token IDs are entirely fixed and never change during the LLM inference.** 
 
-Once the tokenizer algorithm finishes its training phase and locks in its vocabulary table, the ID for a specific token is set in stone. The token `"pug"` will *always* map to the integer ID `4`. Whether the model is being trained to understand language or is generating text for a user, this lookup table remains completely frozen.
 
 2- **The Multi-Step Role of the Tokenizer**
 
@@ -412,8 +411,7 @@ While we often use "tokenization" to refer to the whole text-to-ID pipeline, the
 
 
 
-
-
+## **Part II: Token Represenation**
 
 
 
