@@ -9,7 +9,6 @@ In this artcile I first discuss about *Token* and *Tokenization* process in LLMs
 
 ![Transformers Architecture](./assets/images/trans_arch.png)
 
-
 In the above figure you can see the **Input** and **Output** embeddings moduls. The whole process of tokenization happens before embedding process (later we see that thsi step called *Token Representation*)
 
 ## **Part I: Tokenization**
@@ -85,8 +84,6 @@ Modern LLMs rely on three primary algorithmic flavors to construct their vocabul
 * **Unigram**: Starts with a massive vocabulary of full words and iteratively removes (prunes) the least useful tokens. (Used by: T5).
 
 In the followig we dezcribe these three methods individually. 
-
-
 #### 1.1.1 **Byte-Pair Encoding (BPE)**
 
 **Byte-Pair Encoding (BPE)** is a bottom-up subword tokenization method. It starts from a small base alphabet, usually characters or bytes, and gradually builds larger units by merging frequent adjacent pairs.
