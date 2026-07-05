@@ -411,19 +411,45 @@ While we often use "tokenization" to refer to the whole text-to-ID pipeline, the
 
 
 
-## **Part II: Token Represenation**
+## **Part II: Token Representation**
+
+### **2.1 From Integers to Meaning**
+
+At the end of the tokenization pipeline, we are left with an array of Token IDs—a sequence of integers like `[30121, 1634, 318, 1257, 0]`. While computers can process numbers, these raw integers are fundamentally inadequate for a neural network to understand *language*. 
+
+Why? Because Token IDs are **categorical**, not **quantitative**. 
+
+If the token `"king"` is assigned ID `1000` and the token `"apple"` is assigned ID `1001`, the mathematical proximity of these two numbers means absolutely nothing. They are just arbitrary labels. A neural network cannot multiply or add these IDs together to extract grammar, context, or meaning. 
+
+This is where **Token Representation** (commonly referred to as **Embedding**) comes in. Token representation is the process of translating these rigid, arbitrary integers into rich, continuous mathematical objects called vectors.
+
+### **2.2 The Embedding Layer: Building the Vector**
+
+Before the discrete Token IDs enter the deep layers of the Transformer (like the Attention mechanisms), they pass through the **Embedding Layer**. Think of this layer as a massive lookup table, but instead of mapping a string to an integer, it maps an integer to a high-dimensional list of floating-point numbers.
+
+Instead of representing `"Token"` as a single number (`30121`), the embedding layer represents it as a dense vector of hundreds or thousands of dimensions (often denoted as $d_{\text{model}}$):
+
+<center>30121 → `[0.14, -0.88, 0.42, ..., 0.05]`</center>
+
+Each dimension in this vector captures a tiny, abstract fraction of the token's semantic meaning. In this high-dimensional space, words with similar meanings (like `"king"` and `"queen"`) end up mathematically closer together, while unrelated words (like `"king"` and `"toaster"`) are pushed far apart. 
+
+### **2.3 The Core Differences: Tokenization vs. Representation**
+
+To build a clear mental map, it is crucial to separate these two phases conceptually. Here is how tokenization and token representation differ:
+
+* **Fixed vs. Learned:**
+  * **Tokenization** is a fixed, pre-processing step. Once the tokenizer is trained and its vocabulary dictionary is locked in, the ID for a specific token never changes. The word `"the"` will always be `1996` in a BERT model.
+  * **Token Representation** is a dynamic, learned process. The vector assigned to ID `1996` starts as random noise and is continuously updated and refined via backpropagation during the LLM's training phase. The model *learns* what the token means by adjusting these floating-point numbers.
+
+* **Syntax vs. Semantics:**
+  * **Tokenization** only cares about syntax and structure. It is a statistical machine that asks: *"How do I efficiently chop this string of characters into smaller pieces?"* It has no understanding of what the words actually mean.
+  * **Token Representation** cares entirely about semantics. It asks: *"What is the underlying meaning of this discrete piece, and how does it relate to all the other pieces in my vocabulary?"*
+
+* **Hardware Execution:**
+  * **Tokenization** is almost always executed on the **CPU**. It is a software-level string manipulation task using dictionaries, tries, or regular expressions.
+  * **Token Representation** happens on the **GPU** (or TPU). The embedding layer is the very first true layer of the neural network, performing massive matrix multiplications.
+
+In summary, if tokenization is the act of giving every word a unique ID badge to enter the building, token representation is the process of reading that badge to understand the person's entire background, skills, and relationship to everyone else in the room.
 
 
-
-
-
-
-
-## **Part III: Tokenizers vs. Token Represenation**
-From a software engineering perspective, it is critical to realize that **tokenizing and embedding are separate architectural modules.**
-
-In frameworks like Hugging Face `transformers`:
-* **The Tokenizer (`AutoTokenizer`)** is a **CPU-bound** pre-processing utility. It handles raw Python strings and transforms them into standard integer tensors. It operates entirely outside of the neural network and contains no learnable weights.
-* **The Model (`AutoModel`)** houses the embedding layer (`nn.Embedding`), which is a **GPU/TPU-bound** neural network component. It is a matrix of trainable weights that converts those integer tensors into continuous vector representations.
-
-In the following figure, some LLM tokenization methods are mentioned.
+## **Part III: Some Concrete examples**
