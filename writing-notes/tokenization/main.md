@@ -14,7 +14,7 @@ In the above figure you can see the **Input** and **Output** embeddings moduls. 
 
 ## **Part I: Tokenization**
 
-
+### **1.1 What is Token and Tokenization**  
 Throughout this article, the word **token** is used frequently. A token is a **discrete unit of information processed by a model**. In domain of language models, a token usually represents a word, part of a word, a punctuation mark, or another piece of text. In other domains, however, tokens may represent image patches, audio segments, time-series windows, and so on.
 
 Before a model can process an input, it must first convert it into a sequence of tokens. The tokens themselves are not directly understood by the neural network. Instead, they must be converted into numbers using the model's Vocabulary—which is a fixed master list of every token the model is trained to recognize.
@@ -74,6 +74,8 @@ This mapping isn't random, nor is it done manually. The process of tokenization 
 
 When we say a tokenizer is "trained," we don't mean it uses complex neural networks. Instead, tokenizer training is a statistical optimization process. Its entire goal is to read a massive sample dataset of raw text, analyze it, and find the most efficient balance between character-level chunks and whole-word chunks to build its vocabulary list.
 
+### 1.2 **Tokenization Methods**
+
 Modern LLMs rely on three primary algorithmic flavors to construct their vocabulary:
 
 * **Byte-Pair Encoding (BPE)**: Starts with individual characters and iteratively merges the most frequent adjacent pairs. (Used by: GPT models, LLaMA).
@@ -85,7 +87,7 @@ Modern LLMs rely on three primary algorithmic flavors to construct their vocabul
 In the followig we dezcribe these three methods individually. 
 
 
-**Method 1: Byte-Pair Encoding (BPE)**
+#### 1.1.1 **Byte-Pair Encoding (BPE)**
 
 **Byte-Pair Encoding (BPE)** is a bottom-up subword tokenization method. It starts from a small base alphabet, usually characters or bytes, and gradually builds larger units by merging frequent adjacent pairs.
 
@@ -159,7 +161,7 @@ For a practical and minimal implementation of standard BPE, Andrej Karpathy’s 
 
 
 
-**Method 2: WordPiece**
+#### 1.1.2 **WordPiece**
 
 **WordPiece** is another bottom-up subword tokenization method, heavily utilized by models like BERT and DistilBERT. Structurally it is similar with BPE. Meaning, both of thel starting from a base alphabet and iteratively expanding the vocabulary. However then merging strategy is grounded in probability and information theory rather than raw frequency.
 
@@ -240,7 +242,8 @@ A pair is a good merge candidate not because it's common, but because it's *more
 
 To understand the theoretical foundation of WordPiece, we must look at the mathematical implications of its scoring function. While Byte-Pair Encoding (BPE) relies on a simple linear frequency count, WordPiece introduces a probabilistic lens that fundamentally changes which tokens are prioritized.
 
-#### **Connection to Information Theory and Asymmetry**
+#**Connection to Information Theory and Asymmetry**
+
 The WordPiece scoring function is directly derived from **Pointwise Mutual Information (PMI)**. If we divide the counts in the scoring formula by the total number of tokens $N$, we convert counts into probabilities:
 
 $$
@@ -255,7 +258,8 @@ $$
 
 The algorithm evaluates the directed sequence, not just general co-occurrence.
 
-#### **The Dynamic Probability Space**
+**The Dynamic Probability Space**
+
 It is vital to recognize that the WordPiece training algorithm does not operate on a static distribution. **Every time a merge occurs, the underlying probability space changes.** When tokens $A$ and $B$ are merged into a new token $AB$, three mathematical shifts happen instantly in the corpus distribution:
 * The independent counts $\text{Count}(A)$ and $\text{Count}(B)$ decrease.
 * A new frequency $\text{Count}(AB)$ is introduced to the vocabulary.
@@ -263,7 +267,8 @@ It is vital to recognize that the WordPiece training algorithm does not operate 
 
 Because of this shifting distribution, WordPiece is mathematically a **greedy algorithm**. At step $t$, it makes the mathematically optimal merge for that specific, isolated snapshot of the probability space. It does not look ahead, meaning an early merge might alter the probability space in a way that traps the algorithm in a local optimum, preventing a globally optimal vocabulary that would minimize the log-likelihood of the total corpus.
 
-#### **Mathematical Bounds: Maximums and Minimums**
+**Mathematical Bounds: Maximums and Minimums**
+
 By analyzing the count-based scoring function, we can pinpoint exactly when the algorithm reaches its extreme values:
 
 * **The Minimum Score ($0$):** The score is mathematically minimized to exactly $0$ when $A$ and $B$ never appear next to each other in the corpus ($\text{Count}(AB) = 0$). Practically, pairs with massive individual frequencies ($\text{Count}(A)$ and $\text{Count}(B)$ are huge) but very low co-occurrence will also asymptotically approach $0$.
@@ -283,14 +288,16 @@ This reveals the most glaring mathematical flaw in the WordPiece heuristic: its 
 
 When exploring WordPiece implementations, a distinction is frequently made between **Standard WordPiece** and **Fast WordPiece** (often associated with Google's linear-time implementations and Hugging Face's Rust-based `tokenizers` library). This distinction centers purely on the execution efficiency of the tokenization step rather than the underlying vocabulary rules.
 
-#### **Standard WordPiece ($\mathcal{O}(n^2)$ or $\mathcal{O}(nm)$ Complexity)**
+**Standard WordPiece ($\mathcal{O}(n^2)$ or $\mathcal{O}(nm)$ Complexity)**
+
 The traditional MaxMatch algorithm used in standard WordPiece requires nested iterations over the input text:
 * It sets a pointer at the beginning of the word and scans forward to check if the substring matches a vocabulary entry.
 * If a match fails, it backtracks, shortens the candidate substring by one character, and tries again.
 
 If a word has a length of $n$ and the maximum token length in the vocabulary is $m$, this backtracking search results in a worst-case time complexity of $\mathcal{O}(n^2)$ or $\mathcal{O}(nm)$ per word. When processing billions of tokens during large-scale pre-training or high-throughput real-time inference, this computational overhead becomes a noticeable bottleneck.
 
-#### **Fast WordPiece ($\mathcal{O}(n)$ Complexity)**
+**Fast WordPiece ($\mathcal{O}(n)$ Complexity)**
+
 
 Fast WordPiece eliminates backtracking entirely by modeling the vocabulary as a specialized data structure known as a **Trie** (a prefix tree), augmented with advanced search mechanisms inspired by the **Aho-Corasick** string-matching algorithm.
 
@@ -299,7 +306,8 @@ Fast WordPiece eliminates backtracking entirely by modeling the vocabulary as a 
 
 As a result, Fast WordPiece processes text in **strict $\mathcal{O}(n)$ time complexity** relative to the sentence length $n$, executing up to 5 to 8 times faster than traditional implementations without altering the final tokenized output.
 
-
+#### 1.1.3 **BPE and WordPiece Comparison**
+ 
 **Concrete Tokenization Examples**
 
 To illustrate how these trained vocabularies behave in practice, let us examine how both BPE and WordPiece process a sample sentence once training is complete.
@@ -319,7 +327,7 @@ Input word: `"strangely"`
 4. No further valid merge rules apply.
 * **Final BPE Tokens:** `["strang", "ely</w>"]` (often rendered simply as `["strang", "ely"]` with space indicators like `Ġstrang`, `ely` depending on the exact implementation).
 
-**2. WordPiece Tokenization Example**
+**WordPiece Tokenization Example**
 
   WordPiece tokenizes text in a **top-down, greedy** fashion using an algorithm called **MaxMatch** (Maximum Matching). Instead of executing merge rules chronologically, it scans an isolated word from left to right, hunting for the longest string starting from the current position that exists in the vocabulary.
 
@@ -351,7 +359,7 @@ Instead of initializing the alphabet with thousands of unique Unicode characters
 
 
 
-### Some Remarks on Tkenization
+### 1.3 Some Remarks on Tkenization
 
 
 1- **The Golden Rule: Once Learned, It is Frozen**
