@@ -73,7 +73,7 @@ This mapping isn't random, nor is it done manually. The process of tokenization 
 
 When we say a tokenizer is "trained," we don't mean it uses complex neural networks. Instead, tokenizer training is a statistical optimization process. Its entire goal is to read a massive sample dataset of raw text, analyze it, and find the most efficient balance between character-level chunks and whole-word chunks to build its vocabulary list.
 
-### 1.2 **Tokenization Methods**
+### **1.2 Tokenization Methods**
 
 Modern LLMs rely on three primary algorithmic flavors to construct their vocabulary:
 
@@ -84,7 +84,7 @@ Modern LLMs rely on three primary algorithmic flavors to construct their vocabul
 * **Unigram**: Starts with a massive vocabulary of full words and iteratively removes (prunes) the least useful tokens. (Used by: T5).
 
 In the followig we dezcribe these three methods individually. 
-#### 1.1.1 **Byte-Pair Encoding (BPE)**
+#### **1.1.1 Byte-Pair Encoding (BPE)**
 
 **Byte-Pair Encoding (BPE)** is a bottom-up subword tokenization method. It starts from a small base alphabet, usually characters or bytes, and gradually builds larger units by merging frequent adjacent pairs.
 
@@ -158,7 +158,7 @@ For a practical and minimal implementation of standard BPE, Andrej Karpathy’s 
 
 
 
-#### 1.1.2 **WordPiece**
+#### **1.1.2 WordPiece**
 
 **WordPiece** is another bottom-up subword tokenization method, heavily utilized by models like BERT and DistilBERT. Structurally it is similar with BPE. Meaning, both of thel starting from a base alphabet and iteratively expanding the vocabulary. However then merging strategy is grounded in probability and information theory rather than raw frequency.
 
@@ -303,7 +303,7 @@ Fast WordPiece eliminates backtracking entirely by modeling the vocabulary as a 
 
 As a result, Fast WordPiece processes text in **strict $\mathcal{O}(n)$ time complexity** relative to the sentence length $n$, executing up to 5 to 8 times faster than traditional implementations without altering the final tokenized output.
 
-#### 1.1.3 **BPE and WordPiece Comparison**
+#### **1.1.3 BPE and WordPiece Comparison**
  
 **Concrete Tokenization Examples**
 
@@ -356,7 +356,7 @@ Instead of initializing the alphabet with thousands of unique Unicode characters
 
 
 
-### 1.3 Some Remarks on Tkenization
+### **1.3 Some Remarks on Tkenization**
 
 
 1- **The Golden Rule: Once Learned, It is Frozen**
@@ -386,7 +386,7 @@ While we often use "tokenization" to refer to the whole text-to-ID pipeline, the
 
 
 
-## Part III: Tokenizers vs. Token Represenation
+## **Part III: Tokenizers vs. Token Represenation**
 From a software engineering perspective, it is critical to realize that **tokenizing and embedding are separate architectural modules.**
 
 In frameworks like Hugging Face `transformers`:
