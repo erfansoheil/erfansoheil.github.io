@@ -429,7 +429,7 @@ Before the discrete Token IDs enter the deep layers of the Transformer (like the
 
 Instead of representing `"Token"` as a single number (`30121`), the embedding layer represents it as a dense vector of hundreds or thousands of dimensions (often denoted as $d_{\text{model}}$):
 
-<center>30121 → `[0.14, -0.88, 0.42, ..., 0.05]`</center>
+$$ 30121 → [0.14, -0.88, 0.42, ..., 0.05]$$
 
 Each dimension in this vector captures a tiny, abstract fraction of the token's semantic meaning. In this high-dimensional space, words with similar meanings (like `"king"` and `"queen"`) end up mathematically closer together, while unrelated words (like `"king"` and `"toaster"`) are pushed far apart. 
 
