@@ -386,8 +386,23 @@ may be unknown as a character, but it is still representable as a sequence of UT
 
 This is why WordPiece usually needs an explicit `[UNK]` token, while byte-level BPE can avoid it.
 
+#### **1.2.4 Unigram**
 
-### **1.2.4 SentencePiece: The Language-Independent Framework**
+While BPE and WordPiece build tokens from the bottom up (starting with single characters), the **Unigram** method works from the top down. It is often used alongside SentencePiece in models like T5.
+
+**How It Works**
+Unigram starts with a very large list of words and common word parts from the training text. Then, it carefully removes (prunes) the least useful pieces until it reaches the final vocabulary size.
+
+**How Unigram is Trained**
+1. **Start big:** Create a huge initial list of words and subwords.
+2. **Find probabilities:** Calculate how likely each piece is to appear in the text based on its frequency.
+3. **Test the impact:** The model looks at the whole text and asks: *"If I remove this token from my list, how much does it hurt my ability to represent the text accurately?"*
+4. **Remove the least useful:** Tokens that have the smallest negative impact when removed are deleted. These are usually pieces that can easily be made by combining other, more common tokens.
+5. **Repeat:** The model recalculates the probabilities and keeps removing tokens until the vocabulary is the right size.
+
+Unlike BPE, which uses a strict rule to combine pieces, Unigram relies on probability. If a word can be split in several different ways, Unigram looks at the chances of each option and picks the most likely one.
+
+### **1.3 SentencePiece: The Language-Independent Framework**
 
 While BPE and WordPiece are powerful subword algorithms, they historically relied on a crucial first step: **pre-tokenization**. Before the algorithm could process the text, a script had to split the sentence into words based on spaces and punctuation (e.g., separating `"I love AI."` into `["I", "love", "AI", "."]`).
 
@@ -423,7 +438,15 @@ With SentencePiece, the **detokenization** process is mathematically lossless an
 
 Because SentencePiece is an overarching framework, it is highly versatile. When you load a modern model like T5 or LLaMA, Hugging Face is quietly utilizing the SentencePiece library in the background to handle this precise `▁` spacing logic before passing the mathematical Token IDs to the model.
 
-### **1.3 Some Remarks on Tokenization**
+### **1.4 How Do We Evaluate a Tokenizer?**
+
+Because tokenizers decide how efficiently a model processes text, it is important to measure their performance. Researchers look at a few key areas:
+
+* **Compression Rate:** This measures how many tokens are needed to represent a single word on average. A lower score is better because it means the tokenizer is efficient. If one tokenizer needs 5 tokens to read the word "unbelievable" and another needs only 2, the second one uses the model's capacity much better.
+* **Unknown Word Rate:** How often does the tokenizer have to use the `[UNK]` (Unknown) token? Modern tokenizers that can fall back to basic bytes usually have a rate of 0%, which is the ideal goal.
+* **Fairness Across Languages:** Models that handle multiple languages are tested on how equally they treat them. If a tokenizer needs 1 token for an English sentence but 4 tokens for a sentence with the same meaning in Turkish, the model will be slower and more expensive to run for Turkish users. A good tokenizer works efficiently across many different languages.
+
+### **1.5 Some Remarks on Tokenization**
 
 
 1- **The Golden Rule: Once Learned, It is Frozen**
@@ -484,6 +507,26 @@ To build a clear mental map, it is crucial to separate these two phases conceptu
 In summary, if tokenization is the act of giving every word a unique ID badge to enter the building, token representation is the process of reading that badge to understand the person's entire background, skills, and relationship to everyone else in the room.
 
 
+
+#### **2.4 Why We Cannot Simply Change the Tokenizer**
+
+When working with pre-trained models, developers often ask: *"Can I just add new words to the tokenizer or replace it with a better one?"*
+
+The short answer is: **If you change the tokenizer, you break the embeddings.**
+
+Remember that the Embedding Layer is like a large lookup table. Each Token ID corresponds to a specific row in that table, which holds the vector (the mathematical meaning) for that token. 
+
+If you train the tokenizer again or change it, the IDs will get mixed up. For example, the word `"apple"` might move from ID `500` to ID `2104`. If you give ID `2104` to the original model, it will look up row `2104`, which used to belong to a completely different word. The result will be meaningless output.
+
+**How do we add new words, then?**
+If you need to add new tokens (for example, for specific medical terms or a new language), you must carefully expand the model:
+1. Add the new tokens to the tokenizer's vocabulary.
+2. Add new, empty rows to the bottom of the model's embedding matrix so it gets larger.
+3. Fill these new rows with starting values. You can use random numbers, or you can average the values of the smaller pieces that used to make up the new word.
+4. **Train the model again (Fine-tune).** You must train the model so it can learn the correct mathematical meaning for these newly added vectors.
+
+
+
 ## **Part III: Some Concrete examples**
 
 ### **3.1 Different Models, Different Tokenization**
@@ -529,6 +572,14 @@ Text: `I love machine learning 😊`
 | LLaMA-style tokenizer  | `[<s>, ▁I, ▁love, ▁machine, ▁learning, ▁, <0xF0>, <0x9F>, <0x98>, <0x8A>]` | `[1, 306, 5360, 4933, 6509, 29871, 243, 162, 155, 141]` |
 | Qwen-small             | `[I, Ġlove, Ġmachine, Ġlearning, ĠðŁĺ, Ĭ]`                                 | `[40, 2948, 5662, 6832, 26525, 232]`                    |
 
+**Key Takeaways from the Tables**
+
+Looking at how different models handle the exact same text shows us a few important differences:
+
+* **Handling Spaces:** Notice how the models show spaces between words. GPT-2, RoBERTa, and Qwen use `Ġ` to represent a space. T5 and LLaMA use `▁`. BERT, however, removes spaces completely and uses `##` to show that a piece belongs to the word before it (like `##ization`).
+* **The Emoji Problem:** Look at the example with the "😊" emoji. BERT does not recognize it and replaces it with an unknown token, `[UNK]`. T5 also outputs `<unk>`. But GPT-2, RoBERTa, and LLaMA handle it smoothly by breaking the emoji down into basic computer bytes. LLaMA splits the emoji into its raw byte codes (like `<0xF0>`). This ensures the model does not lose the information, even if the exact emoji is not in its main vocabulary.
+* **Different Word Splits:** For the word "unbelievable", every model makes a different choice. GPT-2 splits it into four parts (`un`, `bel`, `iev`, `able`), while T5 keeps it as one complete word (`▁unbelievable`). This shows how a model's training data changes how it breaks down text.
+
 
 ### **3.2 What Are These Tokenizer Files on Hugging Face?**
 
@@ -571,3 +622,13 @@ This appears in **BPE tokenizers**. It stores the ordered list of merge rules le
 #### **`config.json`**
 
 This one is usually **the model configuration file**, not the tokenizer file. It typically stores architecture-level information such as the hidden size, number of layers, number of attention heads, vocabulary size, and special token IDs. So it belongs more to the **language model** than to the tokenizer itself.
+
+
+## **Conclusion**
+
+When working with Large Language Models, it is easy to view the input process as one big mystery. However, separating **Tokenization** from **Token Representation** makes it much easier to understand how these models process text.
+
+* **Tokenization** is a strict, rule-based step. It runs on standard processors (CPUs), uses statistical rules learned from text, and cuts words into simple numbers (Token IDs). It does not understand what the words actually mean.
+* **Token Representation (Embeddings)** is where the model starts to understand. It runs on specialized processors (GPUs). It takes those simple numbers and turns them into complex mathematical vectors. In this step, the model learns grammar, context, and meaning. 
+
+By understanding this full path—from standard text, to token pieces, to integer IDs, and finally to mathematical vectors—you can better understand both the limits and the real power of modern language models.
