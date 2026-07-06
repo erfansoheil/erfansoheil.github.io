@@ -197,49 +197,10 @@ A pair is a good merge candidate not because it's common, but because it's *more
    Re-scan the (now updated) corpus with the new token in place, recompute scores, and merge again. This repeats — one merge per iteration — until the vocabulary reaches its target size (e.g., 30,000 tokens).
 
 **A Mathematical Perspective**
-**Method 2: WordPiece**
-
-**WordPiece** is another bottom-up subword tokenization method, heavily utilized by models like BERT and DistilBERT. Structurally, it is similar to BPE. Meaning, both of them start from a base alphabet and iteratively expand the vocabulary. However, their merging strategy is grounded in probability and information theory rather than raw frequency.
-
-**Intuition**
-
-Instead of merging the most *frequent* adjacent pair, WordPiece merges the pair that gives the largest **increase in likelihood** when added to the vocabulary — a score closely related to *pointwise mutual information*:
-
-$$
-\text{score}(a, b) = \frac{\text{count}(a, b)}{\text{count}(a) \cdot \text{count}(b)}
-$$
-
-A pair is a good merge candidate not because it's common, but because it's *more common together than its individual frequencies would predict*.
-
-
-**How WordPiece is Trained**
-
-1. **Initialize the vocabulary**
-   Start with every individual character, punctuation mark, and special symbol found in the corpus (e.g., `p`, `h`, `e`, `t`, `##e`, `##t`...). The `##` prefix marks a character as one that only ever appears *inside* a word, never at its start — this is what lets the tokenizer later distinguish `##ing` (a suffix) from `ing` (a standalone word).
-
-2. **Count pair frequencies**
-   Scan the corpus and count how often each adjacent symbol pair occurs — both together, e.g., `Count(p, ##h)`, and individually, e.g., `Count(p)` and `Count(##h)`.
-
-3. **Score all adjacent pairs**
-   For every neighboring pair $(A, B)$, compute:
-
-   $$
-   \text{Score}(A, B) = \frac{\text{Count}(AB)}{\text{Count}(A) \times \text{Count}(B)}
-   $$
-
-   This score is high when $A$ and $B$ co-occur more often than their individual frequencies would predict — not simply when $AB$ is common.
-
-4. **Merge the highest-scoring pair**
-   The pair with the highest score is merged into a new token. For instance, if `##p` and `##h` score highest, they merge into `##ph`, which is added to the vocabulary.
-
-5. **Repeat until the vocabulary budget is reached**
-   Re-scan the (now updated) corpus with the new token in place, recompute scores, and merge again. This repeats — one merge per iteration — until the vocabulary reaches its target size (e.g., 30,000 tokens).
-
-**Mathematical Properties of the WordPiece**
 
 To understand the theoretical foundation of WordPiece, we must look at the mathematical implications of its scoring function. While Byte-Pair Encoding (BPE) relies on a simple linear frequency count, WordPiece introduces a probabilistic lens that fundamentally changes which tokens are prioritized.
 
-#**Connection to Information Theory and Asymmetry**
+**Connection to Information Theory and Asymmetry**
 
 The WordPiece scoring function is directly derived from **Pointwise Mutual Information (PMI)**. If we divide the counts in the scoring formula by the total number of tokens $N$, we convert counts into probabilities:
 
