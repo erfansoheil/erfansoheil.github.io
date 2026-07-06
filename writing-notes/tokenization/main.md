@@ -84,7 +84,7 @@ Modern LLMs rely on three primary algorithmic flavors to construct their vocabul
 * **Unigram**: Starts with a massive vocabulary of full words and iteratively removes (prunes) the least useful tokens. (Used by: T5).
 
 In the followig we dezcribe these three methods individually. 
-#### **1.1.1 Byte-Pair Encoding (BPE)**
+#### **1.2.1 Byte-Pair Encoding (BPE)**
 
 **Byte-Pair Encoding (BPE)** is a bottom-up subword tokenization method. It starts from a small base alphabet, usually characters or bytes, and gradually builds larger units by merging frequent adjacent pairs.
 
@@ -158,7 +158,7 @@ For a practical and minimal implementation of standard BPE, Andrej Karpathy’s 
 
 
 
-#### **1.1.2 WordPiece**
+#### **1.2.2 WordPiece**
 
 **WordPiece** is another bottom-up subword tokenization method, heavily utilized by models like BERT and DistilBERT. Structurally it is similar with BPE. Meaning, both of thel starting from a base alphabet and iteratively expanding the vocabulary. However then merging strategy is grounded in probability and information theory rather than raw frequency.
 
@@ -198,49 +198,84 @@ A pair is a good merge candidate not because it's common, but because it's *more
 
 **A Mathematical Perspective**
 
-To understand the theoretical foundation of WordPiece, we must look at the mathematical implications of its scoring function. While Byte-Pair Encoding (BPE) relies on a simple linear frequency count, WordPiece introduces a probabilistic lens that fundamentally changes which tokens are prioritized.
+To understand *why* WordPiece merges the pairs it does, we need to look past the scoring formula and ask what it's actually approximating.
 
-**Connection to Information Theory and Asymmetry**
+**The Score Is Not Quite PMI**
 
-The WordPiece scoring function is directly derived from **Pointwise Mutual Information (PMI)**. If we divide the counts in the scoring formula by the total number of tokens $N$, we convert counts into probabilities:
-
-$$
-\text{score}(a, b) = \frac{P(a, b)}{P(a)P(b)}
-$$
-
-Taking the logarithm of this ratio yields the exact formula for PMI. From an information-theoretic perspective, WordPiece asks: *How much does the presence of token $A$ reduce our uncertainty about the immediate presence of token $B$?* However, there is a crucial mathematical distinction between classical PMI and the WordPiece score regarding **symmetry**. In classical information theory, mutual information is symmetric: $\text{PMI}(X; Y) = \text{PMI}(Y; X)$. But WordPiece operates on *ordered sequential pairs*. The event of token $A$ being followed by token $B$ is completely distinct from token $B$ being followed by token $A$. Therefore:
+The scoring formula introduced above,
 
 $$
-\text{Count}(A, B) \neq \text{Count}(B, A) \implies \text{Score}(A, B) \neq \text{Score}(B, A)
+\text{score}(a,b) = \frac{\text{Count}(a,b)}{\text{Count}(a)\,\text{Count}(b)}
 $$
 
-The algorithm evaluates the directed sequence, not just general co-occurrence.
+is often described as Pointwise Mutual Information (PMI). It's close, but not exact, and the gap matters. Write each count as a probability by dividing by the total number of tokens $N$: $P(a) = \text{Count}(a)/N$, and likewise for $P(b)$ and $P(a,b)$. Substituting these into the true PMI ratio gives:
+
+$$
+\frac{P(a,b)}{P(a)P(b)} = \frac{\text{Count}(a,b)/N}{\big(\text{Count}(a)/N\big)\big(\text{Count}(b)/N\big)} 
+= N \cdot \frac{\text{Count}(a,b)}{\text{Count}(a)\,\text{Count}(b)} = N \cdot \text{score}(a,b)
+$$
+
+So the true PMI is $\log\big(N \cdot \text{score}(a,b)\big) = \log N + \log\,\text{score}(a,b)$ — the raw score is off from PMI by an additive constant, $\log N$, in log-space.
+
+This constant doesn't matter for choosing which pair to merge: at any single training step, $N$ is the same number for every candidate pair, so ranking pairs by $\text{score}(a,b)$ or by the true PMI gives identical results. That's why implementations use the simpler formula — it's not PMI, but it produces the same ranking as PMI would, which is all that's needed to pick a merge.
+
+**Why Frequency Still Matters: The Log-Likelihood View**
+
+The ratio-only score has a real weakness, though, visible once you look at its extremes. A pair that appears exactly once, adjacent, nowhere else, gets the maximum possible score of $1$ — the same maximum a pair occurring 10,000 times under the same "always together" condition would get. The score only measures *how exclusively* two tokens co-occur, never *how much total evidence* backs that co-occurrence. A single coincidental pairing (a typo, a rare proper noun) can outscore a workhorse subword.
+
+The original WordPiece formulation (Schuster & Nakajima, 2012; used again in Google's GNMT paper, Wu et al., 2016) avoids this by scoring merges according to their effect on the corpus's **log-likelihood** under a unigram language model, rather than by a bare probability ratio.
+
+Model the corpus likelihood as a product of unigram token probabilities:
+
+$$
+\mathcal{L} = \prod_{t} P(t)^{\text{Count}(t)} 
+\quad\Longrightarrow\quad 
+\log \mathcal{L} = \sum_{t} \text{Count}(t)\,\log P(t)
+$$
+
+Now consider merging $A$ and $B$ into a new token $AB$. Every one of the $\text{Count}(a,b)$ places where $A$ is immediately followed by $B$ used to contribute $\log P(A) + \log P(B)$ to this sum; after the merge, that same occurrence contributes $\log P(AB)$ instead. Holding everything else fixed, the resulting change in corpus log-likelihood is:
+
+$$
+\Delta\mathcal{LL}(A,B) \;\approx\; \text{Count}(a,b)\Big[\log P(AB) - \log P(A) - \log P(B)\Big]
+$$
+
+$$
+= \text{Count}(a,b)\cdot \log\!\left(\frac{P(AB)}{P(A)P(B)}\right) 
+= \text{Count}(a,b)\cdot \text{PMI}(A,B)
+$$
+
+This is the actual quantity WordPiece training maximizes at each step: 
+
+**PMI weighted by raw frequency**, not PMI alone. That frequency weight is exactly what fixes the pathology above. A pair occurring once has $\text{Count}(a,b) = 1$, so even a perfect PMI score contributes almost nothing to $\Delta\mathcal{LL}$; a frequent pair with a merely-good PMI can still dominate it. The ratio-only score from earlier is a useful first intuition for *why* WordPiece favors "surprising" co-occurrences over sheer frequency, but $\Delta\mathcal{LL}(A,B)$ is the more complete criterion, and the one actually implemented.
+
+**Asymmetry**
+
+One property survives in either formulation: WordPiece scores *ordered*, adjacent pairs, not general co-occurrence. Classical mutual information is symmetric, $\text{PMI}(X;Y) = \text{PMI}(Y;X)$, but here $A$ immediately followed by $B$ is a different event from $B$ immediately followed by $A$:
+
+$$
+\text{Count}(A,B) \neq \text{Count}(B,A) \;\implies\; \Delta\mathcal{LL}(A,B) \neq \Delta\mathcal{LL}(B,A)
+$$
+
+The algorithm is scoring directed sequential adjacency, not undirected association.
 
 **The Dynamic Probability Space**
 
-It is vital to recognize that the WordPiece training algorithm does not operate on a static distribution. **Every time a merge occurs, the underlying probability space changes.** When tokens $A$ and $B$ are merged into a new token $AB$, three mathematical shifts happen instantly in the corpus distribution:
-* The independent counts $\text{Count}(A)$ and $\text{Count}(B)$ decrease.
-* A new frequency $\text{Count}(AB)$ is introduced to the vocabulary.
-* The denominator and numerator for *every other adjacent pair* containing $A$ or $B$ in the entire corpus are altered.
+The training algorithm never optimizes against a fixed distribution. Every merge changes the counts that the *next* merge's scores depend on. When $A$ and $B$ merge into $AB$, three things shift in the corpus simultaneously:
 
-Because of this shifting distribution, WordPiece is mathematically a **greedy algorithm**. At step $t$, it makes the mathematically optimal merge for that specific, isolated snapshot of the probability space. It does not look ahead, meaning an early merge might alter the probability space in a way that traps the algorithm in a local optimum, preventing a globally optimal vocabulary that would minimize the log-likelihood of the total corpus.
+- $\text{Count}(A)$ and $\text{Count}(B)$ both decrease (every merged occurrence is no longer counted as a standalone $A$ or $B$).
+- $\text{Count}(AB)$ appears for the first time.
+- Every other pair in the corpus that contains $A$ or $B$ has its own score affected, since its denominator terms just changed.
+
+Because the landscape shifts after every merge, WordPiece is a **greedy algorithm** in a genuine, consequential sense: at step $t$ it makes the optimal choice for that instant's snapshot of $\Delta\mathcal{LL}$, with no lookahead. An early merge can reshape the probability space in a way that locks out a better final vocabulary — the same non-optimality trade-off discussed for BPE above, here driven by shifting counts rather than a fixed compression objective.
 
 **Mathematical Bounds: Maximums and Minimums**
 
-By analyzing the count-based scoring function, we can pinpoint exactly when the algorithm reaches its extreme values:
+Using the simpler ratio-only score (since the bound analysis is cleaner in that form and the ranking is identical to the full $\Delta\mathcal{LL}$ criterion, as shown above):
 
-* **The Minimum Score ($0$):** The score is mathematically minimized to exactly $0$ when $A$ and $B$ never appear next to each other in the corpus ($\text{Count}(AB) = 0$). Practically, pairs with massive individual frequencies ($\text{Count}(A)$ and $\text{Count}(B)$ are huge) but very low co-occurrence will also asymptotically approach $0$.
-* **The Maximum Score ($1$):** Because $\text{Count}(AB)$ can never be larger than $\text{Count}(A)$ or $\text{Count}(B)$, the highest possible theoretical value for the count-based score is $1$. 
-    
-    This maximum is achieved under a very specific—and problematic—condition: when $A$ and $B$ perfectly co-occur, meaning they *only* ever appear together and never apart. In this scenario, $\text{Count}(AB) = \text{Count}(A) = \text{Count}(B) = k$. Plugging this into the formula gives:
-    
-    $$
-    \text{Score}(A, B) = \frac{k}{k \times k} = \frac{1}{k}
-    $$
-    
-    To hit the absolute mathematical maximum of $1$, the value of $k$ must be $1$. Therefore, the absolute highest score is awarded to **a pair of tokens that appear adjacent exactly once in the entire corpus and nowhere else.**
+- **Minimum ($0$):** the score is exactly $0$ when $A$ and $B$ never appear adjacent, $\text{Count}(a,b) = 0$. Pairs with large individual frequencies  but negligible co-occurrence approach $0$ as well.
+- **Maximum ($1$):** since $\text{Count}(a,b)$ can never exceed $\text{Count}(a)$ or $\text{Count}(b)$, $1$ is the theoretical ceiling. It's reached only when $A$ and $B$ perfectly co-occur — they only ever appear together, so $\text{Count}(a,b) = \text{Count}(a) = \text{Count}(b) = k$, giving $\text{score}(a,b) = k/(k \times k) = 1/k$. Hitting the true maximum of $1$ requires $k = 1$: the highest possible score belongs to a pair that occurs   adjacent exactly once in the entire corpus and nowhere else.
 
-This reveals the most glaring mathematical flaw in the WordPiece heuristic: its **extreme low-frequency bias**. As the absolute frequency of perfectly co-occurring pairs increases, their score mathematically decreases. A random typo that appears exactly once yields a maximum score of $1$, while a perfectly co-occurring word part that appears 1,000 times yields a score of $0.001$. *(Note: In practice, implementations circumvent this mathematical flaw by introducing strict minimum-frequency thresholds, such as ignoring any pair where $\text{Count}(AB) < 2$, before calculating the score).*
+This is precisely the flaw the frequency-weighted $\Delta\mathcal{LL}$ criterion corrects: the ratio alone rewards rare coincidences with the highest possible score, but a real implementation weights that score by $\text{Count}(a,b)$ before comparing candidates, which is why a one-off typo  never actually outranks a genuine subword in practice. *(Implementations also add a hard minimum-frequency threshold, e.g. discarding any pair with $\text{Count}(a,b) < 2$, as a second safeguard against this.)*
 
 **Standard WordPiece vs. Fast WordPiece**
 
@@ -286,7 +321,7 @@ Fast WordPiece eliminates backtracking entirely by modeling the vocabulary as a 
 
 As a result, Fast WordPiece processes text in **strict $\mathcal{O}(n)$ time complexity** relative to the sentence length $n$, executing up to 5 to 8 times faster than traditional implementations without altering the final tokenized output.
 
-#### **1.1.3 BPE and WordPiece Comparison**
+#### **1.2.3 BPE and WordPiece Comparison**
  
 **Concrete Tokenization Examples**
 
@@ -351,6 +386,42 @@ may be unknown as a character, but it is still representable as a sequence of UT
 
 This is why WordPiece usually needs an explicit `[UNK]` token, while byte-level BPE can avoid it.
 
+
+### **1.2.4 SentencePiece: The Language-Independent Framework**
+
+While BPE and WordPiece are powerful subword algorithms, they historically relied on a crucial first step: **pre-tokenization**. Before the algorithm could process the text, a script had to split the sentence into words based on spaces and punctuation (e.g., separating `"I love AI."` into `["I", "love", "AI", "."]`).
+
+This creates a massive problem for language models intended to be multilingual. Languages like Chinese, Japanese, and Thai do not use spaces to separate words. Furthermore, different languages have complex and varying rules for punctuation, hyphens, and apostrophes. Relying on spaces and hardcoded punctuation rules makes a tokenizer fundamentally language-dependent.
+
+**The SentencePiece Solution**
+
+SentencePiece, developed by Google, solves this by acting as a language-independent wrapper around algorithms like BPE or Unigram. It achieves this by skipping the pre-tokenization (word-splitting) step entirely. 
+
+Instead of discarding spaces, SentencePiece treats the entire input as a raw stream of characters and treats the space as just another standard letter. 
+
+1. **Whitespace Escaping:** Before any subword algorithm is applied, SentencePiece replaces all spaces in the raw text with a special meta-symbol, usually a lower one-eighth block: `▁` (U+2581). 
+   * *Raw Text:* `"Tokenization is fun!"`
+   * *Escaped:* `"▁Tokenization▁is▁fun!"`
+
+2. **Applying the Algorithm:** This escaped string is then fed into the core subword algorithm (like BPE for LLaMA, or Unigram for T5). The algorithm splits the text into tokens, but the `▁` remains physically attached to the beginning of the words.
+   * *Tokens:* `["▁Token", "ization", "▁is", "▁fun", "!"]`
+
+Notice how `"ization"` does not have the `▁` marker. This is how the model structurally understands that `"Token"` and `"ization"` belong to the exact same word and should not have a space between them.
+
+**Lossless Detokenization**
+
+The most significant advantage of this approach becomes apparent during **text generation (inference)**. 
+
+In older tokenizers, when the model generated a sequence of tokens, the system had to use messy, hardcoded rules to figure out whether to put spaces between them (e.g., "Add a space between words, but don't add a space before a period or a comma"). 
+
+With SentencePiece, the **detokenization** process is mathematically lossless and foolproof. It requires zero language-specific rules. The pipeline simply reverses the escaping process:
+
+1. **Concatenation:** The generated string tokens are glued together exactly as they are outputted by the model. 
+   (`"▁Token" + "ization" + "▁is" + "▁fun" + "!"` $\rightarrow$ `"▁Tokenization▁is▁fun!"`)
+2. **Replacement:** The system performs a basic find-and-replace, swapping every `▁` symbol back into a standard, invisible whitespace.
+   (`" Tokenization is fun!"`)
+
+Because SentencePiece is an overarching framework, it is highly versatile. When you load a modern model like T5 or LLaMA, Hugging Face is quietly utilizing the SentencePiece library in the background to handle this precise `▁` spacing logic before passing the mathematical Token IDs to the model.
 
 ### **1.3 Some Remarks on Tokenization**
 
