@@ -6,11 +6,9 @@ title: "Tokenization VS Token Representation"
 The idea of this article came to my mind when I was readig about LLM archtiecture and was trying to understand the difference between **Token**, **Tokenization**, **Token IDs** and **Token Represenations**. At first all of these look the same to me and it took some time for me to categorize them in my mind. This article is a try to create a mental map for someone who wants to go deep in these topics. 
 
 In this article I first discuss about *Token* and *Tokenization* process in LLMs. Then we disucss about *Token Representations* process. But before that lets recall the trasformers architecture since it is our building block of this article. 
-<center>
 
 ![Transformers Architecture](./assets/images/trans_arch.png)
 
-<center>
 
 In the above figure you can see the **Input** and **Output** embeddings modules. In the training and inference step the whole process of tokenization happens before the embedding process (later we will see that this step is called *Token Representation*). 
 
@@ -32,12 +30,9 @@ The process of converting an input into tokens is called **tokenization**. Lets 
 <center>Input → Tokens → Token IDs </center>
 
 
-<!-- , while the process of converting token IDs into vectors is called **embedding**. -->
-<center>
-
 ![Transformers Architecture](./assets/images/tokenization_process.png)
 
-<center>
+
 
 **Exmple:**
 
