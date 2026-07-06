@@ -456,7 +456,7 @@ In summary, if tokenization is the act of giving every word a unique ID badge to
 
 ### **3.1 Different Models, Different Tokenization**
 
-In the following example I demonstrate how five different models tokenize the same texts You can see the pipeline here: [code](./main.ipynb). Everythig (downlaoding and loading) is handled by `AutoTokenizer` module in `transformers` library. 
+In the following example I demonstrate how five different models tokenize the same texts You can see the pipeline here: [code](https://github.com/erfansoheil/erfansoheil.github.io/blob/main/writing-notes/tokenization/main.ipynb). Everythig (downlaoding and loading) is handled by `AutoTokenizer` module in `transformers` library. 
 
 For the first text `Tokenization is not trivial.` 
 
