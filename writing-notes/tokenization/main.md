@@ -3,22 +3,25 @@ layout: post
 title: "Tokenization VS Token Representation"
 ---
 
-The idea of this article came to my mind when I was readig about LLM archtiectures and was trying to understand the difference between **Token**, **Tokenization**, **Token IDs** and **Token Represenations**. At first all of these look the same to me and it took some time for me to categorize them in my mind. This articel is a try to create a mental map for someone who wants to go deep in these topics. 
+The idea of this article came to my mind when I was readig about LLM archtiecture and was trying to understand the difference between **Token**, **Tokenization**, **Token IDs** and **Token Represenations**. At first all of these look the same to me and it took some time for me to categorize them in my mind. This article is a try to create a mental map for someone who wants to go deep in these topics. 
 
-In this artcile I first discuss about *Token* and *Tokenization* process in LLMs. Then we disucss about *Token Representations* process. Before that lets recall the trasdformers architecture since it is our building block of this article. 
+In this article I first discuss about *Token* and *Tokenization* process in LLMs. Then we disucss about *Token Representations* process. But before that lets recall the trasformers architecture since it is our building block of this article. 
+<center>
 
 ![Transformers Architecture](./assets/images/trans_arch.png)
 
-In the above figure you can see the **Input** and **Output** embeddings moduls. The whole process of tokenization happens before embedding process (later we see that thsi step called *Token Representation*)
+<center>
+
+In the above figure you can see the **Input** and **Output** embeddings modules. In the training and inference step the whole process of tokenization happens before the embedding process (later we will see that this step is called *Token Representation*). 
 
 ## **Part I: Tokenization**
 
 ### **1.1 What is Token and Tokenization**  
-Throughout this article, the word **token** is used frequently. A token is a **discrete unit of information processed by a model**. In domain of language models, a token usually represents a word, part of a word, a punctuation mark, or another piece of text. In other domains, however, tokens may represent image patches, audio segments, time-series windows, and so on.
+Throughout this article, the word **token** is used frequently. A token is a **discrete unit of information processed by a model**. In domain of language models, a token usually represents a word, part of a word, a punctuation mark, or another piece of text. In other domains, however, tokens may represent image patches, audio segments, time-series windows, and so on. 
 
 Before a model can process an input, it must first convert it into a sequence of tokens. The tokens themselves are not directly understood by the neural network. Instead, they must be converted into numbers using the model's Vocabulary—which is a fixed master list of every token the model is trained to recognize.
 
-The total number of unique items in this list is the Vocabulary Size. Each token is mapped to its exact index number in this vocabulary, known as a Token ID. These token IDs are then transformed into meaningful vectors through an **embedding layer**, producing numerical representations that the model can process.
+The total number of unique items in this list is the **Vocabulary Size**. Each token is mapped to its exact index number in this vocabulary, known as a **Token ID**. These token IDs are then transformed into meaningful vectors through an **embedding layer** (lke those in the figure) producing numerical representations that the model can process.
 
 As a result, the pipeline looks as follows:
 
@@ -30,18 +33,23 @@ The process of converting an input into tokens is called **tokenization**. Lets 
 
 
 <!-- , while the process of converting token IDs into vectors is called **embedding**. -->
+<center>
 
-**Exmple :**
+![Transformers Architecture](./assets/images/tokenization_process.png)
+
+<center>
+
+**Exmple:**
 
 Let’s see how a simple sentence moves through the first two steps of the pipeline using a standard subword tokenizer (like the one used by GPT models).
 
-- Input (Raw Text): > "Tokenization is fun!"
+- Input (Raw Text): > "Tokenization is not trivial"
 
 - Tokens (Discrete Units): The tokenizer chops the text into pieces. Notice how "Tokenization" is broken into smaller subword units:
-$[\text{Token}, \text{ization}, \text{is}, \text{fun}, \text{!}]$
+$[`Token`, `ization`, `is`, `fun`, `trivial`]$
 
 - Token IDs (Unique Integers): Each token is looked up in the model's pre-defined vocabulary dictionary and replaced by its corresponding mathematical ID:
-$[30121, 1634, 318, 1257, 0]$
+$[10127, 24560, 374, 912, 50232]$
 
 
 
