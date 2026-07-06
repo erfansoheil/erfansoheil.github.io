@@ -454,9 +454,12 @@ In summary, if tokenization is the act of giving every word a unique ID badge to
 
 ## **Part III: Some Concrete examples**
 
+### **3.1 Different Models, Different Tokenization
 
 
 Text: `Tokenization is not trivial.`
+
+
 
 | Model                  | Tokens                                                  | Token IDs                                          |
 | ------------------------| ---------------------------------------------------------| ----------------------------------------------------|
