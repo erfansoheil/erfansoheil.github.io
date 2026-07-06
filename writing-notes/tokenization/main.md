@@ -190,7 +190,7 @@ Scan the corpus and count how often each adjacent symbol pair occurs — both to
    For every neighboring pair $(a, b)$, compute:
 
    $$
-   \text{Score}(a, b) = \frac{\text{Count}(ab)}{\text{Count}(a) \times \text{Count}(b)}
+   \text{Score}(a, b) = \frac{\text{Count}(ab)}{\text{Count}(a) \text{Count}(b)}
    $$
 
    This score is high when $a$ and $a$ co-occur more often than their individual frequencies would predict — not simply when $AB$ is common.
@@ -213,34 +213,23 @@ $$
 is often described as **Pointwise Mutual Information** or **PMI**. It's close, but not exact.
 
 For two discrete events $\(x\)$ and $\(y\)$, PMI is defined as:
-$$
-\[
-\operatorname{PMI}(x,y)
-=
-\log \frac{p(x,y)}{p(x)p(y)}
-\]
-$$
-where:
+
+$$\operatorname{PMI}(x,y)=\log \frac{p(x,y)}{p(x)p(y)}$$
+
+wher
 
 - $\(p(x,y)\)$ is the joint probability of observing $\(x\)$ and $\(y\)$ together,
 - $\(p(x)\)$ is the marginal probability of observing $\(x\)$,
 - $\(p(y)\)$ is the marginal probability of observing $\(y\)$.
 
 Equivalently, PMI can be written as:
-$$
-\[
-\operatorname{PMI}(x,y)
-=
-\log \frac{p(x \mid y)}{p(x)}
-=
-\log \frac{p(y \mid x)}{p(y)}
-\]$$
+
+$$\operatorname{PMI}(x,y)=\log \frac{p(x \mid y)}{p(x)}=\log \frac{p(y \mid x)}{p(y)}$$
 
 **A Mathematical Perspective**
 
-We can write each count as a probability by dividing by the total number of tokens $N$: 
-$$P(a) = \text{Count}(a)/N$$, 
-and likewise for $P(b)$ and $P(a,b)$. So, 
+In WordPiece score euqation if wewrite each count as a probability by dividing by the total number of tokens $N$: 
+$$P(a) = \text{Count}(a)/N$$, then
 
 $$
 \frac{P(a,b)}{P(a)P(b)} = \frac{\text{Count}(a,b)/N}{\big(\text{Count}(a)/N\big)\big(\text{Count}(b)/N\big)} 
@@ -248,7 +237,9 @@ $$
 $$
 
 Therefore, 
+
 $$\log\big(N \cdot \text{score}(a,b)\big) = \log N + \log\,\text{score}(a,b)$$
+
  — the raw score is off from PMI by an additive constant, $\log N$, in log-space.
 
 This constant doesn't matter for choosing which pair to merge: at any single training step, $N$ is the same number for every candidate pair, so ranking pairs by $\text{score}(a,b)$ or by the true PMI gives identical results. That's why implementations use the simpler formula — it's not PMI, but it produces the same ranking as PMI would, which is all that's needed to pick a merge.
