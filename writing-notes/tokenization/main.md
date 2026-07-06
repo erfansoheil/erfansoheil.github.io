@@ -453,3 +453,33 @@ In summary, if tokenization is the act of giving every word a unique ID badge to
 
 
 ## **Part III: Some Concrete examples**
+
+Text: `unbelievable`
+| Model                  | Tokens                                                                     | Token IDs                                               |
+| ------------------------| ----------------------------------------------------------------------------| ---------------------------------------------------------|
+| BERT WordPiece         | `[[CLS], i, love, machine, learning, [UNK], [SEP]]`                        | `[101, 1045, 2293, 3698, 4083, 100, 102]`               |
+| GPT-2 Byte-level BPE   | `[I, Ġlove, Ġmachine, Ġlearning, ĠðŁĺ, Ĭ]`                                 | `[40, 1842, 4572, 4673, 30325, 232]`                    |
+| RoBERTa Byte-level BPE | `[<s>, I, Ġlove, Ġmachine, Ġlearning, ĠðŁĺ, Ĭ, </s>]`                      | `[0, 100, 657, 3563, 2239, 17841, 27969, 2]`            |
+| T5 SentencePiece       | `[▁I, ▁love, ▁machine, ▁learning, ▁, <unk>, </s>]`                         | `[27, 333, 1437, 1036, 3, 2, 1]`                        |
+| LLaMA-style tokenizer  | `[<s>, ▁I, ▁love, ▁machine, ▁learning, ▁, <0xF0>, <0x9F>, <0x98>, <0x8A>]` | `[1, 306, 5360, 4933, 6509, 29871, 243, 162, 155, 141]` |
+| Qwen-small             | `[I, Ġlove, Ġmachine, Ġlearning, ĠðŁĺ, Ĭ]`                                 | `[40, 2948, 5662, 6832, 26525, 232]`                    |
+
+
+| Model                  | Tokens                            | Token IDs                       |
+| ------------------------| -----------------------------------| ---------------------------------|
+| BERT WordPiece         | `[[CLS], unbelievable, [SEP]]`    | `[101, 23653, 102]`             |
+| GPT-2 Byte-level BPE   | `[un, bel, iev, able]`            | `[403, 6667, 11203, 540]`       |
+| RoBERTa Byte-level BPE | `[<s>, un, bel, iev, able, </s>]` | `[0, 879, 8494, 18421, 868, 2]` |
+| T5 SentencePiece       | `[▁unbelievable, </s>]`           | `[25525, 1]`                    |
+| LLaMA-style tokenizer  | `[<s>, ▁un, bel, iev, able]`      | `[1, 443, 6596, 10384, 519]`    |
+| Qwen-small             | `[un, belie, vable]`              | `[359, 31798, 23760]`           |
+
+Text: `I love machine learning 😊`
+| Model                  | Tokens                                                                     | Token IDs                                               |
+| ------------------------| ----------------------------------------------------------------------------| ---------------------------------------------------------|
+| BERT WordPiece         | `[[CLS], i, love, machine, learning, [UNK], [SEP]]`                        | `[101, 1045, 2293, 3698, 4083, 100, 102]`               |
+| GPT-2 Byte-level BPE   | `[I, Ġlove, Ġmachine, Ġlearning, ĠðŁĺ, Ĭ]`                                 | `[40, 1842, 4572, 4673, 30325, 232]`                    |
+| RoBERTa Byte-level BPE | `[<s>, I, Ġlove, Ġmachine, Ġlearning, ĠðŁĺ, Ĭ, </s>]`                      | `[0, 100, 657, 3563, 2239, 17841, 27969, 2]`            |
+| T5 SentencePiece       | `[▁I, ▁love, ▁machine, ▁learning, ▁, <unk>, </s>]`                         | `[27, 333, 1437, 1036, 3, 2, 1]`                        |
+| LLaMA-style tokenizer  | `[<s>, ▁I, ▁love, ▁machine, ▁learning, ▁, <0xF0>, <0x9F>, <0x98>, <0x8A>]` | `[1, 306, 5360, 4933, 6509, 29871, 243, 162, 155, 141]` |
+| Qwen-small             | `[I, Ġlove, Ġmachine, Ġlearning, ĠðŁĺ, Ĭ]`                                 | `[40, 2948, 5662, 6832, 26525, 232]`                    |
