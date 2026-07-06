@@ -455,6 +455,7 @@ In summary, if tokenization is the act of giving every word a unique ID badge to
 ## **Part III: Some Concrete examples**
 
 Text: `unbelievable`
+
 | Model                  | Tokens                                                                     | Token IDs                                               |
 | ------------------------| ----------------------------------------------------------------------------| ---------------------------------------------------------|
 | BERT WordPiece         | `[[CLS], i, love, machine, learning, [UNK], [SEP]]`                        | `[101, 1045, 2293, 3698, 4083, 100, 102]`               |
@@ -465,6 +466,8 @@ Text: `unbelievable`
 | Qwen-small             | `[I, Ġlove, Ġmachine, Ġlearning, ĠðŁĺ, Ĭ]`                                 | `[40, 2948, 5662, 6832, 26525, 232]`                    |
 
 
+Text: `unbelievable`
+
 | Model                  | Tokens                            | Token IDs                       |
 | ------------------------| -----------------------------------| ---------------------------------|
 | BERT WordPiece         | `[[CLS], unbelievable, [SEP]]`    | `[101, 23653, 102]`             |
@@ -474,7 +477,10 @@ Text: `unbelievable`
 | LLaMA-style tokenizer  | `[<s>, ▁un, bel, iev, able]`      | `[1, 443, 6596, 10384, 519]`    |
 | Qwen-small             | `[un, belie, vable]`              | `[359, 31798, 23760]`           |
 
+
 Text: `I love machine learning 😊`
+
+
 | Model                  | Tokens                                                                     | Token IDs                                               |
 | ------------------------| ----------------------------------------------------------------------------| ---------------------------------------------------------|
 | BERT WordPiece         | `[[CLS], i, love, machine, learning, [UNK], [SEP]]`                        | `[101, 1045, 2293, 3698, 4083, 100, 102]`               |
