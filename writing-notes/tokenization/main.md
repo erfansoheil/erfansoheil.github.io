@@ -212,51 +212,46 @@ $$
 
 is often described as **Pointwise Mutual Information** or **PMI**. It's close, but not exact.
 
+For two discrete events $\(x\)$ and $\(y\)$, PMI is defined as:
+$$
+\[
+\operatorname{PMI}(x,y)
+=
+\log \frac{p(x,y)}{p(x)p(y)}
+\]
+$$
+where:
+
+- $\(p(x,y)\)$ is the joint probability of observing $\(x\)$ and $\(y\)$ together,
+- $\(p(x)\)$ is the marginal probability of observing $\(x\)$,
+- $\(p(y)\)$ is the marginal probability of observing $\(y\)$.
+
+Equivalently, PMI can be written as:
+$$
+\[
+\operatorname{PMI}(x,y)
+=
+\log \frac{p(x \mid y)}{p(x)}
+=
+\log \frac{p(y \mid x)}{p(y)}
+\]$$
 
 **A Mathematical Perspective**
 
-To understand *why* WordPiece merges the pairs it does, we need to look past the scoring formula and ask what it's actually approximating.
-
-**The Score Is Not Quite PMI**
-. , and the gap matters. Write each count as a probability by dividing by the total number of tokens $N$: $P(a) = \text{Count}(a)/N$, and likewise for $P(b)$ and $P(a,b)$. Substituting these into the true PMI ratio gives:
+We can write each count as a probability by dividing by the total number of tokens $N$: 
+$$P(a) = \text{Count}(a)/N$$, 
+and likewise for $P(b)$ and $P(a,b)$. So, 
 
 $$
 \frac{P(a,b)}{P(a)P(b)} = \frac{\text{Count}(a,b)/N}{\big(\text{Count}(a)/N\big)\big(\text{Count}(b)/N\big)} 
 = N \cdot \frac{\text{Count}(a,b)}{\text{Count}(a)\,\text{Count}(b)} = N \cdot \text{score}(a,b)
 $$
 
-So the true PMI is $\log\big(N \cdot \text{score}(a,b)\big) = \log N + \log\,\text{score}(a,b)$ — the raw score is off from PMI by an additive constant, $\log N$, in log-space.
+Therefore, 
+$$\log\big(N \cdot \text{score}(a,b)\big) = \log N + \log\,\text{score}(a,b)$$
+ — the raw score is off from PMI by an additive constant, $\log N$, in log-space.
 
 This constant doesn't matter for choosing which pair to merge: at any single training step, $N$ is the same number for every candidate pair, so ranking pairs by $\text{score}(a,b)$ or by the true PMI gives identical results. That's why implementations use the simpler formula — it's not PMI, but it produces the same ranking as PMI would, which is all that's needed to pick a merge.
-
-**Why Frequency Still Matters: The Log-Likelihood View**
-
-The ratio-only score has a real weakness, though, visible once you look at its extremes. A pair that appears exactly once, adjacent, nowhere else, gets the maximum possible score of $1$ — the same maximum a pair occurring 10,000 times under the same "always together" condition would get. The score only measures *how exclusively* two tokens co-occur, never *how much total evidence* backs that co-occurrence. A single coincidental pairing (a typo, a rare proper noun) can outscore a workhorse subword.
-
-The original WordPiece formulation (Schuster & Nakajima, 2012; used again in Google's GNMT paper, Wu et al., 2016) avoids this by scoring merges according to their effect on the corpus's **log-likelihood** under a unigram language model, rather than by a bare probability ratio.
-
-Model the corpus likelihood as a product of unigram token probabilities:
-
-$$
-\mathcal{L} = \prod_{t} P(t)^{\text{Count}(t)} 
-\quad\Longrightarrow\quad 
-\log \mathcal{L} = \sum_{t} \text{Count}(t)\,\log P(t)
-$$
-
-Now consider merging $A$ and $B$ into a new token $AB$. Every one of the $\text{Count}(a,b)$ places where $A$ is immediately followed by $B$ used to contribute $\log P(A) + \log P(B)$ to this sum; after the merge, that same occurrence contributes $\log P(AB)$ instead. Holding everything else fixed, the resulting change in corpus log-likelihood is:
-
-$$
-\Delta\mathcal{LL}(A,B) \;\approx\; \text{Count}(a,b)\Big[\log P(AB) - \log P(A) - \log P(B)\Big]
-$$
-
-$$
-= \text{Count}(a,b)\cdot \log\!\left(\frac{P(AB)}{P(A)P(B)}\right) 
-= \text{Count}(a,b)\cdot \text{PMI}(A,B)
-$$
-
-This is the actual quantity WordPiece training maximizes at each step: 
-
-**PMI weighted by raw frequency**, not PMI alone. That frequency weight is exactly what fixes the pathology above. A pair occurring once has $\text{Count}(a,b) = 1$, so even a perfect PMI score contributes almost nothing to $\Delta\mathcal{LL}$; a frequent pair with a merely-good PMI can still dominate it. The ratio-only score from earlier is a useful first intuition for *why* WordPiece favors "surprising" co-occurrences over sheer frequency, but $\Delta\mathcal{LL}(A,B)$ is the more complete criterion, and the one actually implemented.
 
 **Asymmetry**
 
