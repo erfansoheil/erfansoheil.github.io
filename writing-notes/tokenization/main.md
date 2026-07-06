@@ -458,8 +458,6 @@ In summary, if tokenization is the act of giving every word a unique ID badge to
 
 In the following example I demonstrate how five different models tokenize the same texts You can see the pipeline here: [code](https://github.com/erfansoheil/erfansoheil.github.io/blob/main/writing-notes/tokenization/main.ipynb). Everythig (downlaoding and loading) is handled by `AutoTokenizer` module in `transformers` library. 
 
-For the first text `Tokenization is not trivial.` 
-
 
 Text: `Tokenization is not trivial.` 
 
@@ -499,3 +497,45 @@ Text: `I love machine learning 😊`
 | LLaMA-style tokenizer  | `[<s>, ▁I, ▁love, ▁machine, ▁learning, ▁, <0xF0>, <0x9F>, <0x98>, <0x8A>]` | `[1, 306, 5360, 4933, 6509, 29871, 243, 162, 155, 141]` |
 | Qwen-small             | `[I, Ġlove, Ġmachine, Ġlearning, ĠðŁĺ, Ĭ]`                                 | `[40, 2948, 5662, 6832, 26525, 232]`                    |
 
+
+### **3.2 What Are These Tokenizer Files on Hugging Face?**
+
+When you download a tokenizer from Hugging Face, you usually get several files rather than a single one. Together, they describe **how text is split into tokens, how tokens are mapped to IDs, and how the model should use that tokenizer**.
+
+Common files include:
+
+```text
+config.json
+tokenizer.json
+tokenizer_config.json
+vocab.json
+merges.txt
+```
+
+Not every tokenizer has all of them. The exact files depend on the tokenizer family (BPE, WordPiece, SentencePiece, etc.).
+
+#### **`tokenizer.json`**
+
+This is often the **main tokenizer file**. It usually stores the full tokenizer pipeline: normalization, pre-tokenization, subword model, post-processing, and decoding. In many Hugging Face **fast tokenizers**, this file is enough to reconstruct the tokenizer.
+
+#### **`tokenizer_config.json`**
+
+This contains **Hugging Face-specific tokenizer settings**, such as the tokenizer class, maximum input length, lowercasing behavior, padding/truncation defaults, and special token settings. It is more like **wrapper metadata** than the tokenizer algorithm itself.
+
+#### **`vocab.json`**
+
+This is the **vocabulary dictionary**: it maps token strings to integer token IDs. For example, it may store entries like
+
+$$
+\texttt{"hello"} \to 31373
+$$
+
+It tells us **which tokens exist and what IDs they have**.
+
+#### **`merges.txt`**
+
+This appears in **BPE tokenizers**. It stores the ordered list of merge rules learned during BPE training. In other words, it helps define **how smaller units are merged into larger subword tokens**. That is why BPE tokenizers often need both `vocab.json` and `merges.txt`.
+
+#### **`config.json`**
+
+This one is usually **the model configuration file**, not the tokenizer file. It typically stores architecture-level information such as the hidden size, number of layers, number of attention heads, vocabulary size, and special token IDs. So it belongs more to the **language model** than to the tokenizer itself.
