@@ -454,16 +454,18 @@ In summary, if tokenization is the act of giving every word a unique ID badge to
 
 ## **Part III: Some Concrete examples**
 
-Text: `unbelievable`
 
-| Model                  | Tokens                                                                     | Token IDs                                               |
-| ------------------------| ----------------------------------------------------------------------------| ---------------------------------------------------------|
-| BERT WordPiece         | `[[CLS], i, love, machine, learning, [UNK], [SEP]]`                        | `[101, 1045, 2293, 3698, 4083, 100, 102]`               |
-| GPT-2 Byte-level BPE   | `[I, Ġlove, Ġmachine, Ġlearning, ĠðŁĺ, Ĭ]`                                 | `[40, 1842, 4572, 4673, 30325, 232]`                    |
-| RoBERTa Byte-level BPE | `[<s>, I, Ġlove, Ġmachine, Ġlearning, ĠðŁĺ, Ĭ, </s>]`                      | `[0, 100, 657, 3563, 2239, 17841, 27969, 2]`            |
-| T5 SentencePiece       | `[▁I, ▁love, ▁machine, ▁learning, ▁, <unk>, </s>]`                         | `[27, 333, 1437, 1036, 3, 2, 1]`                        |
-| LLaMA-style tokenizer  | `[<s>, ▁I, ▁love, ▁machine, ▁learning, ▁, <0xF0>, <0x9F>, <0x98>, <0x8A>]` | `[1, 306, 5360, 4933, 6509, 29871, 243, 162, 155, 141]` |
-| Qwen-small             | `[I, Ġlove, Ġmachine, Ġlearning, ĠðŁĺ, Ĭ]`                                 | `[40, 2948, 5662, 6832, 26525, 232]`                    |
+
+Text: `Tokenization is not trivial.`
+
+| Model                  | Tokens                                                  | Token IDs                                          |
+| ------------------------| ---------------------------------------------------------| ----------------------------------------------------|
+| BERT WordPiece         | `[[CLS], token, ##ization, is, not, trivial, ., [SEP]]` | `[101, 19204, 3989, 2003, 2025, 20610, 1012, 102]` |
+| GPT-2 Byte-level BPE   | `[Token, ization, Ġis, Ġnot, Ġtrivial, .]`              | `[30642, 1634, 318, 407, 20861, 13]`               |
+| RoBERTa Byte-level BPE | `[<s>, Token, ization, Ġis, Ġnot, Ġtrivial, ., </s>]`   | `[0, 45643, 1938, 16, 45, 30063, 4, 2]`            |
+| T5 SentencePiece       | `[▁To, ken, ization, ▁is, ▁not, ▁trivia, l, ., </s>]`   | `[304, 2217, 1707, 19, 59, 22377, 40, 5, 1]`       |
+| LLaMA-style tokenizer  | `[<s>, ▁Token, ization, ▁is, ▁not, ▁trivial, .]`        | `[1, 25159, 2133, 338, 451, 12604, 29889]`         |
+| Qwen-small             | `[Token, ization, Ġis, Ġnot, Ġtrivial, .]`              | `[3323, 2022, 374, 537, 35647, 13]`                |
 
 
 Text: `unbelievable`
@@ -489,3 +491,4 @@ Text: `I love machine learning 😊`
 | T5 SentencePiece       | `[▁I, ▁love, ▁machine, ▁learning, ▁, <unk>, </s>]`                         | `[27, 333, 1437, 1036, 3, 2, 1]`                        |
 | LLaMA-style tokenizer  | `[<s>, ▁I, ▁love, ▁machine, ▁learning, ▁, <0xF0>, <0x9F>, <0x98>, <0x8A>]` | `[1, 306, 5360, 4933, 6509, 29871, 243, 162, 155, 141]` |
 | Qwen-small             | `[I, Ġlove, Ġmachine, Ġlearning, ĠðŁĺ, Ĭ]`                                 | `[40, 2948, 5662, 6832, 26525, 232]`                    |
+
