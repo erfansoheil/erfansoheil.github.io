@@ -40,11 +40,10 @@ Let’s see how a simple sentence moves through the first two steps of the pipel
 
 - Input (Raw Text): > "Tokenization is not trivial"
 
-- Tokens (Discrete Units): The tokenizer chops the text into pieces. Notice how "Tokenization" is broken into smaller subword units:
-$[`Token`, `ization`, `is`, `fun`, `trivial`]$
+- Tokens (Discrete Units): The tokenizer chops the text into pieces. Notice how "Tokenization" is broken into smaller subword units: [`Token`, `ization`, `is`, `fun`, `trivial`]
 
 - Token IDs (Unique Integers): Each token is looked up in the model's pre-defined vocabulary dictionary and replaced by its corresponding mathematical ID:
-$[10127, 24560, 374, 912, 50232]$
+$[10127, 24560, 374, 912, 50231]$
 
 
 
@@ -52,15 +51,15 @@ $[10127, 24560, 374, 912, 50232]$
 
 It is tempting to think that once we split a sentence into string-based tokens like `["Token", "ization","is","fun","!"]`, the hard part is over. However, computers and neural networks cannot perform mathematical operations on raw text strings. They operate strictly on matrices and vectors of floating-point numbers. 
 
-Token IDs act as the bridge. By assigning every unique token in our vocabulary a fixed, unique integer index (e.g., `"token"` $\rightarrow$ `2534`), we create a structured lookup system that the neural network can interact with mathematically.
+Token IDs act as the bridge. By assigning every unique token in our vocabulary a fixed, unique integer index (e.g., `token` $\rightarrow$ `10127`), we create a structured lookup system that the neural network can interact with mathematically.
 
 Think of this lookup table as a simple, two-way dictionary that handles two distinct phases:
 
 * **Token to ID (Encoding):** When processing your input text, the system looks up each string token to find its corresponding index number.
-  $$\text{"Token"} \longrightarrow \text{Lookup Table} \longrightarrow 30121$$
+  $$\text{`Token`} \longrightarrow \text{Lookup Table} \longrightarrow 10127$$
 
 * **ID to Token (Decoding):** When the model generates a response, it outputs a raw number. This number is run backward through the exact same table to turn it back into a readable word for humans.
-  $$30121 \longrightarrow \text{Lookup Table} \longrightarrow \text{"Token"}$$
+  $$10127 \longrightarrow \text{Lookup Table} \longrightarrow \text{`Token`}$$
 
 <!-- **Are Token IDs Fixed or Learned?**
 
@@ -109,10 +108,10 @@ For example, if the pair `d` + `e` appears many times in the corpus, BPE may cre
 1. **Start from a base vocabulary**
    The corpus is first represented using a small set of atomic symbols, such as characters or bytes. In some versions, an end-of-word marker like `</w>` is added so that the algorithm can distinguish word boundaries.
 
-2. **Count adjacent pairs**
-   BPE scans the corpus and counts how often each neighboring pair of symbols appears. For example, it may count pairs such as `d e`, `e r`, `t h`, or `i n`.
+1. **Count adjacent pairs**
+   BPE scans the corpus and counts how often each neighboring pair of symbols appears. For example, it may count pairs such as `de`, `er`, `th`, or `in`.
 
-3. **Choose the best immediate merge**
+1. **Choose the best immediate merge**
    The most frequent adjacent pair is selected. This is a greedy decision: BPE chooses the merge that gives the largest immediate reduction in sequence length.
 
    If a pair appears many times, replacing each occurrence of two symbols by one new symbol shortens the corpus:
@@ -141,7 +140,7 @@ $$
 \kappa_x(\mu)
 $$
 
-Here, $(\kappa_x(\mu))$ measures how much shorter the sequence becomes after applying the merge sequence $(\mu)$. The ideal objective would be:
+Here, $\kappa_x(\mu)$ measures how much shorter the sequence becomes after applying the merge sequence $\mu$. The ideal objective would be:
 
 $$
 \mu^\star = \arg\max_{\mu} \kappa_x(\mu)
@@ -167,11 +166,11 @@ For a practical and minimal implementation of standard BPE, Andrej Karpathy’s 
 
 **Intuition**
 
-Instead of merging the most *frequent* adjacent pair, WordPiece merges the pair that gives the largest **increase in likelihood** when added to the vocabulary — a score closely related to *pointwise mutual information*:
+<!-- Instead of merging the most *frequent* adjacent pair, WordPiece merges the pair that gives the largest **increase in likelihood** when added to the vocabulary — a score closely related to **pointwise mutual information (PMI)**:
 
 $$
 \text{score}(a, b) = \frac{\text{count}(a, b)}{\text{count}(a) \cdot \text{count}(b)}
-$$
+$$ -->
 
 A pair is a good merge candidate not because it's common, but because it's *more common together than its individual frequencies would predict*.
 
@@ -179,39 +178,47 @@ A pair is a good merge candidate not because it's common, but because it's *more
 **How WordPiece is Trained**
 
 1. **Initialize the vocabulary**
+
    Start with every individual character, punctuation mark, and special symbol found in the corpus (e.g., `p`, `h`, `e`, `t`, `##e`, `##t`...). The `##` prefix marks a character as one that only ever appears *inside* a word, never at its start — this is what lets the tokenizer later distinguish `##ing` (a suffix) from `ing` (a standalone word).
 
 2. **Count pair frequencies**
-   Scan the corpus and count how often each adjacent symbol pair occurs — both together, e.g. `Count(p, ##h)`, and individually, e.g. `Count(p)` and `Count(##h)`.
+   
+Scan the corpus and count how often each adjacent symbol pair occurs — both together, e.g. `Count(p, ##h)`, and individually, e.g. `Count(p)` and `Count(##h)`.
 
 3. **Score all adjacent pairs**
-   For every neighboring pair $(A, B)$, compute:
+
+   For every neighboring pair $(a, b)$, compute:
 
    $$
-   \text{Score}(A, B) = \frac{\text{Count}(AB)}{\text{Count}(A) \times \text{Count}(B)}
+   \text{Score}(a, b) = \frac{\text{Count}(ab)}{\text{Count}(a) \times \text{Count}(b)}
    $$
 
-   This score is high when $A$ and $B$ co-occur more often than their individual frequencies would predict — not simply when $AB$ is common.
+   This score is high when $a$ and $a$ co-occur more often than their individual frequencies would predict — not simply when $AB$ is common.
 
 4. **Merge the highest-scoring pair**
+
    The pair with the highest score is merged into a new token. For instance, if `##p` and `##h` score highest, they merge into `##ph`, which is added to the vocabulary.
 
 5. **Repeat until the vocabulary budget is reached**
+
    Re-scan the (now updated) corpus with the new token in place, recompute scores, and merge again. This repeats — one merge per iteration — until the vocabulary reaches its target size (e.g., 30,000 tokens).
+
+
+The scoring formula introduced in step 2 above,
+
+$$
+\text{score}(a,b) = \frac{\text{Count}(a,b)}{\text{Count}(a)\,\text{Count}(b)}
+$$
+
+is often described as **Pointwise Mutual Information** or **PMI**. It's close, but not exact.
+
 
 **A Mathematical Perspective**
 
 To understand *why* WordPiece merges the pairs it does, we need to look past the scoring formula and ask what it's actually approximating.
 
 **The Score Is Not Quite PMI**
-
-The scoring formula introduced above,
-
-$$
-\text{score}(a,b) = \frac{\text{Count}(a,b)}{\text{Count}(a)\,\text{Count}(b)}
-$$
-
-is often described as Pointwise Mutual Information (PMI). It's close, but not exact, and the gap matters. Write each count as a probability by dividing by the total number of tokens $N$: $P(a) = \text{Count}(a)/N$, and likewise for $P(b)$ and $P(a,b)$. Substituting these into the true PMI ratio gives:
+. , and the gap matters. Write each count as a probability by dividing by the total number of tokens $N$: $P(a) = \text{Count}(a)/N$, and likewise for $P(b)$ and $P(a,b)$. Substituting these into the true PMI ratio gives:
 
 $$
 \frac{P(a,b)}{P(a)P(b)} = \frac{\text{Count}(a,b)/N}{\big(\text{Count}(a)/N\big)\big(\text{Count}(b)/N\big)} 
