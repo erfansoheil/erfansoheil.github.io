@@ -265,12 +265,11 @@ Because the landscape shifts after every merge, WordPiece is a **greedy algorith
 
 **Mathematical Bounds: Maximums and Minimums**
 
-Using the simpler ratio-only score (since the bound analysis is cleaner in that form and the ranking is identical to the full $\Delta\mathcal{LL}$ criterion, as shown above):
+Using the simpler ratio-only score:
 
 - **Minimum ($0$):** the score is exactly $0$ when $A$ and $B$ never appear adjacent, $\text{Count}(a,b) = 0$. Pairs with large individual frequencies  but negligible co-occurrence approach $0$ as well.
 - **Maximum ($1$):** since $\text{Count}(a,b)$ can never exceed $\text{Count}(a)$ or $\text{Count}(b)$, $1$ is the theoretical ceiling. It's reached only when $A$ and $B$ perfectly co-occur — they only ever appear together, so $\text{Count}(a,b) = \text{Count}(a) = \text{Count}(b) = k$, giving $\text{score}(a,b) = k/(k \times k) = 1/k$. Hitting the true maximum of $1$ requires $k = 1$: the highest possible score belongs to a pair that occurs   adjacent exactly once in the entire corpus and nowhere else.
 
-This is precisely the flaw the frequency-weighted $\Delta\mathcal{LL}$ criterion corrects: the ratio alone rewards rare coincidences with the highest possible score, but a real implementation weights that score by $\text{Count}(a,b)$ before comparing candidates, which is why a one-off typo  never actually outranks a genuine subword in practice. *(Implementations also add a hard minimum-frequency threshold, e.g. discarding any pair with $\text{Count}(a,b) < 2$, as a second safeguard against this.)*
 
 **Standard WordPiece vs. Fast WordPiece**
 
