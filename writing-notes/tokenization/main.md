@@ -344,7 +344,7 @@ This is the situation with standard WordPiece.
 Suppose the WordPiece vocabulary was built from English text and contains characters such as: a, b, c, ..., z.
 
 Now imagine the model receives the word: cat🙂
-The tokenizer can handle , a,b,c , but if the emoji `🙂` was never included in the base vocabulary, WordPiece cannot split it any further. The emoji is already a single Unicode character from the tokenizer’s point of view. There is no smaller known unit available. So the tokenizer gives up and outputs: `[UNK]`
+The tokenizer can handle, a,c and t , but if the emoji `🙂` was never included in the base vocabulary, WordPiece cannot split it any further. The emoji is already a single Unicode character from the tokenizer’s point of view. There is no smaller known unit available. So the tokenizer gives up and outputs: `[UNK]`
 
 The same problem can happen with rare mathematical symbols, foreign alphabets, or unusual Unicode characters. The issue is not that WordPiece is “bad”; the issue is that its fallback level is usually the **character level**, and the vocabulary is nor **rich** enough to cover every possible input.
 
@@ -352,7 +352,7 @@ Classical BPE can have the same problem if it also starts from a fixed character
 
 Byte-level BPE solves this by changing the **byte** level.
 
-Instead of starting from characters, byte-level BPE starts from **bytes**. Every text string on a computer can be represented as a sequence of bytes, for example using UTF-8 encoding. So the base vocabulary has at least  256 possible byte values:
+Instead of starting from characters, byte-level BPE starts from **bytes**. Every text string on a computer can be represented as a sequence of bytes, for example using UTF-8 encoding. So the base vocabulary has at least  256 possible byte values.
 
 
 Byte-level BPE includes all 256 bytes in its base vocabulary. Therefore, even if the tokenizer sees a completely new character, it can always decompose that character into its underlying bytes.
@@ -387,16 +387,16 @@ This creates a massive problem for language models intended to be multilingual. 
 
 **The SentencePiece Solution**
 
-SentencePiece, developed by Google, solves this by acting as a language-independent wrapper around algorithms like BPE or Unigram. It achieves this by skipping the pre-tokenization (word-splitting) step entirely. 
+SentencePiece, developed by Google, solves this by acting as a language-independent wrapper around algorithms like BPE or Unigram. It achieves this by **skipping** the pre-tokenization (word-splitting) step entirely. 
 
 Instead of discarding spaces, SentencePiece treats the entire input as a raw stream of characters and treats the space as just another standard letter. 
 
 1. **Whitespace Escaping:** Before any subword algorithm is applied, SentencePiece replaces all spaces in the raw text with a special meta-symbol, usually a lower one-eighth block: `▁` (U+2581). 
-   * *Raw Text:* `"Tokenization is fun!"`
-   * *Escaped:* `"▁Tokenization▁is▁fun!"`
+   * *Raw Text:* `"Tokenization is not trivial"`
+   * *Escaped:* `"▁Tokenization▁is▁not_trivial"`
 
 2. **Applying the Algorithm:** This escaped string is then fed into the core subword algorithm (like BPE for LLaMA, or Unigram for T5). The algorithm splits the text into tokens, but the `▁` remains physically attached to the beginning of the words.
-   * *Tokens:* `["▁Token", "ization", "▁is", "▁fun", "!"]`
+   * *Tokens:* `["▁Token", "ization", "▁is", "▁not", "▁trivial"]`
 
 Notice how `"ization"` does not have the `▁` marker. This is how the model structurally understands that `"Token"` and `"ization"` belong to the exact same word and should not have a space between them.
 
