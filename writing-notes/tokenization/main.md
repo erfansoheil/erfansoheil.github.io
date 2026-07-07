@@ -241,7 +241,7 @@ Therefore,
 $$\log \frac{P(a,b)}{P(a)P(b)} = \log\big(N \cdot \text{score}(a,b)\big) = \log N + \log\,\text{score}(a,b)$$
 
 
-This constant $N$ at any single training step, the same number for every candidate pair, so ranking pairs by $\text{score}(a,b)$ In osme sense the above euqation is similar to PMI defintion. However there are two big differences: *Asymmetry* and *The Dynamic Probability Space*.
+This constant $N$ at any single training step, is the same number for every candidate pair. So ranking pairs by $\text{score}(a,b)$ in ssme sense is similar to PMI defintion in the above euqation. However there are two big differences: *Asymmetry* and *The Dynamic Probability Space*.
 
 **Asymmetry**
 
@@ -255,13 +255,13 @@ The algorithm is scoring directed sequential adjacency, not undirected associati
 
 **The Dynamic Probability Space**
 
-The training algorithm never optimizes against a fixed distribution. Every merge changes the counts that the *next* merge's scores depend on. When $A$ and $B$ merge into $AB$, three things shift in the corpus simultaneously:
+The training algorithm never optimizes against a fixed distribution. Meaning after each merge the vocabulary corpus changes and it is reduced.  Every merge changes the counts that the *next* merge's scores depend on. When $a$ and $b$ merge into $ab$, three things shift in the corpus simultaneously:
 
-- $\text{Count}(A)$ and $\text{Count}(B)$ both decrease (every merged occurrence is no longer counted as a standalone $A$ or $B$).
-- $\text{Count}(AB)$ appears for the first time.
-- Every other pair in the corpus that contains $A$ or $B$ has its own score affected, since its denominator terms just changed.
+- $\text{Count}(a)$ and $\text{Count}(b)$ both decrease (every merged occurrence is no longer counted as a standalone $a$ or $b$).
+- $\text{Count}(ab)$ appears for the first time.
+- Every other pair in the corpus that contains $a$ or $b$ has its own score affected, since its denominator terms just changed.
 
-Because the landscape shifts after every merge, WordPiece is a **greedy algorithm** in a genuine, consequential sense: at step $t$ it makes the optimal choice for that instant's snapshot of $\Delta\mathcal{LL}$, with no lookahead. An early merge can reshape the probability space in a way that locks out a better final vocabulary — the same non-optimality trade-off discussed for BPE above, here driven by shifting counts rather than a fixed compression objective.
+Because the landscape shifts after every merge, WordPiece is a **greedy algorithm** in a genuine, consequential sense. However in the PMI defintion the distribution space does not change. 
 
 **Mathematical Bounds: Maximums and Minimums**
 
