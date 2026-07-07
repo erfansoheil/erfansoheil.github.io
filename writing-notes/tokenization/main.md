@@ -106,7 +106,7 @@ For example, if the pair `d` + `e` appears many times in the corpus, BPE may cre
 **How BPE is Trained**
 
 1. **Start from a base vocabulary**
-   The corpus is first represented using a small set of atomic symbols, such as characters or bytes. In some versions, an end-of-word marker like `</w>` is added so that the algorithm can distinguish word boundaries.
+   The corpus is first represented using a small set of atomic symbols, such as characters or bytes. In some versions, an end-of-word marker like `</s>` is added so that the algorithm can distinguish word boundaries.
 
 1. **Count adjacent pairs**
    BPE scans the corpus and counts how often each neighboring pair of symbols appears. For example, it may count pairs such as `de`, `er`, `th`, or `in`.
@@ -238,9 +238,8 @@ $$
 
 Therefore, 
 
-$$\log\big(N \cdot \text{score}(a,b)\big) = \log N + \log\,\text{score}(a,b)$$
+$$\log \frac{P(a,b)}{P(a)P(b)} = \log\big(N \cdot \text{score}(a,b)\big) = \log N + \log\,\text{score}(a,b)$$
 
- — the raw score is off from PMI by an additive constant, $\log N$, in log-space.
 
 This constant doesn't matter for choosing which pair to merge: at any single training step, $N$ is the same number for every candidate pair, so ranking pairs by $\text{score}(a,b)$ or by the true PMI gives identical results. That's why implementations use the simpler formula — it's not PMI, but it produces the same ranking as PMI would, which is all that's needed to pick a merge.
 
@@ -279,31 +278,15 @@ When exploring WordPiece implementations, a distinction is frequently made betwe
 
 **Standard WordPiece**
 
-Suppose we are given a word with $(m)$ characters and vocabulary ize of $(n)$.
+Suppose we are given a word with $m$ characters and vocabulary ize of $n$.
 
-One way to describe the cost is in terms of vocabulary lookup. If each candidate substring must be compared naively against a vocabulary of size (n), then in the **worst case the tokenizer may perform as many as
-$
-[
-\mathcal{O}(mn)
-]
-$
-comparisons: for each of the (m) possible character positions, it may need to search through all vocabulary entries to find whether a valid token exists.
+One way to describe the cost is in terms of vocabulary lookup. If each candidate substring must be compared naively against a vocabulary of size $n$, then in the **worst case** the tokenizer may perform as many as
+$[\mathcal{O}(mn)]$ comparisons: for each of the $m$ possible character positions, it may need to search through all vocabulary entries to find whether a valid token exists.
 
 Therefore, the inefficiency of standard WordPiece does not come from the vocabulary itself. It comes from the **search procedure**.
 
 This is why standard WordPiece is often described as having worst-case complexity around
-$
-[
-\mathcal{O}(m^2)
-]
-$
-or, depending on the lookup implementation,
-$
-[
-\mathcal{O}(mn).
-]
-$
-For large-scale pretraining, where billions or trillions of words must be tokenized, this repeated backtracking can become a significant bottleneck.
+$[\mathcal{O}(m^2)]$ or, depending on the lookup implementation,$[\mathcal{O}(mn)]$. For large-scale pretraining, where billions or trillions of words must be tokenized, this repeated backtracking can become a significant bottleneck.
 
 * Note: In practice, vocabularies are usually stored in hash tables or tries, so lookup is much faster than a naive scan over all (n) tokens. 
 
@@ -324,19 +307,18 @@ As a result, Fast WordPiece processes text in **strict $\mathcal{O}(n)$ time com
 To illustrate how these trained vocabularies behave in practice, let us examine how both BPE and WordPiece process a sample sentence once training is complete.
 
 Assume both tokenizers have been trained on an English corpus containing a mix of common and rare words, resulting in the following simplified vocabularies:
-* **BPE Vocabulary:** `["the", "cat", "walk", "ed", "strang", "ely", "s", "a", "b", "c", ...]` (plus the end-of-word marker `</w>`)
+* **BPE Vocabulary:** `["the", "cat", "walk", "ed", "strang", "ely", "s", "a", "b", "c", ...]` (plus the end-of-word marker `</s>`)
 * **WordPiece Vocabulary:** `["the", "cat", "walk", "##ed", "strang", "##ely", "##e", "a", "b", "c", ...]`
 
-**BPE Tokenization Example**
-
-BPE tokenizes text in a **bottom-up** fashion by looking up its learned *merge rules* in the exact chronological order they were discovered during training. 
+**BPE Tokenization Example** 
 
 Input word: `"strangely"`
-1. The word is split into individual characters with an end-of-word marker: `s  t  r  a  n  g  e  l  y  </w>`
-2. The tokenizer scans its merge rules list. The earliest rule matching any pair here is the one that created `strang`. The sequence becomes: `strang  e  l  y  </w>`
-3. The next highest-priority merge rule in the vocabulary is for `ely`. The sequence becomes: `strang  ely  </w>`
+
+1. The word is split into individual characters with an end-of-word marker: `s  t  r  a  n  g  e  l  y  </s>`
+2. The tokenizer scans its merge rules list. The earliest rule matching any pair here is the one that created `strang`. The sequence becomes: `strang  e  l  y  </s>`
+3. The next highest-priority merge rule in the vocabulary is for `ely`. The sequence becomes: `strang` `ely`  `</s>`
 4. No further valid merge rules apply.
-* **Final BPE Tokens:** `["strang", "ely</w>"]` (often rendered simply as `["strang", "ely"]` with space indicators like `Ġstrang`, `ely` depending on the exact implementation).
+* **Final BPE Tokens:** `["strang", "ely</s>"]` (often rendered simply as `["strang", "ely"]` with space indicators like `Ġstrang`, `ely` depending on the exact implementation).
 
 **WordPiece Tokenization Example**
 
@@ -344,7 +326,7 @@ Input word: `"strangely"`
 
 Input word: `"strangely"`
 1. It looks at the whole string `"strangely"`. It is not in the vocabulary.
-2. It chops letters off the end until it finds a match: `"strangely"` $\rightarrow$ `"strangel"` $\rightarrow$ `"strange"` $\rightarrow$ **`"strang"`** (Match found!).
+2. It chops letters off the end until it finds a match: `"strangely"` $\rightarrow$ `"strangel"` $\rightarrow$ `"strange"` $\rightarrow$ `"strang"` (Match found!).
 3. The remaining substring is `"ely"`. Because it is a continuation of a word, the tokenizer looks for pieces prefixed with `##`.
 4. It looks for `"##ely"`. (Match found!).
 * **Final WordPiece Tokens:** `["strang", "##ely"]`
