@@ -241,14 +241,14 @@ Therefore,
 $$\log \frac{P(a,b)}{P(a)P(b)} = \log\big(N \cdot \text{score}(a,b)\big) = \log N + \log\,\text{score}(a,b)$$
 
 
-This constant doesn't matter for choosing which pair to merge: at any single training step, $N$ is the same number for every candidate pair, so ranking pairs by $\text{score}(a,b)$ or by the true PMI gives identical results. That's why implementations use the simpler formula — it's not PMI, but it produces the same ranking as PMI would, which is all that's needed to pick a merge.
+This constant $N$ at any single training step, the same number for every candidate pair, so ranking pairs by $\text{score}(a,b)$ In osme sense the above euqation is similar to PMI defintion. However there are two big differences: *Asymmetry* and *The Dynamic Probability Space*.
 
 **Asymmetry**
 
-One property survives in either formulation: WordPiece scores *ordered*, adjacent pairs, not general co-occurrence. Classical mutual information is symmetric, $\text{PMI}(X;Y) = \text{PMI}(Y;X)$, but here $A$ immediately followed by $B$ is a different event from $B$ immediately followed by $A$:
+Classical mutual information is *symmetric*, $\text{PMI}(x;y) = \text{PMI}(y;x)$, but  WordPiece score is not. because $ab$ is different from $ba$. In probability language $\text{PMI}(a,b)$ calcuate the probability of co-occurance of character $a$ and $b$ in the whole corpus, reagrless of the order of them in the work or subword. On the other hand,  $\text{score}(a,b)$ calculates co-occurance $a$ and $b$ in this exact order and $b$ appears imeddiately after each $a$. So 
 
 $$
-\text{Count}(A,B) \neq \text{Count}(B,A) \;\implies\; \Delta\mathcal{LL}(A,B) \neq \Delta\mathcal{LL}(B,A)
+\text{Count}(a,b) \neq \text{Count}(b,a) 
 $$
 
 The algorithm is scoring directed sequential adjacency, not undirected association.
