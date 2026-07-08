@@ -379,7 +379,7 @@ Unigram starts with a very large list of words and common word parts from the tr
 
 Unlike BPE, which uses a strict rule to combine pieces, Unigram relies on probability. If a word can be split in several different ways, Unigram looks at the chances of each option and picks the most likely one. --> 
 
-#### **1.2.4 Unigram**
+<!-- #### **1.2.4 Unigram**
 
 BPE and WordPiece are usually described as **bottom-up** tokenization algorithms. They start from small units, such as characters or bytes, and gradually build larger subword tokens.
 
@@ -413,7 +413,7 @@ For example, consider the word the word: `unbelievable`. An suppose in the vocab
 
 Unigram assigns probabilities to each tokens. Therefore there a four possible number related to the word  `unbelievable`. The tokenizer then prefers the representation (segmentation) with the highest probability. In the follwoing sections we discuss about this probability and the mathematics behind it. 
 
-**A More Correct Mathematical View of Unigram**
+**A More Correct Mathematical View of Unigram** -->
 
 
 #### **1.2.4 Unigram**
@@ -435,6 +435,7 @@ In practice, the initial vocabulary usually contains:
 3. character-level units,
 4. special tokens such as `<unk>`, `<s>`, `</s>`, or padding tokens,
 5. whitespace-aware pieces such as `▁the`, `▁is`, or `▁Token` in SentencePiece.
+
 The initial vocabulary must be large because Unigram is a pruning method. **If a useful token is not present in the initial candidate set, the algorithm cannot recover it later**. This is different from BPE, where new tokens are created by merging smaller units. Instead, it treats tokenization as a **probabilistic segmentation problem**.
  
 In practice, this seed vocabulary is not built by hand — it is generated automatically from the corpus, and it has to be built in a way that stays computationally cheap even though it may contain hundreds of thousands of candidate substrings. The two common approaches are:
@@ -579,16 +580,16 @@ giving a new loss contribution of $-\log(6.2\times10^{-6}) \approx 11.99$ nats �
  
 With all three algorithms on the table, it's worth comparing them directly along the axes that actually distinguish them:
  
-| | **BPE** | **WordPiece** | **Unigram** |
-|---|---|---|---|
-| **Direction** | Bottom-up (grows the vocabulary) | Bottom-up (grows the vocabulary) | Top-down (shrinks the vocabulary) |
-| **Starting point** | Base characters/bytes | Base characters/bytes | A large seed vocabulary (from BPE or ESA substring statistics) |
-| **Selection criterion** | Raw pair frequency | PMI-like co-occurrence score, $\text{Count}(ab)/(\text{Count}(a)\text{Count}(b))$ | Global corpus negative log-likelihood, $\mathcal{L}(p)$, optimized via EM |
-| **What each step does** | Merges the most frequent adjacent pair | Merges the pair with the highest likelihood-ratio score | Removes the piece(s) with the smallest loss-increase upon removal |
-| **Is the objective probabilistic?** | No — purely frequency-driven | Partially — score is likelihood-flavored, but not a normalized probability model | Yes — pieces have a proper probability distribution $p(x)$ over the whole vocabulary |
-| **Tokenization at inference** | Deterministic: apply learned merge rules in order | Deterministic: greedy longest-match (MaxMatch) | Naturally probabilistic: Viterbi picks the single best segmentation, but the model can also *sample* alternative segmentations |
-| **Handles segmentation ambiguity?** | No — one fixed set of merge rules, one output | No — one fixed greedy scan, one output | Yes, explicitly — the loss itself sums over every valid segmentation, and training can even use "subword regularization" (sampling non-optimal segmentations) to make downstream models robust to tokenization noise |
-| **Typical users** | GPT, LLaMA (usually byte-level) | BERT, DistilBERT | T5 and other SentencePiece-based models |
+|                                     | **BPE**                                           | **WordPiece**                                                                     | **Unigram**                                                                                                                                                                                                          |
+| -------------------------------------| ---------------------------------------------------| -----------------------------------------------------------------------------------| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Direction**                       | Bottom-up (grows the vocabulary)                  | Bottom-up (grows the vocabulary)                                                  | Top-down (shrinks the vocabulary)                                                                                                                                                                                    |
+| **Starting point**                  | Base characters/bytes                             | Base characters/bytes                                                             | A large seed vocabulary (from BPE or ESA substring statistics)                                                                                                                                                       |
+| **Selection criterion**             | Raw pair frequency                                | PMI-like co-occurrence score, $\text{Count}(ab)/(\text{Count}(a)\text{Count}(b))$ | Global corpus negative log-likelihood, $\mathcal{L}(p)$, optimized via EM                                                                                                                                            |
+| **What each step does**             | Merges the most frequent adjacent pair            | Merges the pair with the highest likelihood-ratio score                           | Removes the piece(s) with the smallest loss-increase upon removal                                                                                                                                                    |
+| **Is the objective probabilistic?** | No — purely frequency-driven                      | Partially — score is likelihood-flavored, but not a normalized probability model  | Yes — pieces have a proper probability distribution $p(x)$ over the whole vocabulary                                                                                                                                 |
+| **Tokenization at inference**       | Deterministic: apply learned merge rules in order | Deterministic: greedy longest-match (MaxMatch)                                    | Naturally probabilistic: Viterbi picks the single best segmentation, but the model can also *sample* alternative segmentations                                                                                       |
+| **Handles segmentation ambiguity?** | No — one fixed set of merge rules, one output     | No — one fixed greedy scan, one output                                            | Yes, explicitly — the loss itself sums over every valid segmentation, and training can even use "subword regularization" (sampling non-optimal segmentations) to make downstream models robust to tokenization noise |
+| **Typical users**                   | GPT, LLaMA (usually byte-level)                   | BERT, DistilBERT                                                                  | T5 and other SentencePiece-based models                                                                                                                                                                              |
  
 The direction each algorithm moves in is really a consequence of what it's optimizing. BPE only ever asks a local question — "which adjacent pair is most frequent, right now?" — so it has no way to *remove* a bad early decision later; it can only build on top of it. Unigram instead evaluates candidates against one **global** objective, $\mathcal{L}(p)$, computed over the entire corpus, which is exactly what makes pruning coherent: a piece is judged by how much the *whole* vocabulary's fit degrades without it, not by a local pairwise statistic. That global, probabilistic view is also what buys Unigram its two extra abilities that BPE and WordPiece don't have: a principled notion of "how good is this vocabulary" ($\mathcal{L}(p)$ itself), and the ability to represent genuine tokenization ambiguity instead of collapsing every input to one fixed output.
 
