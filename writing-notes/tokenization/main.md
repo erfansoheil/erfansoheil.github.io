@@ -385,39 +385,9 @@ BPE and WordPiece are usually described as **bottom-up** tokenization algorithms
 
 The **Unigram Language Model**, usually just called **Unigram**, takes the opposite direction. It starts with a very large vocabulary of candidate pieces and then gradually removes the least useful ones. In that sense, Unigram is a **top-down pruning algorithm**. Unigram is used in **SentencePiece** (section 1.3), especially in models such as *T5*.
 
-Unlike BPE, Unigram does not learn a deterministic list of merge rules. Instead, it treats tokenization as a **probabilistic segmentation problem**.
+What immediate question is 
 
-For example, the word: unbelievable
-
-
-may have several possible segmentations:
-
-
-["un", "believable"]
-["un", "believ", "able"]
-["unbelievable"]
-["un", "bel", "iev", "able"]
-
-
-Unigram assigns probabilities to tokens. A segmentation is good if the product of its token probabilities is large. For example:
-
-$$
-P(\text{`un believable''}) =
-P(\text{`un''}) \cdot P(\text{``believable''})
-$$
-
-and
-
-$$
-P(\text{`un believ able''}) =
-P(\text{`un''}) \cdot P(\text{`believ''}) \cdot P(\text{`able''})
-$$
-
-The tokenizer then prefers the segmentation with the highest probability.
-
----
-
-**How the Initial Vocabulary Is Built**
+**How the Initial Vocabulary Is Built?**
 
 Unigram starts with a large initial vocabulary. This vocabulary is intentionally bigger than the final target vocabulary.
 
@@ -429,23 +399,23 @@ In practice, the initial vocabulary usually contains:
 4. special tokens such as `<unk>`, `<s>`, `</s>`, or padding tokens,
 5. whitespace-aware pieces such as `▁the`, `▁is`, or `▁Token` in SentencePiece.
 
-SentencePiece represents whitespace using the special marker `▁`. For example:
+The initial vocabulary must be large because Unigram is a pruning method. **If a useful token is not present in the initial candidate set, the algorithm cannot recover it later**. This is different from BPE, where new tokens are created by merging smaller units. Instead, it treats tokenization as a **probabilistic segmentation problem**.
 
 
-Tokenization is not trivial
+For example, consider the word the word: `unbelievable`. An suppose in the vocabulary in has the following four diferent ways of representating (segmentation): 
 
 
-is internally represented roughly as:
+$$ 
+[`un`, `believable`] \\
+[`un`, `believ`, `able`] \\
+[`unbelievable`] \\
+[`un`, `bel`, `iev`, `able`] \\
+$$
 
 
-▁Tokenization▁is▁not▁trivial
 
 
-This means spaces are treated as part of the token stream. As a result, SentencePiece can detokenize text by simply concatenating tokens and replacing `▁` with spaces.
-
-The initial vocabulary must be large because Unigram is a pruning method. If a useful token is not present in the initial candidate set, the algorithm cannot recover it later. This is different from BPE, where new tokens are created by merging smaller units.
-
----
+Unigram assigns probabilities to each tokens. Therefore there a four possible number related to the word  `unbelievable`. The tokenizer then prefers the representation (segmentation) with the highest probability.
 
 **The Probabilistic Model**
 
