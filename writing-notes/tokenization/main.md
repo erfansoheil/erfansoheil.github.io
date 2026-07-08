@@ -450,6 +450,7 @@ For example, consider the word `unbelievable`. Suppose the seed vocabulary conta
 * [`un`, `believ`, `able`]
 * [`unbelievable`]
 * [`un`, `bel`, `iev`, `able`]
+* 
 Unigram assigns a probability to *every individual piece* in the vocabulary, not to a segmentation directly — `p(un)`, `p(believable)`, `p(believ)`, `p(able)`, and so on. Once we have these per-piece probabilities, each of the four segmentations above gets its own probability, and the tokenizer prefers whichever segmentation scores highest. The next part of this section makes that precise: what exactly is being multiplied together, what the training objective (loss function) is, why that particular function qualifies as a loss, and how the pruning step actually decides which pieces to throw away.
  
 **A More Correct Mathematical View of Unigram**
