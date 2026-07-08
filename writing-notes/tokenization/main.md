@@ -362,9 +362,9 @@ For example: 🙂,
 may be unknown as a character, but it is still representable as a sequence of UTF-8 bytes. Since those bytes are guaranteed to exist in the vocabulary, the tokenizer never gets stuck.
 
 This is why WordPiece usually needs an explicit `[UNK]` token, while byte-level BPE can avoid it.
-
+<!-- 
 #### **1.2.4 Unigram**
-
+<!-- 
 While BPE and WordPiece build tokens from the bottom up (starting with single characters), the **Unigram** method works from the top down. It is often used alongside SentencePiece in models like T5.
 
 **How It Works**
@@ -377,7 +377,488 @@ Unigram starts with a very large list of words and common word parts from the tr
 4. **Remove the least useful:** Tokens that have the smallest negative impact when removed are deleted. These are usually pieces that can easily be made by combining other, more common tokens.
 5. **Repeat:** The model recalculates the probabilities and keeps removing tokens until the vocabulary is the right size.
 
-Unlike BPE, which uses a strict rule to combine pieces, Unigram relies on probability. If a word can be split in several different ways, Unigram looks at the chances of each option and picks the most likely one.
+Unlike BPE, which uses a strict rule to combine pieces, Unigram relies on probability. If a word can be split in several different ways, Unigram looks at the chances of each option and picks the most likely one. --> -->
+
+
+BPE and WordPiece are usually described as **bottom-up** tokenization algorithms. They start from small units, such as characters or bytes, and gradually build larger subword tokens.
+
+The **Unigram Language Model**, usually just called **Unigram**, takes the opposite direction. It starts with a very large vocabulary of candidate pieces and then gradually removes the least useful ones. In that sense, Unigram is a **top-down pruning algorithm**:
+
+$$
+\text{large candidate vocabulary}
+\quad \longrightarrow \quad
+\text{smaller optimized vocabulary}
+$$
+
+Unigram is used in **SentencePiece**, especially in models such as T5. SentencePiece is not itself only one algorithm. It is a tokenizer framework that can train and use different subword models, including BPE and Unigram. Its important design choice is that it can work directly on raw text without requiring a separate word-splitting step before tokenization.
+
+
+**Intuition**
+
+The core idea of Unigram is simple:
+
+> A good token is one that helps explain the training corpus with high probability.
+
+Unlike BPE, Unigram does not learn a deterministic list of merge rules. Instead, it treats tokenization as a **probabilistic segmentation problem**.
+
+For example, the word:
+
+```text
+unbelievable
+```
+
+may have several possible segmentations:
+
+```text
+["un", "believable"]
+["un", "believ", "able"]
+["unbelievable"]
+["un", "bel", "iev", "able"]
+```
+
+Unigram assigns probabilities to tokens. A segmentation is good if the product of its token probabilities is large. For example:
+
+$$
+P(\text{`un believable''}) =
+P(\text{`un''}) \cdot P(\text{``believable''})
+$$
+
+and
+
+$$
+P(\text{`un believ able''}) =
+P(\text{`un''}) \cdot P(\text{`believ''}) \cdot P(\text{`able''})
+$$
+
+The tokenizer then prefers the segmentation with the highest probability.
+
+---
+
+**How the Initial Vocabulary Is Built**
+
+Unigram starts with a large initial vocabulary. This vocabulary is intentionally bigger than the final target vocabulary.
+
+In practice, the initial vocabulary usually contains:
+
+1. frequent full words from the corpus,
+2. frequent substrings,
+3. character-level units,
+4. special tokens such as `<unk>`, `<s>`, `</s>`, or padding tokens,
+5. whitespace-aware pieces such as `▁the`, `▁is`, or `▁Token` in SentencePiece.
+
+SentencePiece represents whitespace using the special marker `▁`. For example:
+
+```text
+Tokenization is not trivial
+```
+
+is internally represented roughly as:
+
+```text
+▁Tokenization▁is▁not▁trivial
+```
+
+This means spaces are treated as part of the token stream. As a result, SentencePiece can detokenize text by simply concatenating tokens and replacing `▁` with spaces.
+
+The initial vocabulary must be large because Unigram is a pruning method. If a useful token is not present in the initial candidate set, the algorithm cannot recover it later. This is different from BPE, where new tokens are created by merging smaller units.
+
+---
+
+**The Probabilistic Model**
+
+Let $V$ be the candidate vocabulary.
+
+Each token $x \in V$ has a probability $p(x)$, with:
+
+$$
+p(x) \geq 0
+$$
+
+and
+
+$$
+\sum_{x \in V} p(x) = 1
+$$
+
+Now suppose we have a sentence or word $X$. A segmentation of $X$ is a sequence of tokens:
+
+$$
+s = (x_1, x_2, \dots, x_k)
+$$
+
+such that concatenating the tokens gives back the original text:
+
+$$
+x_1 x_2 \dots x_k = X
+$$
+
+The Unigram model assumes that the tokens in a segmentation are generated independently. Therefore, the probability of a segmentation is:
+
+$$
+P(s) = \prod_{i=1}^{k} p(x_i)
+$$
+
+This independence assumption is why the method is called **Unigram**. It does not model bigram or trigram dependencies between tokens. It only assigns individual probabilities to single token pieces.
+
+For the input string $X$, there may be many valid segmentations. The probability of $X$ is the sum of the probabilities of all valid segmentations:
+
+$$
+P(X) = \sum_{s \in \mathcal{S}(X)} P(s)
+$$
+
+where $\mathcal{S}(X)$ is the set of all possible segmentations of $X$ using the current vocabulary.
+
+Expanding this:
+
+$$
+P(X) = \sum_{s \in \mathcal{S}(X)}
+\prod_{x_i \in s} p(x_i)
+$$
+
+So the model does not say that a word has only one segmentation during training. It considers all possible segmentations and gives higher weight to the ones that are more probable.
+
+---
+
+**The Loss Function**
+
+Suppose the training corpus is:
+
+$$
+D = {X_1, X_2, \dots, X_N}
+$$
+
+The goal is to choose token probabilities that make the corpus likely. Therefore, we want to maximize:
+
+$$
+\prod_{j=1}^{N} P(X_j)
+$$
+
+This is the likelihood of the corpus.
+
+In optimization, it is more convenient to work with the logarithm:
+
+$$
+\sum_{j=1}^{N} \log P(X_j)
+$$
+
+Because products can become numerically tiny, logs make the objective more stable and turn products into sums.
+
+Instead of maximizing log-likelihood, we usually minimize the **negative log-likelihood**:
+
+$$
+\mathcal{L}(V, p)
+=================
+
+-\sum_{j=1}^{N} \log P(X_j)
+$$
+
+Substituting the definition of $P(X_j)$:
+
+$$
+\mathcal{L}(V, p)
+=================
+
+-\sum_{j=1}^{N}
+\log
+\left(
+\sum_{s \in \mathcal{S}(X_j)}
+\prod_{x_i \in s} p(x_i)
+\right)
+$$
+
+This is the main loss function behind the Unigram tokenizer.
+
+---
+
+**Why This Is a Natural Loss Function**
+
+This loss function is natural because it measures how well the tokenizer vocabulary explains the corpus.
+
+If the vocabulary contains useful pieces, then common words and phrases can be represented by high-probability segmentations. This makes $P(X_j)$ large, so:
+
+$$
+-\log P(X_j)
+$$
+
+becomes small.
+
+If the vocabulary is poor, the model must represent words using awkward or low-probability pieces. Then $P(X_j)$ becomes small, and:
+
+$$
+-\log P(X_j)
+$$
+
+becomes large.
+
+So the loss function penalizes vocabularies that explain the corpus badly.
+
+This is very similar to ideas from probability and information theory:
+
+1. **Maximum Likelihood Estimation**
+   We choose the vocabulary probabilities that maximize the probability of the observed data.
+
+2. **Negative Log-Likelihood**
+   Minimizing negative log-likelihood is equivalent to maximizing likelihood.
+
+3. **Code Length / Compression**
+   In information theory, an event with probability $p$ has information content:
+
+   $$
+   -\log p
+   $$
+
+   So minimizing the Unigram loss is similar to finding a vocabulary that gives the corpus a shorter probabilistic encoding.
+
+4. **Latent Variable Models**
+   The true segmentation of a sentence is hidden. We observe the raw text, but not the exact subword split. Therefore, segmentation is a latent variable.
+
+This last point is important. In Unigram, the tokenizer does not know in advance whether:
+
+```text
+unbelievable
+```
+
+should be segmented as:
+
+```text
+["un", "believable"]
+```
+
+or:
+
+```text
+["un", "believ", "able"]
+```
+
+The segmentation is hidden, so the algorithm must infer it.
+
+**Training with EM**
+
+Because the segmentation is hidden, Unigram is commonly trained using the **Expectation–Maximization algorithm**, usually abbreviated as **EM**. This is the same general optimization idea used in many probabilistic latent-variable models.
+
+EM alternates between two steps:
+
+
+**1. E-step: Estimate Token Usage**
+
+In the E-step, the algorithm computes how much each token contributes to explaining the corpus.
+
+Because each sentence may have many possible segmentations, the model does not simply count the tokens from one segmentation. Instead, it computes expected counts over possible segmentations.
+
+For a token $x$, we estimate:
+
+$$
+\mathbb{E}[\text{count}(x)]
+$$
+
+This means:
+
+> Across all possible segmentations of all sentences, how often does token $x$ appear, weighted by the probability of each segmentation?
+
+Tokens that appear often in high-probability segmentations get high expected counts.
+
+**2. M-step: Update Token Probabilities**
+
+In the M-step, the token probabilities are updated using the expected counts:
+
+$$
+p(x)
+====
+
+\frac{\mathbb{E}[\text{count}(x)]}
+{\sum_{y \in V} \mathbb{E}[\text{count}(y)]}
+$$
+
+So tokens that are useful receive higher probability, and tokens that are rarely useful receive lower probability.
+
+This process repeats:
+
+```text
+estimate expected token counts
+update token probabilities
+estimate expected token counts again
+update token probabilities again
+...
+```
+
+until the probabilities become stable enough.
+
+**Vocabulary Pruning**
+
+After estimating token probabilities, Unigram removes tokens that are not useful.
+
+The key question is:
+
+> If we remove this token, how much worse does the loss become?
+
+For each token $x$, the algorithm estimates the increase in loss caused by removing it:
+
+$$
+\Delta \mathcal{L}(x)
+=====================
+
+\mathcal{L}(V \setminus {x}) - \mathcal{L}(V)
+$$
+
+If $\Delta \mathcal{L}(x)$ is small, removing $x$ does not hurt the model much. That means $x$ is not very important.
+
+If $\Delta \mathcal{L}(x)$ is large, removing $x$ makes the corpus much harder to explain. That means $x$ is important and should be kept.
+
+So Unigram removes tokens with the smallest loss increase.
+
+The process is:
+
+```text
+1. Start with a large vocabulary.
+2. Estimate token probabilities using EM.
+3. Compute how harmful it would be to remove each token.
+4. Remove the least harmful tokens.
+5. Re-estimate probabilities.
+6. Repeat until the target vocabulary size is reached.
+```
+
+This is why Unigram is a pruning-based tokenizer.
+
+**A Small Example**
+
+Suppose the corpus contains:
+
+```text
+lower
+lowest
+newer
+wider
+```
+
+An initial Unigram vocabulary may contain:
+
+```text
+["l", "o", "w", "e", "r", "s", "t", "n", "i", "d",
+ "low", "lowest", "new", "newer", "wide", "wider", "er", "est"]
+```
+
+The word:
+
+```text
+lowest
+```
+
+may be segmented as:
+
+```text
+["lowest"]
+["low", "est"]
+["l", "o", "w", "e", "s", "t"]
+```
+
+If `"lowest"` appears very often, the model may assign it a high probability and keep it.
+
+If `"lowest"` appears rarely but `"low"` and `"est"` are common across many words, then the model may prefer:
+
+```text
+["low", "est"]
+```
+
+In that case, removing `"lowest"` may barely increase the loss, because the word can still be represented well by `"low"` and `"est"`.
+
+But removing `"low"` may hurt more, because `"low"` may be useful in many words:
+
+```text
+lower
+lowest
+lowland
+slow
+```
+
+So `"low"` is more likely to survive pruning than a rare full-word token.
+
+**Tokenization After Training**
+
+After training, the vocabulary and token probabilities are fixed.
+
+At inference time, given an input string $X$, Unigram can choose the most likely segmentation:
+
+$$
+s^\star
+=======
+
+\arg\max_{s \in \mathcal{S}(X)}
+\prod_{x_i \in s} p(x_i)
+$$
+
+Equivalently, because logs preserve ordering:
+
+$$
+s^\star
+=======
+
+\arg\min_{s \in \mathcal{S}(X)}
+\sum_{x_i \in s} -\log p(x_i)
+$$
+
+This means tokenization becomes a shortest-path problem: each possible token has a cost:
+
+$$
+-\log p(x)
+$$
+
+and the tokenizer searches for the segmentation with the smallest total cost.
+
+This is very close to dynamic programming problems in mathematics and computer science. The input string can be viewed as a graph where:
+
+* positions in the string are nodes,
+* valid tokens are edges,
+* edge weights are $-\log p(x)$,
+* the best tokenization is the minimum-cost path from the beginning to the end of the string.
+
+**Subword Regularization**
+
+One important advantage of Unigram is that it naturally supports multiple possible segmentations.
+
+Instead of always choosing the single best segmentation, the tokenizer can sample from several likely segmentations during training. This is called **subword regularization**.
+
+For example, the same word may sometimes be tokenized as:
+
+```text
+["unbelievable"]
+```
+
+and other times as:
+
+```text
+["un", "believ", "able"]
+```
+
+This adds controlled noise during model training and can make the model more robust. This was one of the motivations behind the Unigram model in SentencePiece.
+
+#### **1.2.5 BPE vs WordPiece vs Unigram**
+
+| Method        | Direction | Initial Vocabulary                             | Training Strategy                  | Main Criterion                                          | Tokenization After Training                                | Typical Use                                  |
+| ------------- | --------: | ---------------------------------------------- | ---------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------- |
+| **BPE**       | Bottom-up | Characters or bytes                            | Repeatedly merge adjacent pairs    | Most frequent pair                                      | Apply learned merge rules                                  | GPT-style tokenizers, LLaMA-style tokenizers |
+| **WordPiece** | Bottom-up | Characters plus continuation symbols like `##` | Repeatedly merge scored pairs      | Pair score related to likelihood / PMI-like association | Greedy longest-match MaxMatch                              | BERT-style tokenizers                        |
+| **Unigram**   |  Top-down | Large list of candidate words/subwords         | Estimate probabilities, then prune | Minimize corpus negative log-likelihood                 | Choose most probable segmentation, or sample segmentations | SentencePiece Unigram, T5                    |
+
+The main difference is philosophical.
+
+**BPE** asks:
+
+> Which adjacent pair should I merge next?
+
+**WordPiece** asks:
+
+> Which merge improves the statistical quality of the vocabulary most?
+
+**Unigram** asks:
+
+> Which vocabulary best explains the corpus probabilistically, and which tokens can be removed with minimal damage?
+
+So BPE and WordPiece are constructive methods: they build larger tokens step by step.
+
+Unigram is a selection method: it starts with many possible tokens and keeps only the ones that are statistically useful.
+
+This makes Unigram more explicitly probabilistic than BPE and WordPiece. It defines a real likelihood objective, treats segmentation as a hidden variable, uses EM-style estimation, and supports multiple possible segmentations naturally.
+
 
 ### **1.3 SentencePiece: The Language-Independent Framework**
 
