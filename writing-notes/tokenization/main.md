@@ -450,7 +450,8 @@ For example, consider the word `unbelievable`. Suppose the seed vocabulary conta
 * [`un`, `believ`, `able`]
 * [`unbelievable`]
 * [`un`, `bel`, `iev`, `able`]
-* 
+
+
 Unigram assigns a probability to *every individual piece* in the vocabulary, not to a segmentation directly — `p(un)`, `p(believable)`, `p(believ)`, `p(able)`, and so on. Once we have these per-piece probabilities, each of the four segmentations above gets its own probability, and the tokenizer prefers whichever segmentation scores highest. The next part of this section makes that precise: what exactly is being multiplied together, what the training objective (loss function) is, why that particular function qualifies as a loss, and how the pruning step actually decides which pieces to throw away.
  
 **A More Correct Mathematical View of Unigram**
@@ -473,7 +474,7 @@ $$
  
 This is a strong simplification — a real language model would want $p(x_i \mid x_{i-1})$ or richer context — but it buys tractability: with no dependence between pieces, finding the best segmentation reduces to a shortest-path problem instead of an exponential search.
  
-**2. Picking a segmentation: the Viterbi algorithm**
+**2. Picking a segmentation**
  
 Given the piece probabilities, the *best* tokenization of $X$ is the highest-probability segmentation:
  
@@ -487,7 +488,7 @@ $$
 \mathbf{x}^\star = \arg\max_{\mathbf{x} \in S(X)} \sum_{i=1}^m \log p(x_i)
 $$
  
-This is now a search for the highest-weight path through a small directed acyclic graph — one node per character boundary in $X$, one edge per candidate piece — and it is solved exactly and efficiently with the **Viterbi algorithm**, the same dynamic-programming idea used to decode Hidden Markov Models.
+This is now a search for the highest-weight path through a small directed acyclic graph 
  
 **3. The loss function: negative log-likelihood of the corpus**
  
@@ -508,7 +509,7 @@ Training the Unigram model means solving:
 $$
 p^\star = \arg\min_{p} \; \mathcal{L}(p) \quad \text{subject to} \quad \sum_{x \in V} p(x) = 1
 $$
- 
+<!--  
 **Why is this a legitimate loss function?** It's worth being explicit about the properties that make $\mathcal{L}(p)$ a well-posed objective, rather than just an arbitrary formula:
  
 * **Bounded below by zero.** Every $P(X_s) \leq 1$, so $\log P(X_s) \leq 0$, so each term $-\log P(X_s) \geq 0$. Hence $\mathcal{L}(p) \geq 0$ for any valid $p$ — exactly the "loss is non-negative, and smaller is better" behavior you expect from cross-entropy or squared error.
@@ -523,7 +524,7 @@ A few equivalent ways to see the same object, depending on which background feel
 * **Hidden-variable estimation.** The segmentation $\mathbf{x}$ of a sentence is a *latent variable* — we don't observe which segmentation "actually" produced $X$, only $X$ itself. Marginalizing over $S(X)$ and fitting parameters by EM is structurally identical to fitting a Gaussian Mixture Model or a Hidden Markov Model (Baum–Welch): compute expected assignments under the current parameters (E-step), then re-estimate parameters in closed form given those expectations (M-step).
 * **Model-selection / compression trade-off.** The overall procedure — start with many candidate pieces, keep only the ones whose removal would hurt the objective — is a subword instance of the **Minimum Description Length (MDL)** principle: balance a smaller vocabulary (cheaper to describe) against a better fit to the data (shorter encoded corpus).
 * **Backward feature elimination.** The pruning step itself (below) is the same idea as backward-elimination in regression: drop the predictor whose removal increases the loss the least, refit, repeat.
-**5. Training loop: Expectation-Maximization plus pruning**
+**5. Training loop: Expectation-Maximization plus pruning** -->
  
 Putting the pieces together, one full Unigram training run looks like this:
  
@@ -567,7 +568,7 @@ $$
 P(X) = P_1 + P_2 + P_3 + P_4 \approx 6.0\times10^{-6} + 2.0\times10^{-7} + 5.0\times10^{-5} + 2.8\times10^{-9} \approx 5.62 \times 10^{-5}
 $$
  
-so this word's contribution to $\mathcal{L}(p)$ is $-\log(5.62\times10^{-5}) \approx 9.79$ nats.
+so this word's contribution to $\mathcal{L}(p)$ is $-\log(5.62\times10^{-5}) \approx 9.79$.
  
 **What pruning `unbelievable` would cost:** if the piece `unbelievable` were removed from the vocabulary, $P_3$ disappears and only three segmentations remain:
  
@@ -575,7 +576,7 @@ $$
 P'(X) = P_1 + P_2 + P_4 \approx 6.0\times10^{-6} + 2.0\times10^{-7} + 2.8\times10^{-9} \approx 6.2\times10^{-6}
 $$
  
-giving a new loss contribution of $-\log(6.2\times10^{-6}) \approx 11.99$ nats — an increase of about **2.2 nats** for this one word. Summed over every word in the corpus that used this piece, that total increase is exactly the "removal cost" from step 5 above. If some other candidate piece's total removal cost across the whole corpus were smaller than this, it would be pruned first.
+giving a new loss contribution of $-\log(6.2\times10^{-6})$, there is an increase in loss for this one word. Summed over every word in the corpus that used this piece, that total increase is exactly the "removal cost" from step 5 above. If some other candidate piece's total removal cost across the whole corpus were smaller than this, it would be pruned first.
  
 #### **1.2.5 Bringing It All Together: BPE vs. WordPiece vs. Unigram**
  
