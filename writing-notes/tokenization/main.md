@@ -770,9 +770,11 @@ By understanding this full path—from standard text, to token pieces, to intege
 5. Kudo, T. (2018). [*Subword Regularization: Improving Neural Network Translation Models with Multiple Subword Candidates*](https://arxiv.org/abs/1804.10959). ACL 2018. — introduces the Unigram Language Model tokenizer and subword regularization.
 6. Kudo, T., & Richardson, J. (2018). [*SentencePiece: A Simple and Language Independent Subword Tokenizer and Detokenizer for Neural Text Processing*](https://arxiv.org/abs/1808.06226). EMNLP 2018 (System Demonstrations).
 7. Aho, A. V., & Corasick, M. J. (1975). *Efficient String Matching: An Aid to Bibliographic Search*. Communications of the ACM, 18(6), 333–340. — the string-matching algorithm behind Fast WordPiece's failure links.
+
 **Formal / theoretical analysis**
  
 8. Zouhar, V., Meister, C., Gastaldi, J. L., Du, L., Vieira, T., Sachan, M., & Cotterell, R. (2023). [*A Formal Perspective on Byte-Pair Encoding*](https://arxiv.org/abs/2306.16837). Findings of ACL 2023. — formalizes BPE as an optimization problem and introduces the exact (non-greedy) Algorithm 3 discussed in section 1.2.1.
+
 **Models referenced in the tokenizer comparisons**
  
 9. Devlin, J., Chang, M.-W., Lee, K., & Toutanova, K. (2019). [*BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding*](https://arxiv.org/abs/1810.04805). NAACL 2019.
@@ -780,6 +782,7 @@ By understanding this full path—from standard text, to token pieces, to intege
 11. Liu, Y., Ott, M., Goyal, N., Du, J., Joshi, M., et al. (2019). [*RoBERTa: A Robustly Optimized BERT Pretraining Approach*](https://arxiv.org/abs/1907.11692). arXiv:1907.11692.
 12. Raffel, C., Shazeer, N., Roberts, A., Lee, K., Narang, S., et al. (2020). [*Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer*](https://arxiv.org/abs/1910.10683). JMLR 21. — T5, trained with a SentencePiece Unigram tokenizer.
 13. Touvron, H., Lavril, T., Izacard, G., Martinet, X., Lachaux, M.-A., et al. (2023). [*LLaMA: Open and Efficient Foundation Language Models*](https://arxiv.org/abs/2302.13971). arXiv:2302.13971.
+
 **Tools and implementations**
  
 14. Karpathy, A. [*minbpe*](https://github.com/karpathy/minbpe) [GitHub repository]. — minimal, practical reference implementation of BPE used in section 1.2.1.
