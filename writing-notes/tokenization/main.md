@@ -363,7 +363,7 @@ may be unknown as a character, but it is still representable as a sequence of UT
 
 This is why WordPiece usually needs an explicit `[UNK]` token, while byte-level BPE can avoid it.
 <!-- 
-#### **1.2.4 Unigram**
+
 <!-- 
 While BPE and WordPiece build tokens from the bottom up (starting with single characters), the **Unigram** method works from the top down. It is often used alongside SentencePiece in models like T5.
 
@@ -377,44 +377,27 @@ Unigram starts with a very large list of words and common word parts from the tr
 4. **Remove the least useful:** Tokens that have the smallest negative impact when removed are deleted. These are usually pieces that can easily be made by combining other, more common tokens.
 5. **Repeat:** The model recalculates the probabilities and keeps removing tokens until the vocabulary is the right size.
 
-Unlike BPE, which uses a strict rule to combine pieces, Unigram relies on probability. If a word can be split in several different ways, Unigram looks at the chances of each option and picks the most likely one. --> -->
+Unlike BPE, which uses a strict rule to combine pieces, Unigram relies on probability. If a word can be split in several different ways, Unigram looks at the chances of each option and picks the most likely one. --> 
 
+#### **1.2.4 Unigram**
 
 BPE and WordPiece are usually described as **bottom-up** tokenization algorithms. They start from small units, such as characters or bytes, and gradually build larger subword tokens.
 
-The **Unigram Language Model**, usually just called **Unigram**, takes the opposite direction. It starts with a very large vocabulary of candidate pieces and then gradually removes the least useful ones. In that sense, Unigram is a **top-down pruning algorithm**:
-
-$$
-\text{large candidate vocabulary}
-\quad \longrightarrow \quad
-\text{smaller optimized vocabulary}
-$$
-
-Unigram is used in **SentencePiece**, especially in models such as T5. SentencePiece is not itself only one algorithm. It is a tokenizer framework that can train and use different subword models, including BPE and Unigram. Its important design choice is that it can work directly on raw text without requiring a separate word-splitting step before tokenization.
-
-
-**Intuition**
-
-The core idea of Unigram is simple:
-
-> A good token is one that helps explain the training corpus with high probability.
+The **Unigram Language Model**, usually just called **Unigram**, takes the opposite direction. It starts with a very large vocabulary of candidate pieces and then gradually removes the least useful ones. In that sense, Unigram is a **top-down pruning algorithm**. Unigram is used in **SentencePiece** (section 1.3), especially in models such as *T5*.
 
 Unlike BPE, Unigram does not learn a deterministic list of merge rules. Instead, it treats tokenization as a **probabilistic segmentation problem**.
 
-For example, the word:
+For example, the word: unbelievable
 
-```text
-unbelievable
-```
 
 may have several possible segmentations:
 
-```text
+
 ["un", "believable"]
 ["un", "believ", "able"]
 ["unbelievable"]
 ["un", "bel", "iev", "able"]
-```
+
 
 Unigram assigns probabilities to tokens. A segmentation is good if the product of its token probabilities is large. For example:
 
@@ -448,15 +431,15 @@ In practice, the initial vocabulary usually contains:
 
 SentencePiece represents whitespace using the special marker `▁`. For example:
 
-```text
+
 Tokenization is not trivial
-```
+
 
 is internally represented roughly as:
 
-```text
+
 ▁Tokenization▁is▁not▁trivial
-```
+
 
 This means spaces are treated as part of the token stream. As a result, SentencePiece can detokenize text by simply concatenating tokens and replacing `▁` with spaces.
 
@@ -614,21 +597,21 @@ This is very similar to ideas from probability and information theory:
 
 This last point is important. In Unigram, the tokenizer does not know in advance whether:
 
-```text
+
 unbelievable
-```
+
 
 should be segmented as:
 
-```text
+
 ["un", "believable"]
-```
+
 
 or:
 
-```text
+
 ["un", "believ", "able"]
-```
+
 
 The segmentation is hidden, so the algorithm must infer it.
 
@@ -673,13 +656,13 @@ So tokens that are useful receive higher probability, and tokens that are rarely
 
 This process repeats:
 
-```text
+
 estimate expected token counts
 update token probabilities
 estimate expected token counts again
 update token probabilities again
 ...
-```
+
 
 until the probabilities become stable enough.
 
@@ -708,14 +691,14 @@ So Unigram removes tokens with the smallest loss increase.
 
 The process is:
 
-```text
+
 1. Start with a large vocabulary.
 2. Estimate token probabilities using EM.
 3. Compute how harmful it would be to remove each token.
 4. Remove the least harmful tokens.
 5. Re-estimate probabilities.
 6. Repeat until the target vocabulary size is reached.
-```
+
 
 This is why Unigram is a pruning-based tokenizer.
 
@@ -723,52 +706,52 @@ This is why Unigram is a pruning-based tokenizer.
 
 Suppose the corpus contains:
 
-```text
+
 lower
 lowest
 newer
 wider
-```
+
 
 An initial Unigram vocabulary may contain:
 
-```text
+
 ["l", "o", "w", "e", "r", "s", "t", "n", "i", "d",
  "low", "lowest", "new", "newer", "wide", "wider", "er", "est"]
-```
+
 
 The word:
 
-```text
+
 lowest
-```
+
 
 may be segmented as:
 
-```text
+
 ["lowest"]
 ["low", "est"]
 ["l", "o", "w", "e", "s", "t"]
-```
+
 
 If `"lowest"` appears very often, the model may assign it a high probability and keep it.
 
 If `"lowest"` appears rarely but `"low"` and `"est"` are common across many words, then the model may prefer:
 
-```text
+
 ["low", "est"]
-```
+
 
 In that case, removing `"lowest"` may barely increase the loss, because the word can still be represented well by `"low"` and `"est"`.
 
 But removing `"low"` may hurt more, because `"low"` may be useful in many words:
 
-```text
+
 lower
 lowest
 lowland
 slow
-```
+
 
 So `"low"` is more likely to survive pruning than a rare full-word token.
 
@@ -819,15 +802,15 @@ Instead of always choosing the single best segmentation, the tokenizer can sampl
 
 For example, the same word may sometimes be tokenized as:
 
-```text
+
 ["unbelievable"]
-```
+
 
 and other times as:
 
-```text
+
 ["un", "believ", "able"]
-```
+
 
 This adds controlled noise during model training and can make the model more robust. This was one of the motivations behind the Unigram model in SentencePiece.
 
@@ -1045,13 +1028,13 @@ When you download a tokenizer from Hugging Face, you usually get several files r
 
 Common files include:
 
-```text
+
 config.json
 tokenizer.json
 tokenizer_config.json
 vocab.json
 merges.txt
-```
+
 
 Not every tokenizer has all of them. The exact files depend on the tokenizer family (BPE, WordPiece, SentencePiece, etc.).
 
