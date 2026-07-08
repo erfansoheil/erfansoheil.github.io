@@ -405,412 +405,469 @@ The initial vocabulary must be large because Unigram is a pruning method. **If a
 For example, consider the word the word: `unbelievable`. An suppose in the vocabulary in has the following four diferent ways of representating (segmentation): 
 
 
-$$ 
-[`un`, `believable`] \\
-[`un`, `believ`, `able`] \\
-[`unbelievable`] \\
-[`un`, `bel`, `iev`, `able`] \\
-$$
-
-
+* [`un`, `believable`] 
+* [`un`, `believ`, `able`] 
+* [`unbelievable`] \\
+* [`un`, `bel`, `iev`, `able`] 
 
 
 Unigram assigns probabilities to each tokens. Therefore there a four possible number related to the word  `unbelievable`. The tokenizer then prefers the representation (segmentation) with the highest probability.
 
-**The Probabilistic Model**
+### **A More Correct Mathematical View of Unigram**
 
-Let $V$ be the candidate vocabulary.
-
-Each token $x \in V$ has a probability $p(x)$, with:
-
-$$
-p(x) \geq 0
-$$
-
-and
-
-$$
-\sum_{x \in V} p(x) = 1
-$$
-
-Now suppose we have a sentence or word $X$. A segmentation of $X$ is a sequence of tokens:
-
-$$
-s = (x_1, x_2, \dots, x_k)
-$$
-
-such that concatenating the tokens gives back the original text:
-
-$$
-x_1 x_2 \dots x_k = X
-$$
-
-The Unigram model assumes that the tokens in a segmentation are generated independently. Therefore, the probability of a segmentation is:
-
-$$
-P(s) = \prod_{i=1}^{k} p(x_i)
-$$
-
-This independence assumption is why the method is called **Unigram**. It does not model bigram or trigram dependencies between tokens. It only assigns individual probabilities to single token pieces.
-
-For the input string $X$, there may be many valid segmentations. The probability of $X$ is the sum of the probabilities of all valid segmentations:
-
-$$
-P(X) = \sum_{s \in \mathcal{S}(X)} P(s)
-$$
-
-where $\mathcal{S}(X)$ is the set of all possible segmentations of $X$ using the current vocabulary.
-
-Expanding this:
-
-$$
-P(X) = \sum_{s \in \mathcal{S}(X)}
-\prod_{x_i \in s} p(x_i)
-$$
-
-So the model does not say that a word has only one segmentation during training. It considers all possible segmentations and gives higher weight to the ones that are more probable.
-
----
-
-**The Loss Function**
-
-Suppose the training corpus is:
+Assume we have a training corpus:
 
 $$
 D = {X_1, X_2, \dots, X_N}
 $$
 
-The goal is to choose token probabilities that make the corpus likely. Therefore, we want to maximize:
+where each $X_i$ is a sentence, word, or raw text sequence from the corpus.
+
+We also have a candidate vocabulary:
 
 $$
-\prod_{j=1}^{N} P(X_j)
+V = {v_1, v_2, \dots, v_M}
 $$
 
-This is the likelihood of the corpus.
+Each $v_j$ is a possible token: a character, subword, word piece, or full word.
 
-In optimization, it is more convenient to work with the logarithm:
-
-$$
-\sum_{j=1}^{N} \log P(X_j)
-$$
-
-Because products can become numerically tiny, logs make the objective more stable and turn products into sums.
-
-Instead of maximizing log-likelihood, we usually minimize the **negative log-likelihood**:
-
-$$
-\mathcal{L}(V, p)
-=================
-
--\sum_{j=1}^{N} \log P(X_j)
-$$
-
-Substituting the definition of $P(X_j)$:
-
-$$
-\mathcal{L}(V, p)
-=================
-
--\sum_{j=1}^{N}
-\log
-\left(
-\sum_{s \in \mathcal{S}(X_j)}
-\prod_{x_i \in s} p(x_i)
-\right)
-$$
-
-This is the main loss function behind the Unigram tokenizer.
+The vocabulary tells us **which segmentations are allowed**, but it does not directly give token probabilities. The probabilities are estimated from the corpus.
 
 ---
 
-**Why This Is a Natural Loss Function**
+### **Token Probabilities**
 
-This loss function is natural because it measures how well the tokenizer vocabulary explains the corpus.
-
-If the vocabulary contains useful pieces, then common words and phrases can be represented by high-probability segmentations. This makes $P(X_j)$ large, so:
+In the Unigram model, each token $v \in V$ has a probability:
 
 $$
--\log P(X_j)
+p(v)
 $$
 
-becomes small.
-
-If the vocabulary is poor, the model must represent words using awkward or low-probability pieces. Then $P(X_j)$ becomes small, and:
+with:
 
 $$
--\log P(X_j)
+p(v) \geq 0
 $$
 
-becomes large.
+and
 
-So the loss function penalizes vocabularies that explain the corpus badly.
+$$
+\sum_{v \in V} p(v) = 1
+$$
 
-This is very similar to ideas from probability and information theory:
+This means $p(v)$ is a probability distribution over the vocabulary.
 
-1. **Maximum Likelihood Estimation**
-   We choose the vocabulary probabilities that maximize the probability of the observed data.
+However, this probability is not simply:
 
-2. **Negative Log-Likelihood**
-   Minimizing negative log-likelihood is equivalent to maximizing likelihood.
+$$
+p(v) = \frac{\text{count}(v)}{\text{total number of tokens}}
+$$
 
-3. **Code Length / Compression**
-   In information theory, an event with probability $p$ has information content:
+at the beginning, because the corpus is not already tokenized.
 
-   $$
-   -\log p
-   $$
+This is the key point.
 
-   So minimizing the Unigram loss is similar to finding a vocabulary that gives the corpus a shorter probabilistic encoding.
+For example, if the corpus contains:
 
-4. **Latent Variable Models**
-   The true segmentation of a sentence is hidden. We observe the raw text, but not the exact subword split. Therefore, segmentation is a latent variable.
-
-This last point is important. In Unigram, the tokenizer does not know in advance whether:
-
-
+```text
 unbelievable
+```
 
+and the vocabulary contains:
 
-should be segmented as:
+```text
+["un", "believable", "believ", "able", "unbelievable"]
+```
 
+then the word can be segmented in several ways:
 
+```text
+["unbelievable"]
 ["un", "believable"]
-
-
-or:
-
-
 ["un", "believ", "able"]
+```
 
+So before we can count tokens, we must know which segmentation was used. But the segmentation itself is unknown.
 
-The segmentation is hidden, so the algorithm must infer it.
+Therefore, Unigram treats the segmentation as a **hidden variable**.
 
-**Training with EM**
+---
 
-Because the segmentation is hidden, Unigram is commonly trained using the **Expectation–Maximization algorithm**, usually abbreviated as **EM**. This is the same general optimization idea used in many probabilistic latent-variable models.
+### **Possible Segmentations**
 
-EM alternates between two steps:
-
-
-**1. E-step: Estimate Token Usage**
-
-In the E-step, the algorithm computes how much each token contributes to explaining the corpus.
-
-Because each sentence may have many possible segmentations, the model does not simply count the tokens from one segmentation. Instead, it computes expected counts over possible segmentations.
-
-For a token $x$, we estimate:
+For a text sequence $X$, define:
 
 $$
-\mathbb{E}[\text{count}(x)]
+\mathcal{S}(X; V)
+$$
+
+as the set of all valid segmentations of $X$ using tokens from vocabulary $V$.
+
+For example:
+
+$$
+X = \text{``unbelievable''}
+$$
+
+and:
+
+$$
+V = {\text{`un''}, \text{`believable''}, \text{`believ''}, \text{`able''}, \text{``unbelievable''}}
+$$
+
+Then:
+
+$$
+\mathcal{S}(X; V)
+=================
+
+{
+(\text{`unbelievable''}),
+(\text{`un''}, \text{`believable''}),
+(\text{`un''}, \text{`believ''}, \text{`able''})
+}
+$$
+
+The vocabulary defines the possible paths, but the corpus determines which paths are statistically useful.
+
+---
+
+### **Probability of One Segmentation**
+
+If a segmentation is:
+
+$$
+s = (v_{i_1}, v_{i_2}, \dots, v_{i_k})
+$$
+
+then the Unigram model assumes token independence:
+
+$$
+P(s)
+====
+
+\prod_{t=1}^{k} p(v_{i_t})
+$$
+
+This is why it is called a **Unigram** model: the probability of a token does not depend on the previous token.
+
+For example:
+
+$$
+P(\text{`un'', `believ'', ``able''})
+====================================
+
+p(\text{`un''})
+p(\text{`believ''})
+p(\text{``able''})
+$$
+
+---
+
+### **Probability of a Corpus String**
+
+The probability of a text sequence $X$ is obtained by summing over all valid segmentations:
+
+$$
+P(X \mid V, p)
+==============
+
+\sum_{s \in \mathcal{S}(X; V)}
+P(s)
+$$
+
+or equivalently:
+
+$$
+P(X \mid V, p)
+==============
+
+\sum_{s \in \mathcal{S}(X; V)}
+\prod_{v \in s} p(v)
+$$
+
+This is the important correction.
+
+The vocabulary $V$ determines the possible segmentations $\mathcal{S}(X; V)$.
+
+The probabilities $p(v)$ are learned from the corpus.
+
+The corpus likelihood is:
+
+$$
+P(D \mid V, p)
+==============
+
+\prod_{i=1}^{N} P(X_i \mid V, p)
+$$
+
+Therefore:
+
+$$
+P(D \mid V, p)
+==============
+
+\prod_{i=1}^{N}
+\sum_{s \in \mathcal{S}(X_i; V)}
+\prod_{v \in s} p(v)
+$$
+
+---
+
+### **Loss Function**
+
+The training objective is to maximize the probability of the corpus:
+
+$$
+\max_{p}
+P(D \mid V, p)
+$$
+
+Usually we maximize log-likelihood instead:
+
+$$
+\max_{p}
+\sum_{i=1}^{N}
+\log P(X_i \mid V, p)
+$$
+
+Substituting the segmentation formula:
+
+$$
+\max_{p}
+\sum_{i=1}^{N}
+\log
+\left(
+\sum_{s \in \mathcal{S}(X_i; V)}
+\prod_{v \in s} p(v)
+\right)
+$$
+
+Equivalently, we minimize the negative log-likelihood:
+
+$$
+\mathcal{L}(D; V, p)
+====================
+
+*
+
+\sum_{i=1}^{N}
+\log
+\left(
+\sum_{s \in \mathcal{S}(X_i; V)}
+\prod_{v \in s} p(v)
+\right)
+$$
+
+This is the Unigram loss.
+
+It is not computed from the vocabulary alone. It is computed from the corpus $D$, using the possible segmentations allowed by vocabulary $V$.
+
+---
+
+### **Where Frequency Enters**
+
+If the corpus were already tokenized, then estimating token probabilities would be simple:
+
+$$
+p(v)
+====
+
+\frac{\text{count}(v)}
+{\sum_{u \in V} \text{count}(u)}
+$$
+
+But in Unigram tokenizer training, the corpus is not uniquely tokenized.
+
+So instead of hard counts, we use **expected counts**.
+
+For each token $v$, we compute:
+
+$$
+\mathbb{E}[\text{count}(v)]
 $$
 
 This means:
 
-> Across all possible segmentations of all sentences, how often does token $x$ appear, weighted by the probability of each segmentation?
+> How often do we expect token $v$ to appear in the corpus, averaging over all possible segmentations weighted by their probabilities?
 
-Tokens that appear often in high-probability segmentations get high expected counts.
-
-**2. M-step: Update Token Probabilities**
-
-In the M-step, the token probabilities are updated using the expected counts:
+Then the probability is updated as:
 
 $$
-p(x)
+p(v)
 ====
 
-\frac{\mathbb{E}[\text{count}(x)]}
-{\sum_{y \in V} \mathbb{E}[\text{count}(y)]}
+\frac{
+\mathbb{E}[\text{count}(v)]
+}{
+\sum_{u \in V}
+\mathbb{E}[\text{count}(u)]
+}
 $$
 
-So tokens that are useful receive higher probability, and tokens that are rarely useful receive lower probability.
+So your intuition is correct: token probabilities come from frequency in the corpus. But because the segmentation is ambiguous, the algorithm uses **expected frequency**, not direct frequency.
 
-This process repeats:
+---
 
+### **EM Interpretation**
 
-estimate expected token counts
+Unigram is trained using an EM-like procedure.
+
+#### **E-step**
+
+Given the current token probabilities $p(v)$, compute how likely each possible segmentation is.
+
+For a segmentation $s \in \mathcal{S}(X; V)$:
+
+$$
+P(s \mid X)
+===========
+
+\frac{
+P(s)
+}{
+\sum_{s' \in \mathcal{S}(X; V)} P(s')
+}
+$$
+
+where:
+
+$$
+P(s) = \prod_{v \in s} p(v)
+$$
+
+So:
+
+$$
+P(s \mid X)
+===========
+
+\frac{
+\prod_{v \in s} p(v)
+}{
+\sum_{s' \in \mathcal{S}(X; V)}
+\prod_{u \in s'} p(u)
+}
+$$
+
+This gives the posterior probability of each segmentation.
+
+Then we compute expected token counts from these posterior probabilities.
+
+---
+
+#### **M-step**
+
+Update the token probability using expected counts:
+
+$$
+p(v)
+====
+
+\frac{
+\mathbb{E}[\text{count}(v)]
+}{
+\sum_{u \in V}
+\mathbb{E}[\text{count}(u)]
+}
+$$
+
+This is the corrected version of the frequency idea.
+
+The corpus gives the counts, but the counts are soft because we do not know the true segmentation.
+
+---
+
+### **Vocabulary Pruning**
+
+After probabilities are estimated, Unigram prunes the vocabulary.
+
+For each token $v$, the algorithm asks:
+
+> If I remove this token from the vocabulary, how much worse does the corpus likelihood become?
+
+Mathematically, we compare:
+
+$$
+\mathcal{L}(D; V \setminus {v}, p)
+$$
+
+with:
+
+$$
+\mathcal{L}(D; V, p)
+$$
+
+The loss increase is:
+
+$$
+\Delta_v
+========
+
+## \mathcal{L}(D; V \setminus {v}, p)
+
+\mathcal{L}(D; V, p)
+$$
+
+If $\Delta_v$ is small, removing token $v$ barely hurts the model. So $v$ is not important.
+
+If $\Delta_v$ is large, removing token $v$ damages the corpus likelihood. So $v$ should be kept.
+
+The algorithm removes tokens with small $\Delta_v$ and repeats the process until the target vocabulary size is reached.
+
+---
+
+### **Correct Intuition**
+
+The clean intuition is:
+
+1. The corpus gives the observed data.
+2. The vocabulary gives possible tokenization paths.
+3. Each path has a probability.
+4. Since the true path is unknown, we sum over all possible paths.
+5. Token probabilities are learned from expected counts over the corpus.
+6. Bad tokens are removed if their removal barely increases the corpus loss.
+
+So Unigram is not simply:
+
+```text
+count tokens once → divide by total count
+```
+
+because the tokenization is not known beforehand.
+
+It is closer to:
+
+```text
+consider all possible tokenizations
+estimate soft token counts
 update token probabilities
-estimate expected token counts again
-update token probabilities again
-...
+remove low-utility tokens
+repeat
+```
 
+---
 
-until the probabilities become stable enough.
+### **Comparison with BPE and WordPiece**
 
-**Vocabulary Pruning**
+| Method        | Corpus Role                                         | Vocabulary Role                                | Probability Model                               | Training Direction | Main Operation                           |
+| ------------- | --------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------- | ------------------ | ---------------------------------------- |
+| **BPE**       | Counts frequent adjacent pairs in the corpus        | Starts small and grows by adding merges        | No explicit corpus likelihood model             | Bottom-up          | Merge most frequent pair                 |
+| **WordPiece** | Counts adjacent pairs and scores them statistically | Starts small and grows by adding scored merges | Approximate likelihood-based merge criterion    | Bottom-up          | Merge best-scoring pair                  |
+| **Unigram**   | Estimates expected token counts from the corpus     | Starts large and prunes                        | Explicit likelihood over possible segmentations | Top-down           | Remove tokens that least hurt likelihood |
 
-After estimating token probabilities, Unigram removes tokens that are not useful.
-
-The key question is:
-
-> If we remove this token, how much worse does the loss become?
-
-For each token $x$, the algorithm estimates the increase in loss caused by removing it:
-
-$$
-\Delta \mathcal{L}(x)
-=====================
-
-\mathcal{L}(V \setminus {x}) - \mathcal{L}(V)
-$$
-
-If $\Delta \mathcal{L}(x)$ is small, removing $x$ does not hurt the model much. That means $x$ is not very important.
-
-If $\Delta \mathcal{L}(x)$ is large, removing $x$ makes the corpus much harder to explain. That means $x$ is important and should be kept.
-
-So Unigram removes tokens with the smallest loss increase.
-
-The process is:
-
-
-1. Start with a large vocabulary.
-2. Estimate token probabilities using EM.
-3. Compute how harmful it would be to remove each token.
-4. Remove the least harmful tokens.
-5. Re-estimate probabilities.
-6. Repeat until the target vocabulary size is reached.
-
-
-This is why Unigram is a pruning-based tokenizer.
-
-**A Small Example**
-
-Suppose the corpus contains:
-
-
-lower
-lowest
-newer
-wider
-
-
-An initial Unigram vocabulary may contain:
-
-
-["l", "o", "w", "e", "r", "s", "t", "n", "i", "d",
- "low", "lowest", "new", "newer", "wide", "wider", "er", "est"]
-
-
-The word:
-
-
-lowest
-
-
-may be segmented as:
-
-
-["lowest"]
-["low", "est"]
-["l", "o", "w", "e", "s", "t"]
-
-
-If `"lowest"` appears very often, the model may assign it a high probability and keep it.
-
-If `"lowest"` appears rarely but `"low"` and `"est"` are common across many words, then the model may prefer:
-
-
-["low", "est"]
-
-
-In that case, removing `"lowest"` may barely increase the loss, because the word can still be represented well by `"low"` and `"est"`.
-
-But removing `"low"` may hurt more, because `"low"` may be useful in many words:
-
-
-lower
-lowest
-lowland
-slow
-
-
-So `"low"` is more likely to survive pruning than a rare full-word token.
-
-**Tokenization After Training**
-
-After training, the vocabulary and token probabilities are fixed.
-
-At inference time, given an input string $X$, Unigram can choose the most likely segmentation:
+The key difference is that Unigram has an explicit probabilistic model:
 
 $$
-s^\star
-=======
+P(D \mid V, p)
+==============
 
-\arg\max_{s \in \mathcal{S}(X)}
-\prod_{x_i \in s} p(x_i)
+\prod_{i=1}^{N}
+\sum_{s \in \mathcal{S}(X_i; V)}
+\prod_{v \in s} p(v)
 $$
 
-Equivalently, because logs preserve ordering:
-
-$$
-s^\star
-=======
-
-\arg\min_{s \in \mathcal{S}(X)}
-\sum_{x_i \in s} -\log p(x_i)
-$$
-
-This means tokenization becomes a shortest-path problem: each possible token has a cost:
-
-$$
--\log p(x)
-$$
-
-and the tokenizer searches for the segmentation with the smallest total cost.
-
-This is very close to dynamic programming problems in mathematics and computer science. The input string can be viewed as a graph where:
-
-* positions in the string are nodes,
-* valid tokens are edges,
-* edge weights are $-\log p(x)$,
-* the best tokenization is the minimum-cost path from the beginning to the end of the string.
-
-**Subword Regularization**
-
-One important advantage of Unigram is that it naturally supports multiple possible segmentations.
-
-Instead of always choosing the single best segmentation, the tokenizer can sample from several likely segmentations during training. This is called **subword regularization**.
-
-For example, the same word may sometimes be tokenized as:
-
-
-["unbelievable"]
-
-
-and other times as:
-
-
-["un", "believ", "able"]
-
-
-This adds controlled noise during model training and can make the model more robust. This was one of the motivations behind the Unigram model in SentencePiece.
-
-#### **1.2.5 BPE vs WordPiece vs Unigram**
-
-| Method        | Direction | Initial Vocabulary                             | Training Strategy                  | Main Criterion                                          | Tokenization After Training                                | Typical Use                                  |
-| ------------- | --------: | ---------------------------------------------- | ---------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------- |
-| **BPE**       | Bottom-up | Characters or bytes                            | Repeatedly merge adjacent pairs    | Most frequent pair                                      | Apply learned merge rules                                  | GPT-style tokenizers, LLaMA-style tokenizers |
-| **WordPiece** | Bottom-up | Characters plus continuation symbols like `##` | Repeatedly merge scored pairs      | Pair score related to likelihood / PMI-like association | Greedy longest-match MaxMatch                              | BERT-style tokenizers                        |
-| **Unigram**   |  Top-down | Large list of candidate words/subwords         | Estimate probabilities, then prune | Minimize corpus negative log-likelihood                 | Choose most probable segmentation, or sample segmentations | SentencePiece Unigram, T5                    |
-
-The main difference is philosophical.
-
-**BPE** asks:
-
-> Which adjacent pair should I merge next?
-
-**WordPiece** asks:
-
-> Which merge improves the statistical quality of the vocabulary most?
-
-**Unigram** asks:
-
-> Which vocabulary best explains the corpus probabilistically, and which tokens can be removed with minimal damage?
-
-So BPE and WordPiece are constructive methods: they build larger tokens step by step.
-
-Unigram is a selection method: it starts with many possible tokens and keeps only the ones that are statistically useful.
-
-This makes Unigram more explicitly probabilistic than BPE and WordPiece. It defines a real likelihood objective, treats segmentation as a hidden variable, uses EM-style estimation, and supports multiple possible segmentations naturally.
+BPE and WordPiece do not usually define the tokenizer training problem this way. They are greedy vocabulary construction methods. Unigram is a probabilistic vocabulary selection method.
 
 
 ### **1.3 SentencePiece: The Language-Independent Framework**
