@@ -416,6 +416,182 @@ Unigram assigns probabilities to each tokens. Therefore there a four possible nu
 **A More Correct Mathematical View of Unigram**
 
 
+#### **1.2.4 Unigram**
+ 
+BPE and WordPiece are usually described as **bottom-up** tokenization algorithms. They start from small units, such as characters or bytes, and gradually build larger subword tokens.
+ 
+The **Unigram Language Model**, usually just called **Unigram**, takes the opposite direction. It starts with a very large vocabulary of candidate pieces and then gradually removes the least useful ones. In that sense, Unigram is a **top-down pruning algorithm** — the mirror image of BPE and WordPiece, which are bottom-up and *grow* their vocabulary one merge at a time. Unigram is used in **SentencePiece** (section 1.3), especially in models such as *T5*.
+ 
+This immediately raises two questions: where does that "very large" initial vocabulary come from, and once we have it, what criterion decides which pieces survive? The rest of this section answers both.
+ 
+**How the Initial Vocabulary Is Built?**
+ 
+Unigram starts with a large initial vocabulary. This vocabulary is intentionally bigger than the final target vocabulary.
+ 
+In practice, the initial vocabulary usually contains:
+ 
+1. frequent full words from the corpus,
+2. frequent substrings,
+3. character-level units,
+4. special tokens such as `<unk>`, `<s>`, `</s>`, or padding tokens,
+5. whitespace-aware pieces such as `▁the`, `▁is`, or `▁Token` in SentencePiece.
+The initial vocabulary must be large because Unigram is a pruning method. **If a useful token is not present in the initial candidate set, the algorithm cannot recover it later**. This is different from BPE, where new tokens are created by merging smaller units. Instead, it treats tokenization as a **probabilistic segmentation problem**.
+ 
+In practice, this seed vocabulary is not built by hand — it is generated automatically from the corpus, and it has to be built in a way that stays computationally cheap even though it may contain hundreds of thousands of candidate substrings. The two common approaches are:
+ 
+* **Seed with BPE.** Run a few thousand iterations of ordinary BPE and keep every intermediate merge ever produced (not just the final vocabulary) as a candidate piece.
+* **Seed with an Enhanced Suffix Array (ESA).** This is the approach used by the original SentencePiece implementation. A suffix array lets you enumerate every repeated substring of the corpus, together with its frequency, in roughly linear time — instead of the quadratic cost of naively checking every substring against every other one. The ESA is then used to pull out the most frequent substrings up to some maximum length, which become the seed pieces.
+Either way, the seed vocabulary is deliberately redundant: it contains overlapping candidates (`un`, `believ`, `able`, `believable`, `unbelievable`, …) precisely so that the pruning step described below has real alternatives to choose between.
+ 
+For example, consider the word `unbelievable`. Suppose the seed vocabulary contains all of the following pieces, so the word admits four different segmentations:
+ 
+* [`un`, `believable`]
+* [`un`, `believ`, `able`]
+* [`unbelievable`]
+* [`un`, `bel`, `iev`, `able`]
+Unigram assigns a probability to *every individual piece* in the vocabulary, not to a segmentation directly — `p(un)`, `p(believable)`, `p(believ)`, `p(able)`, and so on. Once we have these per-piece probabilities, each of the four segmentations above gets its own probability, and the tokenizer prefers whichever segmentation scores highest. The next part of this section makes that precise: what exactly is being multiplied together, what the training objective (loss function) is, why that particular function qualifies as a loss, and how the pruning step actually decides which pieces to throw away.
+ 
+**A More Correct Mathematical View of Unigram**
+ 
+**1. The generative model behind the name "Unigram"**
+ 
+Let $V$ be the current vocabulary, and let $p(x)$ denote the probability assigned to piece $x \in V$. These probabilities form a proper distribution over the vocabulary:
+ 
+$$
+\sum_{x \in V} p(x) = 1, \qquad p(x) \geq 0 \; \; \forall x \in V
+$$
+ 
+Given an input string $X$ (a word, or a whitespace-escaped sentence — see section 1.3), a **segmentation** is a sequence $\mathbf{x} = (x_1, x_2, \dots, x_m)$ of pieces from $V$ whose concatenation reconstructs $X$. Let $S(X)$ denote the set of *all* valid segmentations of $X$ — for `unbelievable`, this is exactly the four candidates listed above.
+ 
+The model gets its name from a specific, deliberately simple independence assumption: the probability of a segmentation is just the product of the probabilities of its pieces, with **no dependence on neighboring pieces** — the probability of `able` does not change depending on whether it follows `believ` or `bel iev`. This is the same "bag of independent draws" assumption behind classical unigram language models and Naive Bayes classifiers:
+ 
+$$
+P(\mathbf{x}) = \prod_{i=1}^{m} p(x_i)
+$$
+ 
+This is a strong simplification — a real language model would want $p(x_i \mid x_{i-1})$ or richer context — but it buys tractability: with no dependence between pieces, finding the best segmentation reduces to a shortest-path problem instead of an exponential search.
+ 
+**2. Picking a segmentation: the Viterbi algorithm**
+ 
+Given the piece probabilities, the *best* tokenization of $X$ is the highest-probability segmentation:
+ 
+$$
+\mathbf{x}^\star = \arg\max_{\mathbf{x} \in S(X)} P(\mathbf{x}) = \arg\max_{\mathbf{x} \in S(X)} \prod_{i=1}^m p(x_i)
+$$
+ 
+Taking logs doesn't change the arg max (log is monotonic), and it turns a product into a sum:
+ 
+$$
+\mathbf{x}^\star = \arg\max_{\mathbf{x} \in S(X)} \sum_{i=1}^m \log p(x_i)
+$$
+ 
+This is now a search for the highest-weight path through a small directed acyclic graph — one node per character boundary in $X$, one edge per candidate piece — and it is solved exactly and efficiently with the **Viterbi algorithm**, the same dynamic-programming idea used to decode Hidden Markov Models.
+ 
+**3. The loss function: negative log-likelihood of the corpus**
+ 
+Training means choosing the probabilities $p(x)$ that best explain a training corpus $D = \{X_1, \dots, X_N\}$. Here is the subtlety: the training objective does **not** use only the single best segmentation $\mathbf{x}^\star$. It uses the **marginal probability** of the sentence — the sum over *every* valid segmentation:
+ 
+$$
+P(X) = \sum_{\mathbf{x} \in S(X)} P(\mathbf{x}) = \sum_{\mathbf{x} \in S(X)} \prod_{i=1}^m p(x_i)
+$$
+ 
+Summing over the hidden segmentation, rather than only keeping the best one, matters: a piece can be genuinely useful even when it never wins the argmax, simply by contributing to many near-optimal segmentations. The **loss function** for the whole corpus is the negative log-likelihood:
+ 
+$$
+\mathcal{L}(p) = -\sum_{s=1}^{N} \log P(X_s) = -\sum_{s=1}^{N} \log \left( \sum_{\mathbf{x} \in S(X_s)} \prod_{i=1}^{m_s} p(x_i) \right)
+$$
+ 
+Training the Unigram model means solving:
+ 
+$$
+p^\star = \arg\min_{p} \; \mathcal{L}(p) \quad \text{subject to} \quad \sum_{x \in V} p(x) = 1
+$$
+ 
+**Why is this a legitimate loss function?** It's worth being explicit about the properties that make $\mathcal{L}(p)$ a well-posed objective, rather than just an arbitrary formula:
+ 
+* **Bounded below by zero.** Every $P(X_s) \leq 1$, so $\log P(X_s) \leq 0$, so each term $-\log P(X_s) \geq 0$. Hence $\mathcal{L}(p) \geq 0$ for any valid $p$ — exactly the "loss is non-negative, and smaller is better" behavior you expect from cross-entropy or squared error.
+* **It is a cross-entropy.** $\mathcal{L}(p)$ is (up to the constant $N$) the cross-entropy between the empirical corpus distribution and the model's predictive distribution over strings. Minimizing it is exactly maximum-likelihood estimation: $p^\star$ is the distribution under which the observed corpus is least "surprising."
+* **Decomposability.** $\mathcal{L}(p)$ is a *sum* over independent sentences. This is not just a convenience — it is what makes pruning possible at all. Because the loss decomposes additively, you can isolate the contribution of a single vocabulary item by asking how much the total sum changes if that item is unavailable. Section 5 below uses exactly this property.
+* **Non-convexity.** Because $P(X)$ is a sum of *products* of unknowns, $\mathcal{L}(p)$ is not convex in $p$ in general. There is no closed-form global minimizer, which is why training relies on **Expectation-Maximization (EM)** rather than direct gradient descent — EM is only guaranteed to reach a local optimum, but each iteration is guaranteed to never increase $\mathcal{L}(p)$.
+**4. Intuition: what does this loss "look like" elsewhere?**
+ 
+A few equivalent ways to see the same object, depending on which background feels most natural:
+ 
+* **Information theory.** $-\log p(x)$ is Shannon's *self-information* (or "surprisal") of piece $x$, measured in nats. $\mathcal{L}(p)$ is therefore the total code length needed to describe the corpus under this model — minimizing it is literally finding the vocabulary and probabilities that compress the corpus best. $\exp(\mathcal{L}(p)/N)$ is the model's **perplexity**: the effective average branching factor per sentence.
+* **Hidden-variable estimation.** The segmentation $\mathbf{x}$ of a sentence is a *latent variable* — we don't observe which segmentation "actually" produced $X$, only $X$ itself. Marginalizing over $S(X)$ and fitting parameters by EM is structurally identical to fitting a Gaussian Mixture Model or a Hidden Markov Model (Baum–Welch): compute expected assignments under the current parameters (E-step), then re-estimate parameters in closed form given those expectations (M-step).
+* **Model-selection / compression trade-off.** The overall procedure — start with many candidate pieces, keep only the ones whose removal would hurt the objective — is a subword instance of the **Minimum Description Length (MDL)** principle: balance a smaller vocabulary (cheaper to describe) against a better fit to the data (shorter encoded corpus).
+* **Backward feature elimination.** The pruning step itself (below) is the same idea as backward-elimination in regression: drop the predictor whose removal increases the loss the least, refit, repeat.
+**5. Training loop: Expectation-Maximization plus pruning**
+ 
+Putting the pieces together, one full Unigram training run looks like this:
+ 
+1. **Build a large seed vocabulary $V_0$** using BPE or ESA-based substring statistics, as described above.
+2. **Initialize $p(x)$** for every $x \in V_0$, e.g., from relative frequency of that substring in the seed statistics, normalized so probabilities sum to 1.
+3. **E-step.** For each sentence in the corpus, run the forward-backward algorithm (Viterbi's "soft" cousin) over $S(X_s)$ to compute the *expected count* of every piece — i.e., how often piece $x$ is used, averaged over all segmentations weighted by their probability under the current $p$, not just the single best one.
+4. **M-step.** Re-estimate each $p(x)$ as its expected count divided by the total expected count across the vocabulary — the closed-form MLE update given the expectations from step 3. This is a standard EM iteration; it is guaranteed not to increase $\mathcal{L}(p)$.
+5. **Score each piece by its removal cost.** For every $x \in V$, compute how much the total corpus loss $\mathcal{L}(p)$ would increase if $x$ were deleted from the vocabulary and every sentence that used it had to fall back to its next-best segmentation. Pieces with the *smallest* loss-increase are the ones the model can most easily do without.
+6. **Prune.** Remove the bottom fraction (commonly the worst 10–20%) of pieces by this score. Single characters are typically protected from pruning, so the vocabulary can never become unable to represent some input (avoiding the `[UNK]` problem discussed in section 1.2.2).
+7. **Repeat steps 3–6** until $|V|$ reaches the target vocabulary size.
+**6. A numeric walk-through, continuing the `unbelievable` example**
+ 
+Suppose, at some point during training, the model has learned these (illustrative, not real) piece probabilities:
+ 
+| Piece | $p(x)$ |
+|---|---|
+| `un` | 0.020 |
+| `believable` | 0.00030 |
+| `believ` | 0.0010 |
+| `able` | 0.010 |
+| `unbelievable` | 0.00005 |
+| `bel` | 0.020 |
+| `iev` | 0.00070 |
+ 
+Each of the four segmentations gets a probability under the independence assumption $P(\mathbf{x}) = \prod_i p(x_i)$:
+ 
+$$
+\begin{aligned}
+P_1 &= p(\texttt{un}) \cdot p(\texttt{believable}) &&= 0.020 \times 0.00030 &&= 6.0 \times 10^{-6} \\
+P_2 &= p(\texttt{un}) \cdot p(\texttt{believ}) \cdot p(\texttt{able}) &&= 0.020 \times 0.0010 \times 0.010 &&= 2.0 \times 10^{-7} \\
+P_3 &= p(\texttt{unbelievable}) &&&&= 5.0 \times 10^{-5} \\
+P_4 &= p(\texttt{un}) \cdot p(\texttt{bel}) \cdot p(\texttt{iev}) \cdot p(\texttt{able}) &&= 0.020 \times 0.020 \times 0.00070 \times 0.010 &&= 2.8 \times 10^{-9}
+\end{aligned}
+$$
+ 
+**Best segmentation (Viterbi):** $P_3$ is the largest single term, so $\mathbf{x}^\star = [\texttt{unbelievable}]$ — the tokenizer keeps the word whole.
+ 
+**Marginal probability (used in the loss):** sum over all four,
+ 
+$$
+P(X) = P_1 + P_2 + P_3 + P_4 \approx 6.0\times10^{-6} + 2.0\times10^{-7} + 5.0\times10^{-5} + 2.8\times10^{-9} \approx 5.62 \times 10^{-5}
+$$
+ 
+so this word's contribution to $\mathcal{L}(p)$ is $-\log(5.62\times10^{-5}) \approx 9.79$ nats.
+ 
+**What pruning `unbelievable` would cost:** if the piece `unbelievable` were removed from the vocabulary, $P_3$ disappears and only three segmentations remain:
+ 
+$$
+P'(X) = P_1 + P_2 + P_4 \approx 6.0\times10^{-6} + 2.0\times10^{-7} + 2.8\times10^{-9} \approx 6.2\times10^{-6}
+$$
+ 
+giving a new loss contribution of $-\log(6.2\times10^{-6}) \approx 11.99$ nats — an increase of about **2.2 nats** for this one word. Summed over every word in the corpus that used this piece, that total increase is exactly the "removal cost" from step 5 above. If some other candidate piece's total removal cost across the whole corpus were smaller than this, it would be pruned first.
+ 
+#### **1.2.5 Bringing It All Together: BPE vs. WordPiece vs. Unigram**
+ 
+With all three algorithms on the table, it's worth comparing them directly along the axes that actually distinguish them:
+ 
+| | **BPE** | **WordPiece** | **Unigram** |
+|---|---|---|---|
+| **Direction** | Bottom-up (grows the vocabulary) | Bottom-up (grows the vocabulary) | Top-down (shrinks the vocabulary) |
+| **Starting point** | Base characters/bytes | Base characters/bytes | A large seed vocabulary (from BPE or ESA substring statistics) |
+| **Selection criterion** | Raw pair frequency | PMI-like co-occurrence score, $\text{Count}(ab)/(\text{Count}(a)\text{Count}(b))$ | Global corpus negative log-likelihood, $\mathcal{L}(p)$, optimized via EM |
+| **What each step does** | Merges the most frequent adjacent pair | Merges the pair with the highest likelihood-ratio score | Removes the piece(s) with the smallest loss-increase upon removal |
+| **Is the objective probabilistic?** | No — purely frequency-driven | Partially — score is likelihood-flavored, but not a normalized probability model | Yes — pieces have a proper probability distribution $p(x)$ over the whole vocabulary |
+| **Tokenization at inference** | Deterministic: apply learned merge rules in order | Deterministic: greedy longest-match (MaxMatch) | Naturally probabilistic: Viterbi picks the single best segmentation, but the model can also *sample* alternative segmentations |
+| **Handles segmentation ambiguity?** | No — one fixed set of merge rules, one output | No — one fixed greedy scan, one output | Yes, explicitly — the loss itself sums over every valid segmentation, and training can even use "subword regularization" (sampling non-optimal segmentations) to make downstream models robust to tokenization noise |
+| **Typical users** | GPT, LLaMA (usually byte-level) | BERT, DistilBERT | T5 and other SentencePiece-based models |
+ 
+The direction each algorithm moves in is really a consequence of what it's optimizing. BPE only ever asks a local question — "which adjacent pair is most frequent, right now?" — so it has no way to *remove* a bad early decision later; it can only build on top of it. Unigram instead evaluates candidates against one **global** objective, $\mathcal{L}(p)$, computed over the entire corpus, which is exactly what makes pruning coherent: a piece is judged by how much the *whole* vocabulary's fit degrades without it, not by a local pairwise statistic. That global, probabilistic view is also what buys Unigram its two extra abilities that BPE and WordPiece don't have: a principled notion of "how good is this vocabulary" ($\mathcal{L}(p)$ itself), and the ability to represent genuine tokenization ambiguity instead of collapsing every input to one fixed output.
+
 ### **1.3 SentencePiece: The Language-Independent Framework**
 
 While BPE and WordPiece are powerful subword algorithms, they historically relied on a crucial first step: **pre-tokenization**. Before the algorithm could process the text, a script had to split the sentence into words based on spaces and punctuation (e.g., separating `"I love AI."` into `["I", "love", "AI", "."]`).
