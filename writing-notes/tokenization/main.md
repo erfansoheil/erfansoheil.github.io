@@ -362,59 +362,6 @@ For example: 🙂,
 may be unknown as a character, but it is still representable as a sequence of UTF-8 bytes. Since those bytes are guaranteed to exist in the vocabulary, the tokenizer never gets stuck.
 
 This is why WordPiece usually needs an explicit `[UNK]` token, while byte-level BPE can avoid it.
-<!-- 
-
-<!-- 
-While BPE and WordPiece build tokens from the bottom up (starting with single characters), the **Unigram** method works from the top down. It is often used alongside SentencePiece in models like T5.
-
-**How It Works**
-Unigram starts with a very large list of words and common word parts from the training text. Then, it carefully removes (prunes) the least useful pieces until it reaches the final vocabulary size.
-
-**How Unigram is Trained**
-1. **Start big:** Create a huge initial list of words and subwords.
-2. **Find probabilities:** Calculate how likely each piece is to appear in the text based on its frequency.
-3. **Test the impact:** The model looks at the whole text and asks: *"If I remove this token from my list, how much does it hurt my ability to represent the text accurately?"*
-4. **Remove the least useful:** Tokens that have the smallest negative impact when removed are deleted. These are usually pieces that can easily be made by combining other, more common tokens.
-5. **Repeat:** The model recalculates the probabilities and keeps removing tokens until the vocabulary is the right size.
-
-Unlike BPE, which uses a strict rule to combine pieces, Unigram relies on probability. If a word can be split in several different ways, Unigram looks at the chances of each option and picks the most likely one. --> 
-
-<!-- #### **1.2.4 Unigram**
-
-BPE and WordPiece are usually described as **bottom-up** tokenization algorithms. They start from small units, such as characters or bytes, and gradually build larger subword tokens.
-
-The **Unigram Language Model**, usually just called **Unigram**, takes the opposite direction. It starts with a very large vocabulary of candidate pieces and then gradually removes the least useful ones. In that sense, Unigram is a **top-down pruning algorithm**. Unigram is used in **SentencePiece** (section 1.3), especially in models such as *T5*.
-
-What immediate question is 
-
-**How the Initial Vocabulary Is Built?**
-
-Unigram starts with a large initial vocabulary. This vocabulary is intentionally bigger than the final target vocabulary.
-
-In practice, the initial vocabulary usually contains:
-
-1. frequent full words from the corpus,
-2. frequent substrings,
-3. character-level units,
-4. special tokens such as `<unk>`, `<s>`, `</s>`, or padding tokens,
-5. whitespace-aware pieces such as `▁the`, `▁is`, or `▁Token` in SentencePiece.
-
-The initial vocabulary must be large because Unigram is a pruning method. **If a useful token is not present in the initial candidate set, the algorithm cannot recover it later**. This is different from BPE, where new tokens are created by merging smaller units. Instead, it treats tokenization as a **probabilistic segmentation problem**.
-
-
-For example, consider the word the word: `unbelievable`. An suppose in the vocabulary in has the following four diferent ways of representating (segmentation): 
-
-
-* [`un`, `believable`] 
-* [`un`, `believ`, `able`] 
-* [`unbelievable`] \\
-* [`un`, `bel`, `iev`, `able`] 
-
-
-Unigram assigns probabilities to each tokens. Therefore there a four possible number related to the word  `unbelievable`. The tokenizer then prefers the representation (segmentation) with the highest probability. In the follwoing sections we discuss about this probability and the mathematics behind it. 
-
-**A More Correct Mathematical View of Unigram** -->
-
 
 #### **1.2.4 Unigram**
  
@@ -435,7 +382,6 @@ In practice, the initial vocabulary usually contains:
 3. character-level units,
 4. special tokens such as `<unk>`, `<s>`, `</s>`, or padding tokens,
 5. whitespace-aware pieces such as `▁the`, `▁is`, or `▁Token` in SentencePiece.
-
 The initial vocabulary must be large because Unigram is a pruning method. **If a useful token is not present in the initial candidate set, the algorithm cannot recover it later**. This is different from BPE, where new tokens are created by merging smaller units. Instead, it treats tokenization as a **probabilistic segmentation problem**.
  
 In practice, this seed vocabulary is not built by hand — it is generated automatically from the corpus, and it has to be built in a way that stays computationally cheap even though it may contain hundreds of thousands of candidate substrings. The two common approaches are:
@@ -450,8 +396,6 @@ For example, consider the word `unbelievable`. Suppose the seed vocabulary conta
 * [`un`, `believ`, `able`]
 * [`unbelievable`]
 * [`un`, `bel`, `iev`, `able`]
-
-
 Unigram assigns a probability to *every individual piece* in the vocabulary, not to a segmentation directly — `p(un)`, `p(believable)`, `p(believ)`, `p(able)`, and so on. Once we have these per-piece probabilities, each of the four segmentations above gets its own probability, and the tokenizer prefers whichever segmentation scores highest. The next part of this section makes that precise: what exactly is being multiplied together, what the training objective (loss function) is, why that particular function qualifies as a loss, and how the pruning step actually decides which pieces to throw away.
  
 **A More Correct Mathematical View of Unigram**
@@ -509,22 +453,8 @@ Training the Unigram model means solving:
 $$
 p^\star = \arg\min_{p} \; \mathcal{L}(p) \quad \text{subject to} \quad \sum_{x \in V} p(x) = 1
 $$
-<!--  
-**Why is this a legitimate loss function?** It's worth being explicit about the properties that make $\mathcal{L}(p)$ a well-posed objective, rather than just an arbitrary formula:
  
-* **Bounded below by zero.** Every $P(X_s) \leq 1$, so $\log P(X_s) \leq 0$, so each term $-\log P(X_s) \geq 0$. Hence $\mathcal{L}(p) \geq 0$ for any valid $p$ — exactly the "loss is non-negative, and smaller is better" behavior you expect from cross-entropy or squared error.
-* **It is a cross-entropy.** $\mathcal{L}(p)$ is (up to the constant $N$) the cross-entropy between the empirical corpus distribution and the model's predictive distribution over strings. Minimizing it is exactly maximum-likelihood estimation: $p^\star$ is the distribution under which the observed corpus is least "surprising."
-* **Decomposability.** $\mathcal{L}(p)$ is a *sum* over independent sentences. This is not just a convenience — it is what makes pruning possible at all. Because the loss decomposes additively, you can isolate the contribution of a single vocabulary item by asking how much the total sum changes if that item is unavailable. Section 5 below uses exactly this property.
-* **Non-convexity.** Because $P(X)$ is a sum of *products* of unknowns, $\mathcal{L}(p)$ is not convex in $p$ in general. There is no closed-form global minimizer, which is why training relies on **Expectation-Maximization (EM)** rather than direct gradient descent — EM is only guaranteed to reach a local optimum, but each iteration is guaranteed to never increase $\mathcal{L}(p)$.
-**4. Intuition: what does this loss "look like" elsewhere?**
- 
-A few equivalent ways to see the same object, depending on which background feels most natural:
- 
-* **Information theory.** $-\log p(x)$ is Shannon's *self-information* (or "surprisal") of piece $x$, measured in nats. $\mathcal{L}(p)$ is therefore the total code length needed to describe the corpus under this model — minimizing it is literally finding the vocabulary and probabilities that compress the corpus best. $\exp(\mathcal{L}(p)/N)$ is the model's **perplexity**: the effective average branching factor per sentence.
-* **Hidden-variable estimation.** The segmentation $\mathbf{x}$ of a sentence is a *latent variable* — we don't observe which segmentation "actually" produced $X$, only $X$ itself. Marginalizing over $S(X)$ and fitting parameters by EM is structurally identical to fitting a Gaussian Mixture Model or a Hidden Markov Model (Baum–Welch): compute expected assignments under the current parameters (E-step), then re-estimate parameters in closed form given those expectations (M-step).
-* **Model-selection / compression trade-off.** The overall procedure — start with many candidate pieces, keep only the ones whose removal would hurt the objective — is a subword instance of the **Minimum Description Length (MDL)** principle: balance a smaller vocabulary (cheaper to describe) against a better fit to the data (shorter encoded corpus).
-* **Backward feature elimination.** The pruning step itself (below) is the same idea as backward-elimination in regression: drop the predictor whose removal increases the loss the least, refit, repeat.
-**5. Training loop: Expectation-Maximization plus pruning** -->
+**4. Training loop: Expectation-Maximization plus pruning**
  
 Putting the pieces together, one full Unigram training run looks like this:
  
@@ -535,7 +465,7 @@ Putting the pieces together, one full Unigram training run looks like this:
 5. **Score each piece by its removal cost.** For every $x \in V$, compute how much the total corpus loss $\mathcal{L}(p)$ would increase if $x$ were deleted from the vocabulary and every sentence that used it had to fall back to its next-best segmentation. Pieces with the *smallest* loss-increase are the ones the model can most easily do without.
 6. **Prune.** Remove the bottom fraction (commonly the worst 10–20%) of pieces by this score. Single characters are typically protected from pruning, so the vocabulary can never become unable to represent some input (avoiding the `[UNK]` problem discussed in section 1.2.2).
 7. **Repeat steps 3–6** until $|V|$ reaches the target vocabulary size.
-**6. A numeric walk-through, continuing the `unbelievable` example**
+**5. A numeric walk-through, continuing the `unbelievable` example**
  
 Suppose, at some point during training, the model has learned these (illustrative, not real) piece probabilities:
  
@@ -594,6 +524,7 @@ With all three algorithms on the table, it's worth comparing them directly along
 | **Typical users**                   | GPT, LLaMA (usually byte-level)                   | BERT, DistilBERT                                                                  | T5 and other SentencePiece-based models                                                                                                                                                                              |
  
 The direction each algorithm moves in is really a consequence of what it's optimizing. BPE only ever asks a local question — "which adjacent pair is most frequent, right now?" — so it has no way to *remove* a bad early decision later; it can only build on top of it. Unigram instead evaluates candidates against one **global** objective, $\mathcal{L}(p)$, computed over the entire corpus, which is exactly what makes pruning coherent: a piece is judged by how much the *whole* vocabulary's fit degrades without it, not by a local pairwise statistic. That global, probabilistic view is also what buys Unigram its two extra abilities that BPE and WordPiece don't have: a principled notion of "how good is this vocabulary" ($\mathcal{L}(p)$ itself), and the ability to represent genuine tokenization ambiguity instead of collapsing every input to one fixed output.
+ 
 
 ### **1.3 SentencePiece: The Language-Independent Framework**
 
@@ -625,9 +556,9 @@ In older tokenizers, when the model generated a sequence of tokens, the system h
 With SentencePiece, the **detokenization** process is mathematically lossless and foolproof. It requires zero language-specific rules. The pipeline simply reverses the escaping process:
 
 1. **Concatenation:** The generated string tokens are glued together exactly as they are outputted by the model. 
-   (`"▁Token" + "ization" + "▁is" + "▁fun" + "!"` $\rightarrow$ `"▁Tokenization▁is▁fun!"`)
+   (`"▁Token" + "ization" + "▁is" + "▁not" + "▁trivial"` $\rightarrow$ `"▁Tokenization▁is▁not▁trivial!"`)
 2. **Replacement:** The system performs a basic find-and-replace, swapping every `▁` symbol back into a standard, invisible whitespace.
-   (`" Tokenization is fun!"`)
+   (`" Tokenization is not trivial!"`)
 
 Because SentencePiece is an overarching framework, it is highly versatile. When you load a modern model like T5 or LLaMA, Hugging Face is quietly utilizing the SentencePiece library in the background to handle this precise `▁` spacing logic before passing the mathematical Token IDs to the model.
 
@@ -825,3 +756,31 @@ When working with Large Language Models, it is easy to view the input process as
 * **Token Representation (Embeddings)** is where the model starts to understand. It runs on specialized processors (GPUs). It takes those simple numbers and turns them into complex mathematical vectors. In this step, the model learns grammar, context, and meaning. 
 
 By understanding this full path—from standard text, to token pieces, to integer IDs, and finally to mathematical vectors—you can better understand both the limits and the real power of modern language models.
+
+
+
+## **References**
+ 
+**Core tokenization algorithms**
+ 
+1. Sennrich, R., Haddow, B., & Birch, A. (2016). [*Neural Machine Translation of Rare Words with Subword Units*](https://arxiv.org/abs/1508.07909). ACL 2016. — the paper that introduced BPE for NLP/subword tokenization.
+2. Schuster, M., & Nakajima, K. (2012). *Japanese and Korean Voice Search*. ICASSP 2012. — the original WordPiece algorithm.
+3. Wu, Y., Schuster, M., Chen, Z., Le, Q. V., Norouzi, M., et al. (2016). [*Google's Neural Machine Translation System: Bridging the Gap between Human and Machine Translation*](https://arxiv.org/abs/1609.08144). arXiv:1609.08144. — popularized WordPiece at production scale.
+4. Song, X., Salcianu, A., Song, Y., Dopson, D., & Zhou, D. (2021). [*Fast WordPiece Tokenization*](https://arxiv.org/abs/2012.15524). EMNLP 2021. — the LinMaxMatch / trie-with-failure-links algorithm discussed in section 1.2.2.
+5. Kudo, T. (2018). [*Subword Regularization: Improving Neural Network Translation Models with Multiple Subword Candidates*](https://arxiv.org/abs/1804.10959). ACL 2018. — introduces the Unigram Language Model tokenizer and subword regularization.
+6. Kudo, T., & Richardson, J. (2018). [*SentencePiece: A Simple and Language Independent Subword Tokenizer and Detokenizer for Neural Text Processing*](https://arxiv.org/abs/1808.06226). EMNLP 2018 (System Demonstrations).
+7. Aho, A. V., & Corasick, M. J. (1975). *Efficient String Matching: An Aid to Bibliographic Search*. Communications of the ACM, 18(6), 333–340. — the string-matching algorithm behind Fast WordPiece's failure links.
+**Formal / theoretical analysis**
+ 
+8. Zouhar, V., Meister, C., Gastaldi, J. L., Du, L., Vieira, T., Sachan, M., & Cotterell, R. (2023). [*A Formal Perspective on Byte-Pair Encoding*](https://arxiv.org/abs/2306.16837). Findings of ACL 2023. — formalizes BPE as an optimization problem and introduces the exact (non-greedy) Algorithm 3 discussed in section 1.2.1.
+**Models referenced in the tokenizer comparisons**
+ 
+9. Devlin, J., Chang, M.-W., Lee, K., & Toutanova, K. (2019). [*BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding*](https://arxiv.org/abs/1810.04805). NAACL 2019.
+10. Radford, A., Wu, J., Child, R., Luan, D., Amodei, D., & Sutskever, I. (2019). *Language Models are Unsupervised Multitask Learners*. OpenAI. — GPT-2, the model that popularized byte-level BPE.
+11. Liu, Y., Ott, M., Goyal, N., Du, J., Joshi, M., et al. (2019). [*RoBERTa: A Robustly Optimized BERT Pretraining Approach*](https://arxiv.org/abs/1907.11692). arXiv:1907.11692.
+12. Raffel, C., Shazeer, N., Roberts, A., Lee, K., Narang, S., et al. (2020). [*Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer*](https://arxiv.org/abs/1910.10683). JMLR 21. — T5, trained with a SentencePiece Unigram tokenizer.
+13. Touvron, H., Lavril, T., Izacard, G., Martinet, X., Lachaux, M.-A., et al. (2023). [*LLaMA: Open and Efficient Foundation Language Models*](https://arxiv.org/abs/2302.13971). arXiv:2302.13971.
+**Tools and implementations**
+ 
+14. Karpathy, A. [*minbpe*](https://github.com/karpathy/minbpe) [GitHub repository]. — minimal, practical reference implementation of BPE used in section 1.2.1.
+15. Hugging Face. [*Tokenizers*](https://github.com/huggingface/tokenizers) [GitHub repository]. — the Rust-based fast-tokenizer library referenced throughout Part I and section 3.2.
