@@ -1,31 +1,31 @@
 ---
 layout: post
-title: "Tokenization VS Token Representation"
+title: "Tokenization vs. Token Representation"
 ---
 
-The idea of this article came to my mind when I was readig about LLM archtiecture and was trying to understand the difference between **Token**, **Tokenization**, **Token IDs** and **Token Represenations**. At first all of these look the same to me and it took some time for me to categorize them in my mind. This article is a try to create a mental map for someone who wants to go deep in these topics. 
+The idea for this article came to me while I was reading about LLM architecture and trying to understand the difference between **Token**, **Tokenization**, **Token IDs**, and **Token Representations**. At first, all of these looked the same to me, and it took some time to categorize them clearly in my mind. This article is an attempt to create a mental map for someone who wants to go deeper into these topics. 
 
-In this article I first discuss about *Token* and *Tokenization* process in LLMs. Then we disucss about *Token Representations* process. But before that lets recall the trasformers architecture since it is our building block of this article. 
+In this article, I first discuss the *Token* and *Tokenization* processes in LLMs. Then, I discuss the *Token Representation* process. Before that, let us recall the Transformer architecture, since it is the building block of this article. 
 
 ![Transformers Architecture](./assets/images/trans_arch.png)
 
 
-In the above figure you can see the **Input** and **Output** embeddings modules. In the training and inference step the whole process of tokenization happens before the embedding process (later we will see that this step is called *Token Representation*). 
+In the above figure, you can see the **Input** and **Output** embedding modules. During both training and inference, tokenization happens before the embedding process. Later, we will see that this embedding step is called *Token Representation*. 
 
 ## **Part I: Tokenization**
 
-### **1.1 What is Token and Tokenization**  
-Throughout this article, the word **token** is used frequently. A token is a **discrete unit of information processed by a model**. In domain of language models, a token usually represents a word, part of a word, a punctuation mark, or another piece of text. In other domains, however, tokens may represent image patches, audio segments, time-series windows, and so on. 
+### **1.1 What Are Tokens and Tokenization?**  
+Throughout this article, the word **token** is used frequently. A token is a **discrete unit of information processed by a model**. In the domain of language models, a token usually represents a word, part of a word, a punctuation mark, or another piece of text. In other domains, however, tokens may represent image patches, audio segments, time-series windows, and so on. 
 
-Before a model can process an input, it must first convert it into a sequence of tokens. The tokens themselves are not directly understood by the neural network. Instead, they must be converted into numbers using the model's Vocabulary—which is a fixed master list of every token the model is trained to recognize.
+Before a model can process an input, it must first convert it into a sequence of tokens. The tokens themselves are not directly understood by the neural network. Instead, they must be converted into numbers using the model's vocabulary, which is a fixed master list of every token the model is trained to recognize.
 
-The total number of unique items in this list is the **Vocabulary Size**. Each token is mapped to its exact index number in this vocabulary, known as a **Token ID**. These token IDs are then transformed into meaningful vectors through an **embedding layer** (lke those in the figure) producing numerical representations that the model can process.
+The total number of unique items in this list is the **vocabulary size**. Each token is mapped to its exact index number in this vocabulary, known as a **Token ID**. These token IDs are then transformed into meaningful vectors through an **embedding layer** (like those in the figure), producing numerical representations that the model can process.
 
 As a result, the pipeline looks as follows:
 
 <center>Input → Tokens → Token IDs → Embeddings (Vectors)</center>
 
-The process of converting an input into tokens is called **tokenization**. Lets make an example of the fist two steps the above process, meaning :
+The process of converting an input into tokens is called **tokenization**. Let’s look at an example of the first two steps of the above process:
 
 <center>Input → Tokens → Token IDs </center>
 
@@ -34,13 +34,13 @@ The process of converting an input into tokens is called **tokenization**. Lets 
 
 
 
-**Exmple:**
+**Example:**
 
 Let’s see how a simple sentence moves through the first two steps of the pipeline using a standard subword tokenizer (like the one used by GPT models).
 
-- Input (Raw Text): > "Tokenization is not trivial"
+- Input (Raw Text): `"Tokenization is not trivial"`
 
-- Tokens (Discrete Units): The tokenizer chops the text into pieces. Notice how "Tokenization" is broken into smaller subword units: [`Token`, `ization`, `is`, `fun`, `trivial`]
+- Tokens (Discrete Units): The tokenizer chops the text into pieces. Notice how "Tokenization" is broken into smaller subword units: [`Token`, `ization`, `is`, `not`, `trivial`]
 
 - Token IDs (Unique Integers): Each token is looked up in the model's pre-defined vocabulary dictionary and replaced by its corresponding mathematical ID:
 $[10127, 24560, 374, 912, 50231]$
@@ -49,9 +49,9 @@ $[10127, 24560, 374, 912, 50231]$
 
 **Why do we need Token IDs after Tokenization?**
 
-It is tempting to think that once we split a sentence into string-based tokens like `["Token", "ization","is","fun","!"]`, the hard part is over. However, computers and neural networks cannot perform mathematical operations on raw text strings. They operate strictly on matrices and vectors of floating-point numbers. 
+It is tempting to think that once we split a sentence into string-based tokens like `["Token", "ization", "is", "not", "trivial"]`, the hard part is over. However, computers and neural networks cannot perform mathematical operations on raw text strings. They operate strictly on matrices and vectors of floating-point numbers. 
 
-Token IDs act as the bridge. By assigning every unique token in our vocabulary a fixed, unique integer index (e.g., `token` $\rightarrow$ `10127`), we create a structured lookup system that the neural network can interact with mathematically.
+Token IDs act as the bridge. By assigning every unique token in our vocabulary a fixed, unique integer index (e.g., `Token` $\rightarrow$ `10127`), we create a structured lookup system that the neural network can interact with mathematically.
 
 Think of this lookup table as a simple, two-way dictionary that handles two distinct phases:
 
@@ -71,9 +71,9 @@ A common point of confusion is whether these IDs change as the model learns. **T
 
 A natural question arises: **how do we come up with these specific numbers in the first place?** 
 
-This mapping isn't random, nor is it done manually. The process of tokenization is handled via a **Tokenizer Model** (such as Byte-Pair Encoding or WordPiece). Before the main Large Language Model (LLM) can even begin reading text, this tokenizer model must go through its own independent training phase.
+This mapping is neither random nor done manually. The process of tokenization is handled via a **Tokenizer Model** (such as Byte-Pair Encoding or WordPiece). Before the main Large Language Model (LLM) can even begin reading text, this tokenizer model must go through its own independent training phase.
 
-When we say a tokenizer is "trained," we don't mean it uses complex neural networks. Instead, tokenizer training is a statistical optimization process. Its entire goal is to read a massive sample dataset of raw text, analyze it, and find the most efficient balance between character-level chunks and whole-word chunks to build its vocabulary list.
+When we say a tokenizer is "trained," we do not mean it uses complex neural networks. Instead, tokenizer training is a statistical optimization process. Its entire goal is to read a massive sample dataset of raw text, analyze it, and find the most efficient balance between character-level chunks and whole-word chunks to build its vocabulary list.
 
 ### **1.2 Tokenization Methods**
 
@@ -85,7 +85,7 @@ Modern LLMs rely on three primary algorithmic flavors to construct their vocabul
 
 * **Unigram**: Starts with a massive vocabulary of full words and iteratively removes (prunes) the least useful tokens. (Used by: T5).
 
-In the followig we dezcribe these three methods individually. 
+In the following sections, we describe these three methods individually. 
 #### **1.2.1 Byte-Pair Encoding (BPE)**
 
 **Byte-Pair Encoding (BPE)** is a bottom-up subword tokenization method. It starts from a small base alphabet, usually characters or bytes, and gradually builds larger units by merging frequent adjacent pairs.
@@ -108,10 +108,10 @@ For example, if the pair `d` + `e` appears many times in the corpus, BPE may cre
 1. **Start from a base vocabulary**
    The corpus is first represented using a small set of atomic symbols, such as characters or bytes. In some versions, an end-of-word marker like `</s>` is added so that the algorithm can distinguish word boundaries.
 
-1. **Count adjacent pairs**
+2. **Count adjacent pairs**
    BPE scans the corpus and counts how often each neighboring pair of symbols appears. For example, it may count pairs such as `de`, `er`, `th`, or `in`.
 
-1. **Choose the best immediate merge**
+3. **Choose the best immediate merge**
    The most frequent adjacent pair is selected. This is a greedy decision: BPE chooses the merge that gives the largest immediate reduction in sequence length.
 
    If a pair appears many times, replacing each occurrence of two symbols by one new symbol shortens the corpus:
@@ -162,7 +162,7 @@ For a practical and minimal implementation of standard BPE, Andrej Karpathy’s 
 
 #### **1.2.2 WordPiece**
 
-**WordPiece** is another bottom-up subword tokenization method, heavily utilized by models like BERT and DistilBERT. Structurally it is similar with BPE. Meaning, both of thel starting from a base alphabet and iteratively expanding the vocabulary. However then merging strategy is grounded in probability and information theory rather than raw frequency.
+**WordPiece** is another bottom-up subword tokenization method, heavily utilized by models like BERT and DistilBERT. Structurally, it is similar to BPE: both start from a base alphabet and iteratively expand the vocabulary. However, its merging strategy is grounded in probability and information theory rather than raw frequency.
 
 **Intuition**
 
@@ -172,7 +172,7 @@ $$
 \text{score}(a, b) = \frac{\text{count}(a, b)}{\text{count}(a) \cdot \text{count}(b)}
 $$ -->
 
-A pair is a good merge candidate not because it's common, but because it's *more common together than its individual frequencies would predict*.
+A pair is a good merge candidate not because it is common, but because it is *more common together than its individual frequencies would predict*.
 
 
 **How WordPiece is Trained**
@@ -183,7 +183,7 @@ A pair is a good merge candidate not because it's common, but because it's *more
 
 2. **Count pair frequencies**
    
-Scan the corpus and count how often each adjacent symbol pair occurs — both together, e.g. `Count(p, ##h)`, and individually, e.g. `Count(p)` and `Count(##h)`.
+   Scan the corpus and count how often each adjacent symbol pair occurs — both together, e.g. `Count(p, ##h)`, and individually, e.g. `Count(p)` and `Count(##h)`.
 
 3. **Score all adjacent pairs**
 
@@ -193,7 +193,7 @@ Scan the corpus and count how often each adjacent symbol pair occurs — both to
    \text{Score}(a, b) = \frac{\text{Count}(ab)}{\text{Count}(a) \text{Count}(b)}
    $$
 
-   This score is high when $a$ and $a$ co-occur more often than their individual frequencies would predict — not simply when $AB$ is common.
+   This score is high when $a$ and $b$ co-occur more often than their individual frequencies would predict — not simply when $ab$ is common.
 
 4. **Merge the highest-scoring pair**
 
@@ -204,23 +204,23 @@ Scan the corpus and count how often each adjacent symbol pair occurs — both to
    Re-scan the (now updated) corpus with the new token in place, recompute scores, and merge again. This repeats — one merge per iteration — until the vocabulary reaches its target size (e.g., 30,000 tokens).
 
 
-The scoring formula introduced in step 2 above,
+The scoring formula introduced above,
 
 $$
 \text{score}(a,b) = \frac{\text{Count}(a,b)}{\text{Count}(a)\,\text{Count}(b)}
 $$
 
-is often described as **Pointwise Mutual Information** or **PMI**. It's close, but not exact.
+is often described as **Pointwise Mutual Information** or **PMI**. It is close, but not exact.
 
-For two discrete events $\(x\)$ and $\(y\)$, PMI is defined as:
+For two discrete events $x$ and $y$, PMI is defined as:
 
 $$\operatorname{PMI}(x,y)=\log \frac{p(x,y)}{p(x)p(y)}$$
 
-wher
+where
 
-- $\(p(x,y)\)$ is the joint probability of observing $\(x\)$ and $\(y\)$ together,
-- $\(p(x)\)$ is the marginal probability of observing $\(x\)$,
-- $\(p(y)\)$ is the marginal probability of observing $\(y\)$.
+- $p(x,y)$ is the joint probability of observing $x$ and $y$ together,
+- $p(x)$ is the marginal probability of observing $x$,
+- $p(y)$ is the marginal probability of observing $y$.
 
 Equivalently, PMI can be written as:
 
@@ -228,7 +228,7 @@ $$\operatorname{PMI}(x,y)=\log \frac{p(x \mid y)}{p(x)}=\log \frac{p(y \mid x)}{
 
 **A Mathematical Perspective**
 
-In WordPiece score euqation if wewrite each count as a probability by dividing by the total number of tokens $N$: 
+In the WordPiece score equation, if we write each count as a probability by dividing by the total number of tokens $N$: 
 $$P(a) = \text{Count}(a)/N$$, then
 
 $$
@@ -241,11 +241,11 @@ Therefore,
 $$\log \frac{P(a,b)}{P(a)P(b)} = \log\big(N \cdot \text{score}(a,b)\big) = \log N + \log\,\text{score}(a,b)$$
 
 
-This constant $N$ at any single training step, is the same number for every candidate pair. So ranking pairs by $\text{score}(a,b)$ in ssme sense is similar to PMI defintion in the above euqation. However there are two big differences: *Asymmetry* and *The Dynamic Probability Space*.
+At any single training step, this constant $N$ is the same for every candidate pair. Therefore, ranking pairs by $\text{score}(a,b)$ is equivalent to ranking them by the PMI-like quantity above. However, there are two important differences: *Asymmetry* and *The Dynamic Probability Space*.
 
 **Asymmetry**
 
-Classical mutual information is *symmetric*, $\text{PMI}(x;y) = \text{PMI}(y;x)$, but  WordPiece score is not. because $ab$ is different from $ba$. In probability language $\text{PMI}(a,b)$ calcuate the probability of co-occurance of character $a$ and $b$ in the whole corpus, reagrless of the order of them in the work or subword. On the other hand,  $\text{score}(a,b)$ calculates co-occurance $a$ and $b$ in this exact order and $b$ appears imeddiately after each $a$. So 
+Classical PMI is *symmetric*, $\text{PMI}(x;y) = \text{PMI}(y;x)$, but the WordPiece score is not, because $ab$ is different from $ba$. In probability language, $\text{PMI}(a,b)$ measures the association between $a$ and $b$ in the whole corpus, regardless of their order. On the other hand, $\text{score}(a,b)$ measures co-occurrence of $a$ and $b$ in this exact order, where $b$ appears immediately after $a$. So 
 
 $$
 \text{Count}(a,b) \neq \text{Count}(b,a) 
@@ -255,20 +255,20 @@ The algorithm is scoring directed sequential adjacency, not undirected associati
 
 **The Dynamic Probability Space**
 
-The training algorithm never optimizes against a fixed distribution. Meaning after each merge the vocabulary corpus changes and it is reduced.  Every merge changes the counts that the *next* merge's scores depend on. When $a$ and $b$ merge into $ab$, three things shift in the corpus simultaneously:
+The training algorithm never optimizes against a fixed distribution. After each merge, the corpus representation changes and becomes shorter. Every merge changes the counts that the *next* merge's scores depend on. When $a$ and $b$ merge into $ab$, three things shift in the corpus simultaneously:
 
 - $\text{Count}(a)$ and $\text{Count}(b)$ both decrease (every merged occurrence is no longer counted as a standalone $a$ or $b$).
 - $\text{Count}(ab)$ appears for the first time.
 - Every other pair in the corpus that contains $a$ or $b$ has its own score affected, since its denominator terms just changed.
 
-Because the landscape shifts after every merge, WordPiece is a **greedy algorithm** in a genuine, consequential sense. However in the PMI defintion the distribution space does not change. 
+Because the landscape shifts after every merge, WordPiece is a **greedy algorithm** in a genuine, consequential sense. However, in the classical PMI definition, the distribution is fixed. 
 
 **Mathematical Bounds: Maximums and Minimums**
 
 Using the simpler ratio-only score:
 
-- **Minimum ($0$):** the score is exactly $0$ when $A$ and $B$ never appear adjacent, $\text{Count}(a,b) = 0$. Pairs with large individual frequencies  but negligible co-occurrence approach $0$ as well.
-- **Maximum ($1$):** since $\text{Count}(a,b)$ can never exceed $\text{Count}(a)$ or $\text{Count}(b)$, $1$ is the theoretical ceiling. It's reached only when $A$ and $B$ perfectly co-occur — they only ever appear together, so $\text{Count}(a,b) = \text{Count}(a) = \text{Count}(b) = k$, giving $\text{score}(a,b) = k/(k \times k) = 1/k$. Hitting the true maximum of $1$ requires $k = 1$: the highest possible score belongs to a pair that occurs   adjacent exactly once in the entire corpus and nowhere else.
+- **Minimum ($0$):** the score is exactly $0$ when $A$ and $B$ never appear adjacent, $\text{Count}(a,b) = 0$. Pairs with large individual frequencies but negligible co-occurrence approach $0$ as well.
+- **Maximum ($1$):** since $\text{Count}(a,b)$ can never exceed $\text{Count}(a)$ or $\text{Count}(b)$, $1$ is the theoretical ceiling. It is reached only when $A$ and $B$ perfectly co-occur — they only ever appear together, so $\text{Count}(a,b) = \text{Count}(a) = \text{Count}(b) = k$, giving $\text{score}(a,b) = k/(k \times k) = 1/k$. Hitting the true maximum of $1$ requires $k = 1$: the highest possible score belongs to a pair that occurs adjacent exactly once in the entire corpus and nowhere else.
 
 
 **Standard WordPiece vs. Fast WordPiece**
@@ -277,7 +277,7 @@ When exploring WordPiece implementations, a distinction is frequently made betwe
 
 **Standard WordPiece**
 
-Suppose we are given a word with $m$ characters and vocabulary ize of $n$.
+Suppose we are given a word with $m$ characters and vocabulary size of $n$.
 
 One way to describe the cost is in terms of vocabulary lookup. If each candidate substring must be compared naively against a vocabulary of size $n$, then in the **worst case** the tokenizer may perform as many as
 $[\mathcal{O}(mn)]$ comparisons: for each of the $m$ possible character positions, it may need to search through all vocabulary entries to find whether a valid token exists.
@@ -285,9 +285,9 @@ $[\mathcal{O}(mn)]$ comparisons: for each of the $m$ possible character position
 Therefore, the inefficiency of standard WordPiece does not come from the vocabulary itself. It comes from the **search procedure**.
 
 This is why standard WordPiece is often described as having worst-case complexity around
-$[\mathcal{O}(m^2)]$ or, depending on the lookup implementation,$[\mathcal{O}(mn)]$. For large-scale pretraining, where billions or trillions of words must be tokenized, this repeated backtracking can become a significant bottleneck.
+$[\mathcal{O}(m^2)]$ or, depending on the lookup implementation, $[\mathcal{O}(mn)]$. For large-scale pretraining, where billions or trillions of words must be tokenized, this repeated backtracking can become a significant bottleneck.
 
-* Note: In practice, vocabularies are usually stored in hash tables or tries, so lookup is much faster than a naive scan over all (n) tokens. 
+* Note: In practice, vocabularies are usually stored in hash tables or tries, so lookup is much faster than a naive scan over all $n$ tokens. 
 
 **Fast WordPiece**
 
@@ -295,7 +295,7 @@ $[\mathcal{O}(m^2)]$ or, depending on the lookup implementation,$[\mathcal{O}(mn
 Fast WordPiece eliminates backtracking entirely by modeling the vocabulary as a specialized data structure known as a **Trie** (a prefix tree), augmented with advanced search mechanisms inspired by the **Aho-Corasick** string-matching algorithm.
 
 * **Failure Links & Failure Pops:** In Fast WordPiece, every node in the vocabulary trie contains precomputed "failure links". If the tokenizer is stepping through the tree matching characters (e.g., tracking `s` $\rightarrow$ `t` $\rightarrow$ `r` $\rightarrow$ `a`) and hits a character that fails to match an edge, it does not reset and backtrack to the beginning of the word. Instead, it immediately follows a failure link to another precomputed node in the trie where a valid sub-match exists, emitting the tokens along the way ("failure pops").
-* **Single-Pass End-to-End Processing:** While standard tokenizers use a two-step approach—first splitting an entire sentence into raw words using whitespaces/punctuation (pre-tokenization) and then passing each word individually to the subword loop—Fast WordPiece handles both simultaneously. It streams the entire raw sentence text through the trie in a **single linear pass**.
+* **Single-Pass End-to-End Processing:** While standard tokenizers use a two-step approach—first splitting an entire sentence into raw words using whitespace and punctuation (pre-tokenization) and then passing each word individually to the subword loop—Fast WordPiece handles both simultaneously. It streams the entire raw sentence text through the trie in a **single linear pass**.
 
 As a result, Fast WordPiece processes text in **strict $\mathcal{O}(n)$ time complexity** relative to the sentence length $n$, executing up to 5 to 8 times faster than traditional implementations without altering the final tokenized output.
 
@@ -303,7 +303,7 @@ As a result, Fast WordPiece processes text in **strict $\mathcal{O}(n)$ time com
  
 **Concrete Tokenization Examples**
 
-To illustrate how these trained vocabularies behave in practice, let us examine how both BPE and WordPiece process a sample sentence once training is complete.
+To illustrate how these trained vocabularies behave in practice, let us examine how BPE and WordPiece process a sample sentence once training is complete.
 
 Assume both tokenizers have been trained on an English corpus containing a mix of common and rare words, resulting in the following simplified vocabularies:
 * **BPE Vocabulary:** `["the", "cat", "walk", "ed", "strang", "ely", "s", "a", "b", "c", ...]` (plus the end-of-word marker `</s>`)
@@ -315,13 +315,13 @@ Input word: `"strangely"`
 
 1. The word is split into individual characters with an end-of-word marker: `s  t  r  a  n  g  e  l  y  </s>`
 2. The tokenizer scans its merge rules list. The earliest rule matching any pair here is the one that created `strang`. The sequence becomes: `strang  e  l  y  </s>`
-3. The next highest-priority merge rule in the vocabulary is for `ely`. The sequence becomes: `strang` `ely`  `</s>`
+3. The next highest-priority merge rule in the vocabulary is for `ely`. The sequence becomes: `strang` `ely` `</s>`
 4. No further valid merge rules apply.
 * **Final BPE Tokens:** `["strang", "ely</s>"]` (often rendered simply as `["strang", "ely"]` with space indicators like `Ġstrang`, `ely` depending on the exact implementation).
 
 **WordPiece Tokenization Example**
 
-  WordPiece tokenizes text in a **top-down, greedy** fashion using an algorithm called **MaxMatch** (Maximum Matching). Instead of executing merge rules chronologically, it scans an isolated word from left to right, hunting for the longest string starting from the current position that exists in the vocabulary.
+WordPiece tokenizes text in a **top-down, greedy** fashion using an algorithm called **MaxMatch** (Maximum Matching). Instead of executing merge rules chronologically, it scans an isolated word from left to right, hunting for the longest string starting from the current position that exists in the vocabulary.
 
 Input word: `"strangely"`
 1. It looks at the whole string `"strangely"`. It is not in the vocabulary.
@@ -344,22 +344,20 @@ This is the situation with standard WordPiece.
 Suppose the WordPiece vocabulary was built from English text and contains characters such as: a, b, c, ..., z.
 
 Now imagine the model receives the word: cat🙂
-The tokenizer can handle, a,c and t , but if the emoji `🙂` was never included in the base vocabulary, WordPiece cannot split it any further. The emoji is already a single Unicode character from the tokenizer’s point of view. There is no smaller known unit available. So the tokenizer gives up and outputs: `[UNK]`
+The tokenizer can handle `c`, `a`, and `t`, but if the emoji `🙂` was never included in the base vocabulary, WordPiece cannot split it any further. The emoji is already a single Unicode character from the tokenizer’s point of view. There is no smaller known unit available. Therefore, the tokenizer gives up and outputs: `[UNK]`
 
-The same problem can happen with rare mathematical symbols, foreign alphabets, or unusual Unicode characters. The issue is not that WordPiece is “bad”; the issue is that its fallback level is usually the **character level**, and the vocabulary is nor **rich** enough to cover every possible input.
+The same problem can happen with rare mathematical symbols, foreign alphabets, or unusual Unicode characters. The issue is not that WordPiece is “bad”; the issue is that its fallback level is usually the **character level**, and the vocabulary is not **rich** enough to cover every possible input.
 
 Classical BPE can have the same problem if it also starts from a fixed character vocabulary. 
 
-Byte-level BPE solves this by changing the **byte** level.
+Byte-level BPE solves this by moving the fallback level to **bytes**.
 
-Instead of starting from characters, byte-level BPE starts from **bytes**. Every text string on a computer can be represented as a sequence of bytes, for example using UTF-8 encoding. So the base vocabulary has at least  256 possible byte values.
+Instead of starting from characters, byte-level BPE starts from **bytes**. Every text string on a computer can be represented as a sequence of bytes, for example using UTF-8 encoding. Therefore, the base vocabulary has at least 256 possible byte values.
 
 
 Byte-level BPE includes all 256 bytes in its base vocabulary. Therefore, even if the tokenizer sees a completely new character, it can always decompose that character into its underlying bytes.
 
-For example: 🙂,
-
-may be unknown as a character, but it is still representable as a sequence of UTF-8 bytes. Since those bytes are guaranteed to exist in the vocabulary, the tokenizer never gets stuck.
+For example, 🙂 may be unknown as a character, but it is still representable as a sequence of UTF-8 bytes. Since those bytes are guaranteed to exist in the vocabulary, the tokenizer never gets stuck.
 
 This is why WordPiece usually needs an explicit `[UNK]` token, while byte-level BPE can avoid it.
 
@@ -371,7 +369,7 @@ The **Unigram Language Model**, usually just called **Unigram**, takes the oppos
  
 This immediately raises two questions: where does that "very large" initial vocabulary come from, and once we have it, what criterion decides which pieces survive? The rest of this section answers both.
  
-**How the Initial Vocabulary Is Built?**
+**How Is the Initial Vocabulary Built?**
  
 Unigram starts with a large initial vocabulary. This vocabulary is intentionally bigger than the final target vocabulary.
  
@@ -426,17 +424,17 @@ $$
 \mathbf{x}^\star = \arg\max_{\mathbf{x} \in S(X)} P(\mathbf{x}) = \arg\max_{\mathbf{x} \in S(X)} \prod_{i=1}^m p(x_i)
 $$
  
-Taking logs doesn't change the arg max (log is monotonic), and it turns a product into a sum:
+Taking logs does not change the arg max (log is monotonic), and it turns a product into a sum:
  
 $$
 \mathbf{x}^\star = \arg\max_{\mathbf{x} \in S(X)} \sum_{i=1}^m \log p(x_i)
 $$
  
-This is now a search for the highest-weight path through a small directed acyclic graph 
+This is now a search for the highest-weight path through a small directed acyclic graph.
  
 **3. The loss function: negative log-likelihood of the corpus**
  
-Training means choosing the probabilities $p(x)$ that best explain a training corpus $D = \{X_1, \dots, X_N\}$. Here is the subtlety: the training objective does **not** use only the single best segmentation $\mathbf{x}^\star$. It uses the **marginal probability** of the sentence — the sum over *every* valid segmentation:
+Training means choosing the probabilities $p(x)$ that best explain a training corpus $D = \{X_1, \dots, X_N\}$. The subtlety is this: the training objective does **not** use only the single best segmentation $\mathbf{x}^\star$. It uses the **marginal probability** of the sentence — the sum over *every* valid segmentation:
  
 $$
 P(X) = \sum_{\mathbf{x} \in S(X)} P(\mathbf{x}) = \sum_{\mathbf{x} \in S(X)} \prod_{i=1}^m p(x_i)
@@ -465,6 +463,7 @@ Putting the pieces together, one full Unigram training run looks like this:
 5. **Score each piece by its removal cost.** For every $x \in V$, compute how much the total corpus loss $\mathcal{L}(p)$ would increase if $x$ were deleted from the vocabulary and every sentence that used it had to fall back to its next-best segmentation. Pieces with the *smallest* loss-increase are the ones the model can most easily do without.
 6. **Prune.** Remove the bottom fraction (commonly the worst 10–20%) of pieces by this score. Single characters are typically protected from pruning, so the vocabulary can never become unable to represent some input (avoiding the `[UNK]` problem discussed in section 1.2.2).
 7. **Repeat steps 3–6** until $|V|$ reaches the target vocabulary size.
+
 **5. A numeric walk-through, continuing the `unbelievable` example**
  
 Suppose, at some point during training, the model has learned these (illustrative, not real) piece probabilities:
@@ -506,11 +505,11 @@ $$
 P'(X) = P_1 + P_2 + P_4 \approx 6.0\times10^{-6} + 2.0\times10^{-7} + 2.8\times10^{-9} \approx 6.2\times10^{-6}
 $$
  
-giving a new loss contribution of $-\log(6.2\times10^{-6})$, there is an increase in loss for this one word. Summed over every word in the corpus that used this piece, that total increase is exactly the "removal cost" from step 5 above. If some other candidate piece's total removal cost across the whole corpus were smaller than this, it would be pruned first.
+This gives a new loss contribution of $-\log(6.2\times10^{-6})$, which is larger than before. Therefore, removing `unbelievable` increases the loss for this word. Summed over every word in the corpus that used this piece, that total increase is exactly the "removal cost" from step 5 above. If some other candidate piece's total removal cost across the whole corpus were smaller than this, it would be pruned first.
  
 #### **1.2.5 Bringing It All Together: BPE vs. WordPiece vs. Unigram**
  
-With all three algorithms on the table, it's worth comparing them directly along the axes that actually distinguish them:
+With all three algorithms on the table, it is useful to compare them directly along the axes that actually distinguish them:
  
 |                                     | **BPE**                                           | **WordPiece**                                                                     | **Unigram**                                                                                                                                                                                                          |
 | -------------------------------------| ---------------------------------------------------| -----------------------------------------------------------------------------------| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -523,14 +522,14 @@ With all three algorithms on the table, it's worth comparing them directly along
 | **Handles segmentation ambiguity?** | No — one fixed set of merge rules, one output     | No — one fixed greedy scan, one output                                            | Yes, explicitly — the loss itself sums over every valid segmentation, and training can even use "subword regularization" (sampling non-optimal segmentations) to make downstream models robust to tokenization noise |
 | **Typical users**                   | GPT, LLaMA (usually byte-level)                   | BERT, DistilBERT                                                                  | T5 and other SentencePiece-based models                                                                                                                                                                              |
  
-The direction each algorithm moves in is really a consequence of what it's optimizing. BPE only ever asks a local question — "which adjacent pair is most frequent, right now?" — so it has no way to *remove* a bad early decision later; it can only build on top of it. Unigram instead evaluates candidates against one **global** objective, $\mathcal{L}(p)$, computed over the entire corpus, which is exactly what makes pruning coherent: a piece is judged by how much the *whole* vocabulary's fit degrades without it, not by a local pairwise statistic. That global, probabilistic view is also what buys Unigram its two extra abilities that BPE and WordPiece don't have: a principled notion of "how good is this vocabulary" ($\mathcal{L}(p)$ itself), and the ability to represent genuine tokenization ambiguity instead of collapsing every input to one fixed output.
+The direction each algorithm moves in is really a consequence of what it is optimizing. BPE only ever asks a local question — "which adjacent pair is most frequent, right now?" — so it has no way to *remove* a bad early decision later; it can only build on top of it. Unigram instead evaluates candidates against one **global** objective, $\mathcal{L}(p)$, computed over the entire corpus, which is exactly what makes pruning coherent: a piece is judged by how much the *whole* vocabulary's fit degrades without it, not by a local pairwise statistic. That global, probabilistic view is also what buys Unigram its two extra abilities that BPE and WordPiece do not have: a principled notion of "how good is this vocabulary" ($\mathcal{L}(p)$ itself), and the ability to represent genuine tokenization ambiguity instead of collapsing every input to one fixed output.
  
 
 ### **1.3 SentencePiece: The Language-Independent Framework**
 
 While BPE and WordPiece are powerful subword algorithms, they historically relied on a crucial first step: **pre-tokenization**. Before the algorithm could process the text, a script had to split the sentence into words based on spaces and punctuation (e.g., separating `"I love AI."` into `["I", "love", "AI", "."]`).
 
-This creates a massive problem for language models intended to be multilingual. Languages like Chinese, Japanese, and Thai do not use spaces to separate words. Furthermore, different languages have complex and varying rules for punctuation, hyphens, and apostrophes. Relying on spaces and hardcoded punctuation rules makes a tokenizer fundamentally language-dependent.
+This creates a serious problem for language models intended to be multilingual. Languages like Chinese, Japanese, and Thai do not use spaces to separate words. Furthermore, different languages have complex and varying rules for punctuation, hyphens, and apostrophes. Relying on spaces and hardcoded punctuation rules makes a tokenizer fundamentally language-dependent.
 
 **The SentencePiece Solution**
 
@@ -538,9 +537,9 @@ SentencePiece, developed by Google, solves this by acting as a language-independ
 
 Instead of discarding spaces, SentencePiece treats the entire input as a raw stream of characters and treats the space as just another standard letter. 
 
-1. **Whitespace Escaping:** Before any subword algorithm is applied, SentencePiece replaces all spaces in the raw text with a special meta-symbol, usually a lower one-eighth block: `▁` (U+2581). 
+1. **Whitespace Escaping:** Before any subword algorithm is applied, SentencePiece replaces all spaces in the raw text with a special meta-symbol, usually the lower one-eighth block: `▁` (U+2581). 
    * *Raw Text:* `"Tokenization is not trivial"`
-   * *Escaped:* `"▁Tokenization▁is▁not_trivial"`
+   * *Escaped:* `"▁Tokenization▁is▁not▁trivial"`
 
 2. **Applying the Algorithm:** This escaped string is then fed into the core subword algorithm (like BPE for LLaMA, or Unigram for T5). The algorithm splits the text into tokens, but the `▁` remains physically attached to the beginning of the words.
    * *Tokens:* `["▁Token", "ization", "▁is", "▁not", "▁trivial"]`
@@ -551,20 +550,20 @@ Notice how `"ization"` does not have the `▁` marker. This is how the model str
 
 The most significant advantage of this approach becomes apparent during **text generation (inference)**. 
 
-In older tokenizers, when the model generated a sequence of tokens, the system had to use messy, hardcoded rules to figure out whether to put spaces between them (e.g., "Add a space between words, but don't add a space before a period or a comma"). 
+In older tokenizers, when the model generated a sequence of tokens, the system had to use hardcoded rules to figure out whether to put spaces between them (e.g., "Add a space between words, but do not add a space before a period or a comma"). 
 
-With SentencePiece, the **detokenization** process is mathematically lossless and foolproof. It requires zero language-specific rules. The pipeline simply reverses the escaping process:
+With SentencePiece, the **detokenization** process is mathematically lossless and rule-free. It requires zero language-specific rules. The pipeline simply reverses the escaping process:
 
-1. **Concatenation:** The generated string tokens are glued together exactly as they are outputted by the model. 
+1. **Concatenation:** The generated string tokens are glued together exactly as they are output by the model. 
    (`"▁Token" + "ization" + "▁is" + "▁not" + "▁trivial"` $\rightarrow$ `"▁Tokenization▁is▁not▁trivial!"`)
 2. **Replacement:** The system performs a basic find-and-replace, swapping every `▁` symbol back into a standard, invisible whitespace.
    (`" Tokenization is not trivial!"`)
 
-Because SentencePiece is an overarching framework, it is highly versatile. When you load a modern model like T5 or LLaMA, Hugging Face is quietly utilizing the SentencePiece library in the background to handle this precise `▁` spacing logic before passing the mathematical Token IDs to the model.
+Because SentencePiece is an overarching framework, it is highly versatile. When you load a modern model like T5 or LLaMA, Hugging Face quietly uses the SentencePiece library in the background to handle this precise `▁` spacing logic before passing the mathematical Token IDs to the model.
 
 ### **1.4 How Do We Evaluate a Tokenizer?**
 
-Because tokenizers decide how efficiently a model processes text, it is important to measure their performance. Researchers look at a few key areas:
+Because tokenizers determine how efficiently a model processes text, it is important to measure their performance. Researchers look at a few key areas:
 
 * **Compression Rate:** This measures how many tokens are needed to represent a single word on average. A lower score is better because it means the tokenizer is efficient. If one tokenizer needs 5 tokens to read the word "unbelievable" and another needs only 2, the second one uses the model's capacity much better.
 * **Unknown Word Rate:** How often does the tokenizer have to use the `[UNK]` (Unknown) token? Modern tokenizers that can fall back to basic bytes usually have a rate of 0%, which is the ideal goal.
@@ -575,7 +574,7 @@ Because tokenizers decide how efficiently a model processes text, it is importan
 
 1- **The Golden Rule: Once Learned, It is Frozen**
 
-Once the tokenizer algorithm finishes its training phase and locks in its vocabulary table, the ID for a specific token is fixed. For example the token `"pug"` will *always* map to the integer ID `4`. Whether the model is being trained to understand language or is generating text for a user, this lookup table remains completely frozen. In short : **Token IDs are entirely fixed and never change during the LLM inference.** 
+Once the tokenizer algorithm finishes its training phase and locks in its vocabulary table, the ID for a specific token is fixed. For example, the token `"pug"` will *always* map to the integer ID `4`. Whether the model is being trained to understand language or is generating text for a user, this lookup table remains completely frozen. In short: **Token IDs are entirely fixed and never change during LLM inference.** 
 
 
 2- **The Multi-Step Role of the Tokenizer**
@@ -594,9 +593,9 @@ While we often use "tokenization" to refer to the whole text-to-ID pipeline, the
 
 ### **2.1 From Integers to Meaning**
 
-At the end of the tokenization pipeline, we are left with an array of Token IDs—a sequence of integers like `[30121, 1634, 318, 1257, 0]`. While computers can process numbers, these raw integers are fundamentally inadequate for a neural network to understand *language*. 
+At the end of the tokenization pipeline, we are left with an array of Token IDs — a sequence of integers like `[30121, 1634, 318, 1257, 0]`. While computers can process numbers, these raw integers are fundamentally inadequate for a neural network to understand *language*. 
 
-Why? Because Token IDs are **categorical**, not **quantitative**. 
+This matters because Token IDs are **categorical**, not **quantitative**. 
 
 If the token `"king"` is assigned ID `1000` and the token `"apple"` is assigned ID `1001`, the mathematical proximity of these two numbers means absolutely nothing. They are just arbitrary labels. A neural network cannot multiply or add these IDs together to extract grammar, context, or meaning. 
 
@@ -604,7 +603,7 @@ This is where **Token Representation** (commonly referred to as **Embedding**) c
 
 ### **2.2 The Embedding Layer: Building the Vector**
 
-Before the discrete Token IDs enter the deep layers of the Transformer (like the Attention mechanisms), they pass through the **Embedding Layer**. Think of this layer as a massive lookup table, but instead of mapping a string to an integer, it maps an integer to a high-dimensional list of floating-point numbers.
+Before the discrete Token IDs enter the deep layers of the Transformer (like the Attention mechanisms), they pass through the **Embedding Layer**. You can think of this layer as a massive lookup table, but instead of mapping a string to an integer, it maps an integer to a high-dimensional list of floating-point numbers.
 
 Instead of representing `"Token"` as a single number (`30121`), the embedding layer represents it as a dense vector of hundreds or thousands of dimensions (often denoted as $d_{\text{model}}$):
 
@@ -636,7 +635,7 @@ In summary, if tokenization is the act of giving every word a unique ID badge to
 
 When working with pre-trained models, developers often ask: *"Can I just add new words to the tokenizer or replace it with a better one?"*
 
-The short answer is: **If you change the tokenizer, you break the embeddings.**
+The short answer is: **if you change the tokenizer, you break the embeddings.**
 
 Remember that the Embedding Layer is like a large lookup table. Each Token ID corresponds to a specific row in that table, which holds the vector (the mathematical meaning) for that token. 
 
@@ -647,15 +646,15 @@ If you need to add new tokens (for example, for specific medical terms or a new 
 1. Add the new tokens to the tokenizer's vocabulary.
 2. Add new, empty rows to the bottom of the model's embedding matrix so it gets larger.
 3. Fill these new rows with starting values. You can use random numbers, or you can average the values of the smaller pieces that used to make up the new word.
-4. **Train the model again (Fine-tune).** You must train the model so it can learn the correct mathematical meaning for these newly added vectors.
+4. **Train the model again (fine-tune).** You must train the model so it can learn the correct mathematical meaning for these newly added vectors.
 
 
 
-## **Part III: Some Concrete examples**
+## **Part III: Some Concrete Examples**
 
 ### **3.1 Different Models, Different Tokenization**
 
-In the following example I demonstrate how five different models tokenize the same texts You can see the pipeline here: [code](https://github.com/erfansoheil/erfansoheil.github.io/blob/main/writing-notes/tokenization/main.ipynb). Everythig (downlaoding and loading) is handled by `AutoTokenizer` module in `transformers` library. 
+In the following example, I demonstrate how different models tokenize the same text. You can see the pipeline here: [code](https://github.com/erfansoheil/erfansoheil.github.io/blob/main/writing-notes/tokenization/main.ipynb). Everything (downloading and loading) is handled by the `AutoTokenizer` module in `transformers` library. 
 
 
 Text: `Tokenization is not trivial.` 
@@ -700,9 +699,9 @@ Text: `I love machine learning 😊`
 
 Looking at how different models handle the exact same text shows us a few important differences:
 
-* **Handling Spaces:** Notice how the models show spaces between words. GPT-2, RoBERTa, and Qwen use `Ġ` to represent a space. T5 and LLaMA use `▁`. BERT, however, removes spaces completely and uses `##` to show that a piece belongs to the word before it (like `##ization`).
+* **Handling Spaces:** Notice how the models show spaces between words. GPT-2, RoBERTa, and Qwen use `Ġ` to represent a space. T5 and LLaMA use `▁`. BERT, however, removes spaces completely and uses `##` to show that a piece belongs to the preceding word (like `##ization`).
 * **The Emoji Problem:** Look at the example with the "😊" emoji. BERT does not recognize it and replaces it with an unknown token, `[UNK]`. T5 also outputs `<unk>`. But GPT-2, RoBERTa, and LLaMA handle it smoothly by breaking the emoji down into basic computer bytes. LLaMA splits the emoji into its raw byte codes (like `<0xF0>`). This ensures the model does not lose the information, even if the exact emoji is not in its main vocabulary.
-* **Different Word Splits:** For the word "unbelievable", every model makes a different choice. GPT-2 splits it into four parts (`un`, `bel`, `iev`, `able`), while T5 keeps it as one complete word (`▁unbelievable`). This shows how a model's training data changes how it breaks down text.
+* **Different Word Splits:** For the word "unbelievable", every model makes a different choice. GPT-2 splits it into four parts (`un`, `bel`, `iev`, `able`), while T5 keeps it as one complete word (`▁unbelievable`). This shows how a model's training data and tokenizer design affect how it breaks down text.
 
 
 ### **3.2 What Are These Tokenizer Files on Hugging Face?**
@@ -711,12 +710,13 @@ When you download a tokenizer from Hugging Face, you usually get several files r
 
 Common files include:
 
-
+```text
 config.json
 tokenizer.json
 tokenizer_config.json
 vocab.json
 merges.txt
+```
 
 
 Not every tokenizer has all of them. The exact files depend on the tokenizer family (BPE, WordPiece, SentencePiece, etc.).
@@ -748,9 +748,9 @@ This appears in **BPE tokenizers**. It stores the ordered list of merge rules le
 This one is usually **the model configuration file**, not the tokenizer file. It typically stores architecture-level information such as the hidden size, number of layers, number of attention heads, vocabulary size, and special token IDs. So it belongs more to the **language model** than to the tokenizer itself.
 
 
-## **PART IV: Open Questions**
+## **Part IV: Open Questions**
 
-While writing this article, I ran into a few questions I couldn't find a fully satisfying answer to. I'm sharing them here in case someone with more experience in these areas has insight — or can point me to the right paper.
+While writing this article, I ran into a few questions I could not find a fully satisfying answer to. I am sharing them here in case someone with more experience in these areas has insight — or can point me to the right paper.
 
 ### **Tokenization for Morphologically Rich Languages**
 
@@ -767,12 +767,12 @@ Suppose an embedding model has already been trained, and we later need to extend
 
 ## **Conclusion**
 
-When working with Large Language Models, it is easy to view the input process as one big mystery. However, separating **Tokenization** from **Token Representation** makes it much easier to understand how these models process text.
+When working with Large Language Models, it is easy to view the input process as a single opaque step. However, separating **Tokenization** from **Token Representation** makes it much easier to understand how these models process text.
 
 * **Tokenization** is a strict, rule-based step. It runs on standard processors (CPUs), uses statistical rules learned from text, and cuts words into simple numbers (Token IDs). It does not understand what the words actually mean.
-* **Token Representation (Embeddings)** is where the model starts to understand. It runs on specialized processors (GPUs). It takes those simple numbers and turns them into complex mathematical vectors. In this step, the model learns grammar, context, and meaning. 
+* **Token Representation (Embeddings)** is where the model starts to understand. It runs on specialized processors (GPUs). It takes those simple numbers and turns them into mathematical vectors. In this step, the model learns grammar, context, and meaning. 
 
-By understanding this full path—from standard text, to token pieces, to integer IDs, and finally to mathematical vectors—you can better understand both the limits and the real power of modern language models.
+By understanding this full path—from raw text, to token pieces, to integer IDs, and finally to mathematical vectors—you can better understand both the limits and the capabilities of modern language models.
 
 
 
