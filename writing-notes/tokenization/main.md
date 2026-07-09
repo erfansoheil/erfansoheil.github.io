@@ -748,6 +748,23 @@ This appears in **BPE tokenizers**. It stores the ordered list of merge rules le
 This one is usually **the model configuration file**, not the tokenizer file. It typically stores architecture-level information such as the hidden size, number of layers, number of attention heads, vocabulary size, and special token IDs. So it belongs more to the **language model** than to the tokenizer itself.
 
 
+## **PART IV: Open Questions**
+
+While writing this article, I ran into a few questions I couldn't find a fully satisfying answer to. I'm sharing them here in case someone with more experience in these areas has insight — or can point me to the right paper.
+
+### **Tokenization for Morphologically Rich Languages**
+
+Standard subword algorithms — BPE, WordPiece, and Unigram — are largely designed around and validated on English and other morphologically simple languages. They tend to struggle with morphologically rich languages such as Persian, Turkish, or Finnish, where a single word can encode what would be an entire phrase in English through extensive affixation and compounding. What alternative tokenization strategies, algorithms, or preprocessing pipelines are better suited to languages with this kind of morphological complexity?
+
+### **Preserving Domain-Specific Jargon and Abbreviations**
+
+Frameworks like SentencePiece treat input as a raw, whitespace-reversible stream using a meta-symbol (e.g., `_`) rather than assuming pre-tokenized words. Even so, purely statistical, frequency-driven merge rules can still fragment critical domain terms — for example, in clinical text, where medical abbreviations and citation-like entities get split in ways that strip them of their semantic meaning. What are the best practices for preserving this kind of domain-specific jargon during tokenization, without hand-crafting an exhaustive rule set?
+
+### **Expanding the Vocabulary of a Pretrained Embedding Model**
+
+Suppose an embedding model has already been trained, and we later need to extend its tokenizer with new, domain-specific tokens. This requires expanding the embedding matrix — adding new rows to the lookup table for tokens the model has never seen. What are the standard techniques for initializing and integrating these new embeddings, ideally without retraining the model from scratch?
+
+
 ## **Conclusion**
 
 When working with Large Language Models, it is easy to view the input process as one big mystery. However, separating **Tokenization** from **Token Representation** makes it much easier to understand how these models process text.
