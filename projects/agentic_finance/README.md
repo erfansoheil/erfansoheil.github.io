@@ -8,7 +8,7 @@ The system is designed around an orchestrator agent. The orchestrator has the co
 
 The target architecture is not a single model trying to do everything. It is a coordinated system where each component has a clear role.
 
-
+<!-- 
 ```mermaid
 flowchart TD
     U[User] --> O[Orchestrator Agent]
@@ -22,7 +22,44 @@ flowchart TD
     T --> O
     A --> U
     O --> U
+``` -->
+
+
+```mermaid
+
+flowchart LR
+    %% Define nodes with distinct shapes for better visual hierarchy
+    U([User])
+    O[Orchestrator Agent]
+    R{Decision}
+    A[Direct response]
+    F[Specialized tool-calling model]
+    J[Structured JSON call]
+    T[Tool or service]
+    D[(Financial data tool)]
+
+    %% Initial request
+    U -->|Query| O
+    O --> R
+
+    %% Branching logic
+    R -->|General conversation| A
+    R -->|External capability| T
+    R -->|Financial data request| F
+
+    %% Financial sub-process
+    F --> J
+    J --> D
+
+    %% Feedback loops (Return paths to Orchestrator)
+    D -.->|Returns data| O
+    T -.->|Returns data| O
+
+    %% Output paths to User
+    A -->|Direct output| U
+    O -->|Final output| U
 ```
+
 
 
 The orchestrator is responsible for:
