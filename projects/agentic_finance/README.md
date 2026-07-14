@@ -23,8 +23,6 @@ flowchart TD
     A --> U
     O --> U
 ```
-```
-
 
 
 The orchestrator is responsible for:
