@@ -16,10 +16,11 @@ flowchart LR
     O[Orchestrator Agent]
     R{Decision}
     A[Direct response]
-    F[Specialized tool-calling model]
+    F[Specialized tool-calling models]
     J[Structured JSON call]
-    T[Tool or service]
-    D[(Financial data tool)]
+    T[General Toobox]
+    D[(Financial database)]
+
 
     %% Initial request
     U -->|Query| O
@@ -39,8 +40,8 @@ flowchart LR
     T -.->|Returns data| O
 
     %% Output paths to User
-    A -->|Direct output| U
     O -->|Final output| U
+    D -->|Direct answer| O
 ```
 
 
