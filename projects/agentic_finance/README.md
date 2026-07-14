@@ -41,7 +41,7 @@ flowchart LR
 
     %% Output paths to User
     O -->|Final output| U
-    D -->|Direct answer| O
+    A -->|Direct answer| O
 ```
 
 
