@@ -1,0 +1,420 @@
+# Technical Notes: Data Generation, Training, Inference, and Hardware
+
+## Purpose
+
+These notes explain the technical choices behind the current tool-calling model. The goal is not only to list parameters, but to explain why the choices matter and how they affect the behavior of the system.
+
+The model is trained for one task:
+
+```text
+user financial request -> JSON function call for fundamentals data
+```
+
+This is a constrained generation problem. The output must be valid JSON, must call the correct function, and must preserve the user's requested companies, metrics, and years.
+
+## 1. Data Generation Variables
+
+Data generation controls what the model learns. If the generated data is too narrow, the model learns a narrow template. If the generated data is too noisy, the model learns unstable behavior.
+
+### Core Variables
+
+| Variable | Intuition | Effect |
+| --- | --- | --- |
+| Companies | The entities the model must recognize. | Expands name coverage and improves entity extraction. |
+| Metrics | The financial fields requested by the user. | Teaches valid tool arguments. |
+| Start and end years | The time range for retrieval. | Teaches temporal extraction. |
+| Number of companies | Single or multi-company requests. | Increases structural complexity. |
+| Number of metrics | Single or multi-metric requests. | Increases argument complexity. |
+| Grouping | Whether metrics belong to all companies or only specific groups. | Teaches association preservation. |
+| Query variants | Different natural-language phrasings for the same target. | Improves robustness to user wording. |
+
+### Easy vs Intermediate Data
+
+Easy data has a simple mapping:
+
+```mermaid
+flowchart LR
+    A[Company A] --> M[Revenue + Free Cash Flow]
+    B[Company B] --> M
+    M --> Y[2018-2023]
+```
+
+Intermediate data has grouped mappings:
+
+```mermaid
+flowchart LR
+    A[Company A] --> M1[Diluted Shares]
+    B[Company B] --> M2[Revenue + Free Cash Flow]
+    C[Company C] --> M2
+    M1 --> Y[2018-2023]
+    M2 --> Y
+```
+
+The intermediate case is more important for real agentic behavior because users often combine multiple requests in one sentence. The model must learn that not every metric applies to every company.
+
+### Why Store Metadata?
+
+Metadata is not mainly for training the model. It is for control, debugging, and validation.
+
+Metadata answers questions such as:
+
+- Which companies should appear?
+- Which metrics should appear?
+- Which years are required?
+- Which generation iteration created the example?
+- Is this example a paraphrase of another example?
+
+Without metadata, it is difficult to know whether a generated query is faithful to the target.
+
+## 2. Why JSONL?
+
+JSONL means one JSON object per line. It is useful for this project because each line is one independent training example.
+
+```text
+line 1 -> example 1
+line 2 -> example 2
+line 3 -> example 3
+```
+
+Advantages:
+
+- Easy to append during generation.
+- Easy to resume after partial generation.
+- Easy to inspect manually.
+- Easy to load with dataset libraries.
+- Works well for large datasets because the whole file does not need to be parsed as one giant JSON array.
+
+For this project, JSONL is also a natural bridge between generation, normalization, validation, and training.
+
+## 3. Why Normalize the Data?
+
+A model can overfit to repeated phrasing. If many examples begin with the same sentence pattern, the model may learn the pattern rather than the task.
+
+Normalization creates more variation:
+
+```mermaid
+flowchart TD
+    S[Same structured request] --> Q1[Query wording 1]
+    S --> Q2[Query wording 2]
+    S --> Q3[Query wording 3]
+    Q1 --> J[Same JSON target]
+    Q2 --> J
+    Q3 --> J
+```
+
+The target JSON does not change. Only the user wording changes.
+
+This teaches the model that many surface forms can mean the same function call. That is important because real users will not all write in the same style.
+
+## 4. Why Use a System Prompt?
+
+The system prompt defines the model's role and rules. In this project, it tells the model that it is a financial function-calling model and that it must output only valid JSON.
+
+The system prompt is useful because it separates general conversation behavior from task behavior.
+
+```text
+System prompt: rules and role
+User message: request
+Assistant message: structured output
+```
+
+Without the system prompt, the model may answer like a normal assistant:
+
+```text
+Amazon's free cash flow from 2018 to 2023 is...
+```
+
+But the desired behavior is:
+
+```json
+{"action":"call","function":"get_fundamentals","arguments":{...}}
+```
+
+The system prompt teaches the model:
+
+- Do not answer the financial question.
+- Do not invent values.
+- Do not generate SQL.
+- Preserve company-metric relationships.
+- Output only JSON.
+
+In the larger agentic system, the orchestrator will decide when this system prompt and this model are appropriate.
+
+## 5. Why JSON for Function Calling?
+
+JSON is used because function calls need structure. A downstream tool cannot reliably execute a vague sentence. It needs explicit fields.
+
+Natural language:
+
+```text
+Get revenue for Apple from 2018 to 2023.
+```
+
+Structured JSON:
+
+```json
+{
+  "action": "call",
+  "function": "get_fundamentals",
+  "arguments": {
+    "queries": [
+      {
+        "symbols": ["Apple"],
+        "metrics": ["Revenue"],
+        "start_year": 2018,
+        "end_year": 2023
+      }
+    ]
+  }
+}
+```
+
+The JSON format gives the system:
+
+- A clear function name.
+- Explicit arguments.
+- A predictable structure for execution.
+- A format that can be validated before tool use.
+- A clean boundary between language understanding and tool execution.
+
+This is central to agentic systems. The model should not directly perform every task. It should produce the right structured command so the right tool can do the task.
+
+## 6. Why Tokenization Is Needed
+
+Language models do not directly read words or characters as humans do. They read token IDs. A tokenizer converts text into tokens, and tokens into integers.
+
+```mermaid
+flowchart LR
+    T[Text] --> K[Tokenizer]
+    K --> I[Token IDs]
+    I --> M[Model]
+    M --> O[Output token IDs]
+    O --> D[Decoded text]
+```
+
+For example, a sentence and a JSON object are both converted into token sequences. The model learns patterns over those token sequences.
+
+Tokenization matters because:
+
+- It determines how long an example is.
+- It affects memory usage.
+- It affects truncation.
+- It affects the exact chat format seen by the model.
+- It controls how the assistant output is represented during training.
+
+The project uses the model's own chat template through the tokenizer. This is important because each chat model expects messages to be formatted in a specific way.
+
+## 7. Why Use a Maximum Length of 384 Tokens?
+
+The maximum sequence length controls how many tokens the model sees for one training example. In this project, examples contain:
+
+- A system prompt.
+- A user request.
+- An assistant JSON output.
+
+The value `384` is a practical balance:
+
+```text
+Too short:
+  examples may be truncated
+  JSON output may be cut
+  training signal becomes broken
+
+Too long:
+  more memory is used
+  training becomes slower
+  small examples waste padding
+
+Chosen balance:
+  long enough for current prompts and JSON
+  short enough for efficient LoRA fine-tuning
+```
+
+Conceptually:
+
+```mermaid
+flowchart LR
+    A[System prompt] --> B[User request]
+    B --> C[Assistant JSON]
+    C --> D[Total token length]
+    D --> E{Fits within 384?}
+    E -->|Yes| F[Train normally]
+    E -->|No| G[Truncate, risky]
+```
+
+The current task has relatively compact outputs. A very large context window is not necessary because the model is not reading long documents. It is translating short requests into structured calls.
+
+If future tools require longer inputs, larger schemas, or multi-turn context, this value may need to increase.
+
+## 8. Why Mask Prompt Tokens?
+
+During training, the full text contains the system prompt, user request, and assistant answer. But the model should learn to generate the assistant answer, not simply copy the prompt.
+
+Prompt masking sets the labels for prompt tokens to `-100`, which tells the trainer to ignore them in the loss calculation.
+
+```mermaid
+flowchart LR
+    S[System prompt] --> I[Ignored in loss]
+    U[User request] --> I
+    A[Assistant JSON] --> L[Loss applied]
+```
+
+This makes the training objective more precise:
+
+```text
+Given the system prompt and user request, generate the JSON tool call.
+```
+
+Without masking, part of the loss would be spent learning to reproduce the input text, which is not the behavior needed at inference time.
+
+## 9. Why LoRA?
+
+LoRA stands for Low-Rank Adaptation. It fine-tunes a small number of additional adapter parameters instead of updating all model weights.
+
+This is useful because the project is not trying to teach the model language from scratch. The base model already knows language, syntax, and JSON-like text. The project only needs to specialize it for a narrow function-calling behavior.
+
+```mermaid
+flowchart TD
+    B[Base model] --> F[General language ability]
+    L[LoRA adapter] --> S[Specialized tool-calling behavior]
+    F --> O[Final model behavior]
+    S --> O
+```
+
+Benefits:
+
+- Lower memory requirements.
+- Faster experiments.
+- Smaller saved artifact.
+- Easier to create multiple adapters for multiple tools later.
+
+The current adapter targets selected attention projection modules. This is a common efficient choice because attention layers are important for mapping relationships between user tokens, company names, metrics, and output fields.
+
+## 10. Important Training Variables
+
+| Variable | Current role | Intuition |
+| --- | --- | --- |
+| Base model | Compact Qwen model | Small enough for practical experiments, capable enough for structured generation. |
+| LoRA rank | Adapter capacity | Higher rank gives more adaptation capacity, but uses more memory. |
+| LoRA alpha | Adapter scaling | Controls the strength of the LoRA update. |
+| LoRA dropout | Regularization | Dropout can reduce overfitting, but zero dropout keeps behavior direct for this small structured task. |
+| Learning rate | Update size | Too high can destabilize JSON behavior; too low may learn slowly. |
+| Epochs | Passes over data | More epochs can improve fitting but may increase overfitting. |
+| Batch size | Examples per device step | Larger batches are steadier but use more memory. |
+| Gradient accumulation | Effective batch increase | Simulates larger batches without requiring all examples in memory at once. |
+| Warmup steps | Gradual start | Helps avoid unstable early updates. |
+| Weight decay | Regularization | Helps prevent overly sharp memorization. |
+| Evaluation steps | Monitoring interval | Allows checking whether loss improves during training. |
+
+## 11. Inference Variables
+
+Inference uses the trained adapter to generate output for a new user request.
+
+Important variables:
+
+| Variable | Intuition |
+| --- | --- |
+| System prompt | Keeps the model in function-calling mode. |
+| Chat template | Formats the input in the same style used during training. |
+| `max_new_tokens` | Limits how long the generated JSON can be. |
+| Temperature | Controls randomness. Lower values are usually better for structured JSON. |
+| `top_p` / `top_k` | Control the candidate token set during sampling. |
+| Device map | Places model weights on available hardware. |
+
+For function calling, deterministic behavior is usually preferred. Creative variation is useful during data generation, but inference should favor valid, stable JSON.
+
+```text
+Data generation:
+  some diversity is useful
+
+Inference:
+  structure and correctness are more important
+```
+
+## 12. Hardware Considerations
+
+Hardware affects which model size can be used, how fast training runs, and which precision is practical.
+
+The current approach uses a compact model and LoRA because that combination is hardware efficient.
+
+### CPU vs GPU
+
+| Hardware | Practical impact |
+| --- | --- |
+| CPU only | Possible for small tests, but training is slow. |
+| GPU with fp16 | Faster training and lower memory than fp32. |
+| GPU with bf16 | Often more stable if supported. |
+| Multiple GPUs | Useful for larger models or larger batches. |
+
+### Memory Drivers
+
+The main memory drivers are:
+
+- Base model size.
+- Sequence length.
+- Batch size.
+- Gradient checkpointing.
+- Precision type.
+- Optimizer state.
+- Whether full fine-tuning or LoRA is used.
+
+A useful intuition:
+
+```text
+Memory cost grows with:
+model size x sequence length x batch size
+```
+
+LoRA reduces the training memory cost because most base model weights remain frozen.
+
+### Why Gradient Checkpointing?
+
+Gradient checkpointing trades compute for memory. Instead of storing every intermediate activation during the forward pass, some activations are recomputed during backpropagation.
+
+This is useful when memory is limited:
+
+```text
+Less memory used
+More computation required
+Training may be slower
+```
+
+For small models it may not always be necessary, but it is a useful technique as model size or sequence length increases.
+
+## 13. Evaluation Direction
+
+Loss is useful, but it is not enough for tool calling. A model can have low loss and still sometimes produce invalid JSON or mix metrics between companies.
+
+Future evaluation should include:
+
+- Valid JSON rate.
+- Correct function name rate.
+- Exact company preservation.
+- Exact metric preservation.
+- Exact year preservation.
+- Company-metric association accuracy.
+- No-extra-text rate.
+- Irrelevant-query rejection or routing accuracy.
+
+The strongest evaluation should execute a structured validator against generated outputs.
+
+```mermaid
+flowchart LR
+    U[Test prompt] --> M[Model output]
+    M --> V[JSON validator]
+    V --> S[Schema check]
+    V --> F[Faithfulness check]
+    V --> R[Report metrics]
+```
+
+## 14. Practical Design Intuition
+
+The project's technical decisions follow one principle:
+
+```text
+Make the model solve the smallest reliable task,
+and let the orchestrator manage the larger conversation.
+```
+
+That is why the output is JSON, the prompt is strict, the dataset is controlled, and the training target is masked. The model is not being trained to be a general financial analyst. It is being trained to become a dependable translation component inside an agentic system.
+
