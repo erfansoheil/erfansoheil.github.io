@@ -73,7 +73,7 @@ Easy examples ask for the same metrics across one or more companies. Intermediat
 
 The current training approach uses:
 
-- A compact Qwen base model.
+- A Qwen3 4B and Llama 3.2 300 for data geneartion and Qwen3 0.6 for training model.
 - LoRA adapters instead of full fine-tuning.
 - Chat-style formatting with system, user, and assistant messages.
 - A system prompt that constrains the model to valid JSON function calling.

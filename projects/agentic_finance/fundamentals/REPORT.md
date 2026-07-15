@@ -69,6 +69,8 @@ flowchart LR
     T --> I[Test inference]
 ```
 
+
+
 Each stage has a specific role:
 
 - Sampling creates controlled combinations of companies, metrics, and years.
@@ -143,12 +145,14 @@ This stage is important because many user requests are compound. A model that si
 
 The dataset is stored as JSONL, with one training example per line. Each record has the same conceptual structure:
 
-| Field | Purpose |
-| --- | --- |
-| `query` | Natural-language user request. |
-| `output_str` | JSON function call as text, used as the training target. |
-| `output_json` | Parsed JSON object used for validation and inspection. |
-| `metadata` | Trace information about companies, metrics, years, and generation. |
+
+| Field         | Purpose                                                            |
+| ------------- | ------------------------------------------------------------------ |
+| `query`       | Natural-language user request.                                     |
+| `output_str`  | JSON function call as text, used as the training target.           |
+| `output_json` | Parsed JSON object used for validation and inspection.             |
+| `metadata`    | Trace information about companies, metrics, years, and generation. |
+
 
 JSONL is practical for this project because it can be appended during generation, inspected line by line, and loaded directly into dataset tooling.
 
@@ -167,6 +171,8 @@ flowchart TD
     N --> J[Same JSON target]
     K --> J
 ```
+
+
 
 The normalization step requires the core facts to remain intact:
 
@@ -204,6 +210,8 @@ flowchart LR
     P2 --> S
     P3 --> S
 ```
+
+
 
 This makes evaluation more meaningful because the test set better represents unseen specifications rather than memorized paraphrases.
 
@@ -244,6 +252,8 @@ flowchart LR
     U[User request] --> X
     A[Assistant JSON] --> L[Training loss]
 ```
+
+
 
 This teaches the model the intended behavior: given the prompt and user request, generate the structured tool call.
 
