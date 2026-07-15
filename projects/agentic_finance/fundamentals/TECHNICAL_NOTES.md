@@ -66,6 +66,14 @@ Metadata answers questions such as:
 
 Without metadata, it is difficult to know whether a generated query is faithful to the target.
 
+### Data Source and Financial Coverage
+
+The financial data used for this project was fetched from Alpha Vantage and then preprocessed before being used in the dataset pipeline. The current data coverage includes around 140 stocks from the S&P 500 and covers the period from 2009 to 2025.
+
+In addition to the raw fundamentals fields, a reduced-form discounted cash flow calculation was added to estimate intrinsic value. This makes the dataset more useful for downstream financial workflows because the model can be connected not only to reported fundamentals, but also to derived valuation features.
+
+The dataset can be made available subject to the relevant copyright and data-provider constraints.
+
 ## 2. Why JSONL?
 
 JSONL means one JSON object per line. It is useful for this project because each line is one independent training example.
@@ -179,7 +187,32 @@ The JSON format gives the system:
 
 This is central to agentic systems. The model should not directly perform every task. It should produce the right structured command so the right tool can do the task.
 
-## 6. Why Tokenization Is Needed
+## 6. Why Qwen3 0.6B Was Chosen
+
+Qwen3 0.6B was chosen because it is already a compact model with useful tool-calling behavior. Its small size makes it practical for local experimentation, LoRA fine-tuning, and repeated training runs under hardware constraints.
+
+The model also already supports tool-calling style interaction and has a native tool-calling schema. In this project, however, the goal was to show that a custom financial tool-calling schema can be learned as well. The model is therefore not used only because it has built-in tool-calling support, but because it is a strong base for teaching a specific structured output format:
+
+```text
+user financial request -> custom get_fundamentals JSON call
+```
+
+Qwen3 also has thinking and reasoning capabilities. That ability could be useful in the future for enriching the dataset with more complex and advanced queries. It was not used as the main behavior in the current version because the intended architecture separates complex-query handling from narrow tool-call generation.
+
+The preferred design is:
+
+```mermaid
+flowchart LR
+    U[Complex or unclear user query] --> O[Orchestrator]
+    O --> F[Filter irrelevant requests]
+    O --> S[Simplify or split complex requests]
+    S --> M[Small tool-calling expert model]
+    M --> J[Structured JSON call]
+```
+
+This separation matters because tool calling and complex-query reasoning are related but not identical tasks. Tool calling requires faithful extraction into a strict schema. Complex-query handling requires filtering, decomposition, routing, and sometimes clarification. It is better to have two small focused components than one model trying to solve both problems at once.
+
+## 7. Why Tokenization Is Needed
 
 Language models do not directly read words or characters as humans do. They read token IDs. A tokenizer converts text into tokens, and tokens into integers.
 
@@ -204,7 +237,13 @@ Tokenization matters because:
 
 The project uses the model's own chat template through the tokenizer. This is important because each chat model expects messages to be formatted in a specific way.
 
-## 7. Why Use a Maximum Length of 384 Tokens?
+### Why Use `apply_chat_template`?
+
+The training code uses `apply_chat_template` because each chat model has its own expected message format. Qwen's tokenizer knows how Qwen expects system, user, and assistant messages to be represented.
+
+Using the native Qwen tokenizer and chat template reduces the risk of training the model on a format that does not match inference. This is especially important for tool calling because small formatting differences can affect whether the model learns to start the assistant response correctly and produce only the target JSON.
+
+## 8. Why Use a Maximum Length of 384 Tokens?
 
 The maximum sequence length controls how many tokens the model sees for one training example. In this project, examples contain:
 
@@ -244,9 +283,11 @@ flowchart LR
 
 The current task has relatively compact outputs. A very large context window is not necessary because the model is not reading long documents. It is translating short requests into structured calls.
 
+The value was also selected empirically. The Qwen3 0.6B tokenizer was used to compute the token count of each datapoint after formatting. The average example length was around 240 tokens, and the maximum observed length was around 317 tokens. A maximum length of 384 tokens therefore gives enough room for the current examples while avoiding unnecessary padding and memory usage.
+
 If future tools require longer inputs, larger schemas, or multi-turn context, this value may need to increase.
 
-## 8. Why Mask Prompt Tokens?
+## 9. Why Mask Prompt Tokens?
 
 During training, the full text contains the system prompt, user request, and assistant answer. But the model should learn to generate the assistant answer, not simply copy the prompt.
 
@@ -267,7 +308,7 @@ Given the system prompt and user request, generate the JSON tool call.
 
 Without masking, part of the loss would be spent learning to reproduce the input text, which is not the behavior needed at inference time.
 
-## 9. Why LoRA?
+## 10. Why LoRA?
 
 LoRA stands for Low-Rank Adaptation. It fine-tunes a small number of additional adapter parameters instead of updating all model weights.
 
@@ -290,7 +331,11 @@ Benefits:
 
 The current adapter targets selected attention projection modules. This is a common efficient choice because attention layers are important for mapping relationships between user tokens, company names, metrics, and output fields.
 
-## 10. Important Training Variables
+In the current training run, only the query and value projection modules were trained. This choice was made mainly because of hardware constraints. Even with this limited LoRA target configuration, training for three epochs took around 5 hours.
+
+This means the current model should be understood as an efficient first training run, not the maximum possible version. With stronger hardware or more training time, the adapter could be trained more deeply by targeting additional projection modules or increasing the adaptation capacity.
+
+## 11. Important Training Variables
 
 | Variable | Current role | Intuition |
 | --- | --- | --- |
@@ -306,7 +351,17 @@ The current adapter targets selected attention projection modules. This is a com
 | Weight decay | Regularization | Helps prevent overly sharp memorization. |
 | Evaluation steps | Monitoring interval | Allows checking whether loss improves during training. |
 
-## 11. Inference Variables
+### Training Process and Loss Behavior
+
+The training process fine-tuned the compact Qwen base model with LoRA for three epochs. The run took around 5 hours under the available hardware constraints.
+
+The main signal monitored during training was the language-modeling loss on the assistant JSON output. Because prompt tokens were masked, the loss focused on whether the model could generate the correct structured function call rather than whether it could reproduce the system and user messages.
+
+During training, the expected behavior is that loss decreases as the model learns the custom schema, the correct function name, the argument names, and the common company-metric-year patterns. A decreasing loss is useful, but it does not fully prove tool-calling quality. For this task, loss must be combined with structural validation, because a model can reduce loss while still occasionally producing invalid JSON or mixing company-metric relationships.
+
+The most important training variables were the base model, maximum sequence length, LoRA target modules, LoRA rank, learning rate, batch size, gradient accumulation, number of epochs, and prompt masking strategy. These variables control the tradeoff between training cost, adaptation capacity, and structured-output reliability.
+
+## 12. Inference Variables
 
 Inference uses the trained adapter to generate output for a new user request.
 
@@ -331,7 +386,7 @@ Inference:
   structure and correctness are more important
 ```
 
-## 12. Hardware Considerations
+## 13. Hardware Considerations
 
 Hardware affects which model size can be used, how fast training runs, and which precision is practical.
 
@@ -381,7 +436,23 @@ Training may be slower
 
 For small models it may not always be necessary, but it is a useful technique as model size or sequence length increases.
 
-## 13. Evaluation Direction
+## 14. Current Limitations and Next Options
+
+At this stage, the model still has important limitations. Some of them are general limitations of a first fine-tuned model, but two limitations are especially important:
+
+- The model cannot reliably handle irrelevant queries.
+- The model cannot reliably extract metrics for more than three companies or for complex queries.
+
+There are two main ways to improve this:
+
+| Option | Description | Tradeoff |
+| --- | --- | --- |
+| Enrich the dataset | Generate irrelevant queries, rejection examples, advanced queries, and more complex company-metric groupings. | Improves the specialized model directly, but increases dataset and training complexity. |
+| Add an orchestrator | Use a separate orchestrator to filter irrelevant queries and transform complex requests into easy or intermediate requests. | Keeps the tool-calling model focused, but requires an additional routing and decomposition layer. |
+
+The second option matches the larger project architecture. The tool-calling model remains a small expert that converts clear financial requests into JSON. The orchestrator handles filtering, routing, decomposition, and simplification before the request reaches the model.
+
+## 15. Evaluation Direction
 
 Loss is useful, but it is not enough for tool calling. A model can have low loss and still sometimes produce invalid JSON or mix metrics between companies.
 
@@ -407,7 +478,7 @@ flowchart LR
     V --> R[Report metrics]
 ```
 
-## 14. Practical Design Intuition
+## 16. Practical Design Intuition
 
 The project's technical decisions follow one principle:
 
