@@ -331,9 +331,11 @@ Benefits:
 
 The current adapter targets selected attention projection modules. This is a common efficient choice because attention layers are important for mapping relationships between user tokens, company names, metrics, and output fields.
 
-In the current training run, only the query and value projection modules were trained. This choice was made mainly because of hardware constraints. Even with this limited LoRA target configuration, training for three epochs took around 5 hours.
+In the current training run, only the query and value projection modules were trained: `q_proj` and `v_proj`. This choice was made mainly because of hardware constraints. These two matrices directly affect how the model forms attention queries and retrieves value information, so they are a reasonable first target for a schema-learning task where the model must map entities, metrics, and years from the prompt into the correct JSON fields.
 
-This means the current model should be understood as an efficient first training run, not the maximum possible version. With stronger hardware or more training time, the adapter could be trained more deeply by targeting additional projection modules or increasing the adaptation capacity.
+The LoRA rank was `r=8`, with `lora_alpha=32`, `lora_dropout=0.0`, and `bias="none"`. With PEFT, the effective LoRA scaling factor is `lora_alpha / r`, so this configuration uses a scaling factor of `4`. Rank 8 is a conservative low-rank choice: it gives the adapter enough capacity to learn the custom `get_fundamentals` schema while keeping the number of trainable parameters small. The run trained 1,146,880 parameters out of 597,196,800 total parameters, or about 0.192% of the model.
+
+This means the current model should be understood as an efficient first training run, not the maximum possible version. With stronger hardware or more training time, the adapter could be trained more deeply by targeting additional projection modules such as key, output, gate, up, or down projections, or by increasing the rank. The tradeoff is straightforward: higher rank and more target modules increase adaptation capacity, but also increase memory use, optimizer state, training time, and overfitting risk on a small dataset.
 
 ## 11. Important Training Variables
 
@@ -353,13 +355,35 @@ This means the current model should be understood as an efficient first training
 
 ### Training Process and Loss Behavior
 
-The training process fine-tuned the compact Qwen base model with LoRA for three epochs. The run took around 5 hours under the available hardware constraints.
+The training run used 2,788 training examples and 310 test examples. It fine-tuned `Qwen/Qwen3-0.6B` for 3 epochs with LoRA adapters on `q_proj` and `v_proj`. The recorded run completed 525 optimizer steps and took 19,505 seconds, or about 5.4 hours. The notebook output shows that CUDA was not available for that run, so the model used `torch.float32`; this explains the slow throughput of about 0.429 training samples per second and 0.027 training steps per second.
 
-The main signal monitored during training was the language-modeling loss on the assistant JSON output. Because prompt tokens were masked, the loss focused on whether the model could generate the correct structured function call rather than whether it could reproduce the system and user messages.
+The main training variables were:
 
-During training, the expected behavior is that loss decreases as the model learns the custom schema, the correct function name, the argument names, and the common company-metric-year patterns. A decreasing loss is useful, but it does not fully prove tool-calling quality. For this task, loss must be combined with structural validation, because a model can reduce loss while still occasionally producing invalid JSON or mixing company-metric relationships.
+| Variable | Value | Engineering meaning |
+| --- | --- | --- |
+| Base model | `Qwen/Qwen3-0.6B` | Compact tool-capable base model. |
+| Train/test examples | 2,788 / 310 | Small controlled dataset, with a held-out split for eval loss. |
+| Epochs | 3 | Enough passes to fit the schema without making the first run too expensive. |
+| Optimizer steps | 525 | Total parameter-update steps after gradient accumulation. |
+| Max sequence length | 384 | Covers the observed max formatted length while avoiding excessive padding. |
+| Per-device train batch | 8 | Batch loaded per training step. |
+| Gradient accumulation | 2 | Effective batch size of 16 examples before each optimizer update. |
+| Learning rate | `1e-4` | Moderate LoRA learning rate for adapting a small number of parameters. |
+| Scheduler | cosine | Decays the learning rate after warmup. |
+| Warmup steps | 243 | About 46% of total steps, a conservative warmup for stable early training. |
+| Weight decay | 0.01 | Regularization on trainable adapter weights. |
+| Eval/save interval | 250 steps | Evaluation and checkpointing happen during training, not only at the end. |
+| LoRA rank / alpha | `r=8`, `alpha=32` | Low-rank adapter with scaling factor `alpha / r = 4`. |
+| LoRA dropout | 0.0 | No adapter dropout; useful for a small deterministic schema task. |
+| Trainable parameters | 1,146,880 | About 0.192% of the 597,196,800 total parameters. |
 
-The most important training variables were the base model, maximum sequence length, LoRA target modules, LoRA rank, learning rate, batch size, gradient accumulation, number of epochs, and prompt masking strategy. These variables control the tradeoff between training cost, adaptation capacity, and structured-output reliability.
+The loss curve shows a fast initial fit followed by a low-loss plateau. Logged training loss dropped from about 1.319 at step 10 to 0.363 at step 60, 0.0618 at step 100, and about 0.0251 at step 250. Later training made smaller improvements: the logged training loss was about 0.0187 at step 500 and 0.0183 at step 520. The final reported `train_loss` metric was 0.1292, which is the averaged training loss over the run, not the last logged batch loss.
+
+Evaluation loss followed the same direction. It was 0.0248 at step 250, improved to 0.0177 at step 500, and stayed essentially flat at 0.0177 at the final step 525. The best checkpoint was selected at step 500 with `eval_loss = 0.017704`, which suggests that the model had already learned most of the available schema signal by the end of the second-to-third epoch region.
+
+![Qwen3 0.6B LoRA fine-tuning loss](images/loss.png)
+
+Because prompt tokens were masked, these losses focus on the assistant JSON output rather than reproduction of the system and user messages. The curve is therefore meaningful for structured-output fitting: it shows that the adapter quickly learned the high-frequency JSON syntax and schema tokens. However, low loss is still not sufficient evidence of tool-calling correctness. The model can have low token-level loss and still fail on exact company-metric associations, irrelevant queries, out-of-distribution company counts, or malformed edge cases. For this project, the loss curve should be treated as an optimization diagnostic and combined with JSON validity, schema validity, and faithfulness evaluation.
 
 ## 12. Inference Variables
 
