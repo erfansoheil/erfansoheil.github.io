@@ -157,9 +157,11 @@ In the rest of this article, we will explore the most common ways to index data 
 
 ## 3. Algorithmic Archetypes: Tree, IVF, and Modern Vector Methods
 
-To navigate high-dimensional spaces efficiently, computer scientists have engineered several vector indexing archetypes. Each handles the curse of dimensionality—and the inherent trade-offs between latency, recall, and memory—differently.
+I nthis section we will mention most common indexing algorithms used in modern database libraries such as `FAISS` , `LlamaIndex` and `ChromaDB`. These are open source libraies and have a good compatiblity with RAG and Agentic frameworks. 
 
-Here is an enriched breakdown of the most common indexing methods used in production RAG pipelines, including the foundational math that powers them.
+For undestadning this section there is not prior knowledge about embedding models needed. The only point that needs to be considered is that every input after passing trought the embedding model transforms into a vector of dimension $d$. 
+
+Altough the first method `Flat Indexing` is not a *real* indexing method it is just comparision between all other vectors with eucledean metric. But in the AI community it is often mentioned as a way of indexing.
 
 ### 1. Flat Indexing (Brute Force)
 
