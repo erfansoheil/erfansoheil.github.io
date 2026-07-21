@@ -157,33 +157,116 @@ In the rest of this article, we will explore the most common ways to index data 
 
 ## 3. Algorithmic Archetypes: Tree, IVF, and Modern Vector Methods
 
-I nthis section we will mention most common indexing algorithms used in modern database libraries such as `FAISS` , `LlamaIndex` and `ChromaDB`. These are open source libraies and have a good compatiblity with RAG and Agentic frameworks. 
+In this section we will mention most common indexing algorithms used in modern database libraries such as `FAISS` , `LlamaIndex` and `ChromaDB`. These are open source libraies and have a good compatiblity with RAG and Agentic frameworks. 
 
-For undestadning this section there is not prior knowledge about embedding models needed. The only point that needs to be considered is that every input after passing trought the embedding model transforms into a vector of dimension $d$. 
+For undestadning this section no prior knowledge about embedding models needed. The only point that needs to be considered is that every input after passing trought the embedding model transforms into a vector of dimension $d$. 
 
 Altough the first method `Flat Indexing` is not a *real* indexing method it is just comparision between all other vectors with eucledean metric. But in the AI community it is often mentioned as a way of indexing.
 
 ### 1. Flat Indexing (Brute Force)
 
-Before exploring approximate methods, we must define the exact-match baseline: the Flat Index. In a Flat Index, vectors are stored exactly as they are generated, with no structural organization or compression.
+Before we jump into all the fancy approximate search methods (ANN), we have to establish our exact-match baseline: the Flat Index. In a Flat Index, we just store the vectors exactly as they are generated. No structural organization, no compression, just raw data.
 
-When a query vector $q$ arrives, the system performs an exhaustive search, calculating the distance between $q$ and every single document vector $x_i$ in the entire dataset $X$ of size $N$.
+When a query vector $q$ arrives, the system does an exhaustive search. It calculates the mathematical distance between $q$ and every single document vector $x_i$ in the entire dataset $X$ of size $N$. Because we are comparing every single dimension ($d$) of every single vector ($N$), the time complexity is $O(N \cdot d)$. It guarantees 100% perfect recall, but as our dataset grows, this brute-force approach becomes computationally paralyzing.
 
-The two most common mathematical distance metrics are:
+But what really makes or breaks this search is the distance metric we choose. It’s not an arbitrary decision; the metric has to perfectly align with how our embedding model was trained in the first place.
 
-**Euclidean Distance (L2):** Measures the straight-line distance between two points in space.
 
+#### Angles and Projections: Cosine vs. Inner Product
+
+When working with text embeddings, we usually care more about the semantic direction of the vectors rather than their magnitude (how long the document is).
+
+**Cosine Similarity** measures exactly that—the angle between two vectors.
+
+$$S_C(q, x_i) = \frac{q \cdot x_i}{\Vert q\Vert \Vert x_i\Vert} = \frac{\sum_{j=1}^{d} q_j x_{ij}}{\sqrt{\sum_{j=1}^{d} q_j^2} \sqrt{\sum_{j=1}^{d} x_{ij}^2}}$$
+
+However, in modern RAG architectures, we almost always prefer the **Inner Product** (Dot Product) instead. It’s simply the unnormalized projection of one vector onto another:
+
+$$IP(q, x_i) = q \cdot x_i = \sum_{j=1}^{d} q_j x_{ij}$$
+
+Why the shift to Inner Product? It comes down to pure hardware efficiency. If we L2-normalize our vectors before indexing them, the denominators in the Cosine Similarity equation become $1$. This makes Cosine Similarity and Inner Product mathematically equivalent. By stripping out the square roots and division, the Inner Product drastically reduces the CPU/GPU cycles needed during a massive brute-force scan while giving us the exact same ranking.
+
+#### The $L_p$ Metric Family (Minkowski Distances)
+
+If we move away from angles and look at geometric distance in $n$-dimensional space ($\mathbb{R}^n$), we use the $L_p$ norms, or Minkowski distances. The parameter $p$ acts as a knob that controls how harshly we penalize large differences in a single dimension.
+
+$$D_p(q, x_i) = \left( \sum_{j=1}^{d} \vert{}q_j - x_{ij}\vert{}^p \right)^{\frac{1}{p}}$$
+
+**Euclidean Distance ($L_2$ Norm)**
+This is the standard "straight-line" distance. Because it squares the differences, $L_2$ is isotropic—it behaves uniformly in all directions.
 
 $$D_{L2}(q, x_i) = \sqrt{\sum_{j=1}^{d} (q_j - x_{ij})^2}$$
 
-**Cosine Similarity:** Measures the angle between two vectors, focusing on orientation rather than magnitude (ideal for textual semantic similarity).
+The catch with $L_2$ is that the squaring makes it highly sensitive to outliers. A massive difference in just one dimension can blow up the entire distance score.
+
+**Manhattan Distance ($L_1$ Norm)**
+Instead of a straight line, $L_1$ calculates the distance as a grid-like path (the sum of absolute differences).
+
+$$D_{L1}(q, x_i) = \sum_{j=1}^{d} \vert{}q_j - x_{ij}\vert{}$$
+
+As our dimensionality $d$ increases (like the 1536 dimensions in OpenAI embeddings), we run into the "Curse of Dimensionality," where the distances between our nearest and farthest neighbors start to blur together. $L_1$ is actually much more robust to outliers and combats this concentration of distances slightly better than $L_2$, making it theoretically great for highly sparse, high-dimensional spaces.
+
+**The $L_3$ Norm**
+You rarely see $L_3$ in production RAG systems, but mathematically, it's a fascinating bridge.
+
+$$D_{L3}(q, x_i) = \left( \sum_{j=1}^{d} \vert{}q_j - x_{ij}\vert{}^3 \right)^{\frac{1}{3}}$$
+
+By cubing the differences, $L_3$ starts aggressively penalizing any single dimension that has a large disparity, while almost completely ignoring dimensions where the vectors are similar.
+
+**Chebyshev Distance ($L_\infty$ Norm)**
+If we push $p$ all the way to infinity, we get $L_\infty$. This metric completely ignores the sum of differences and looks *only* at the single maximum difference across all dimensions.
+
+$$D_{\infty}(q, x_i) = \lim_{p \to \infty} \left( \sum_{j=1}^{d} \vert{}q_j - x_{ij}\vert{}^p \right)^{\frac{1}{p}} = \max_{j} \vert{}q_j - x_{ij}\vert{}$$
+
+Think of $L_\infty$ as the ultimate strict bounding box. If you want a query to completely reject a document just because it drastically fails on *one* specific latent feature—even if the other 1535 features are a perfect match—$L_\infty$ is the tool for the job.
+
+#### Jaccard Distance for Sparse Vectors
+
+We usually think of Jaccard distance as a way to measure the overlap of sets, but we can adapt it for continuous vectors using the Ruzicka (or MinMax) formulation:
+
+$$D_J(q, x_i) = 1 - \frac{\sum_{j=1}^{d} \min(q_j, x_{ij})}{\sum_{j=1}^{d} \max(q_j, x_{ij})}$$
+
+While we don't use this for dense embeddings like BERT, it becomes incredibly powerful when we start using Sparse Retrieval (like SPLADE or BM25). In sparse spaces, our vectors represent token vocabularies where 99% of the dimensions are zero. Jaccard is perfect here because it zeroes in on the exact overlap of activated tokens without being heavily skewed by the sheer volume of mutual zeros.
 
 
-$$S_C(q, x_i) = \frac{q \cdot x_i}{\Vert{}q\Vert{} \Vert{}x_i\Vert{}} = \frac{\sum_{j=1}^{d} q_j x_{ij}}{\sqrt{\sum_{j=1}^{d} q_j^2} \sqrt{\sum_{j=1}^{d} x_{ij}^2}}$$
+#### The Vector Database Reality: Native Support vs. Custom Code
 
-* **The Math Trade-off:** Because it compares every dimension ($d$) of every vector ($N$), the time complexity is $O(N \cdot d)$. This guarantees 100% recall (perfect accuracy) but scales terribly. For large datasets, Flat Indexing is computationally paralyzing.
+When you move from mathematical theory into production tools like FAISS, Milvus, ChromaDB, LlamaIndex, or Qdrant, you quickly realize that not all distance metrics are treated equally. Vector databases rely on extreme hardware optimization (C++ routines, SIMD instructions, and GPU kernels) to make searches fast. Because of this, they are highly opinionated about which metrics they actually let you use.
+
+We can break these down into three tiers of production readiness:
+
+**Tier 1: The Universal Defaults (Native Everywhere)**
+If you are using **Inner Product (IP), Cosine Similarity, or Euclidean Distance ($L_2$)**, you are in the safe zone. Every major vector database supports these natively out-of-the-box. Their underlying graph algorithms (like HNSW) and quantization techniques are heavily optimized for these three specific calculations.
+
+**Tier 2: The Conditional Natives ($L_1$ and Jaccard)**
+Metrics like Manhattan ($L_1$) and Jaccard are supported natively, but with major asterisks attached to them:
+
+* **Manhattan ($L_1$):** Qdrant and FAISS support $L_1$ natively for dense floating-point vectors. However, if you are using ChromaDB or Pinecone, $L_1$ is simply not exposed in their standard APIs.
+* **Jaccard Distance:** If you try to run Jaccard on standard dense embeddings, it will fail. Databases like Milvus and FAISS natively support Jaccard, but *only for Binary or Sparse vectors*. The hardware executes Jaccard using fast bitwise operations (like AND/OR logic gates) rather than floating-point math.
+
+**Tier 3: The "Custom Code" Territory ($L_3$ and $L_\infty$)**
+If you want to use $L_3$ or Chebyshev ($L_\infty$), you are essentially stepping off the paved road. Modern vector databases do not support $L_3$ or $L_\infty$ natively.
+
+More importantly, **you cannot simply write a custom Python function to replace them.** Because approximate search indexes like HNSW are written in compiled C++ or Rust for speed, injecting a custom Python distance function into the loop would destroy the database's performance.
+
+If you absolutely must use $L_\infty$ or $L_3$, you have two choices:
+
+1. **The Brute-Force Route:** Skip the database's built-in HNSW index entirely, pull the vectors into memory, and write a custom Numpy/PyTorch script to do a Flat (brute-force) scan.
+2. **The Hardcore Route:** Fork the underlying open-source C++ library (like `hnswlib` or FAISS), write your custom $L_\infty$ metric in C++, recompile the library, and bind it back to your Python environment.
 
 ---
+
+#### Summary Checklist for RAG Indexing
+
+| Metric                 | Mathematical Focus        | Database Support                                                     |
+| ------------------------| ---------------------------| ----------------------------------------------------------------------|
+| **Inner Product**      | Unnormalized projection   | Tier 1 (Universal). Fastest to compute.                              |
+| **Cosine**             | Pure orientation / angle  | Tier 1 (Universal). Often mapped to IP via L2-normalization.         |
+| **$L_2$ (Euclidean)**  | Straight-line geometry    | Tier 1 (Universal). Default for metric-space embeddings.             |
+| **$L_1$ (Manhattan)**  | Axis-aligned differences  | Tier 2 (Conditional). Great for high dimensions; limited DB support. |
+| **Jaccard**            | Intersection over Union   | Tier 2 (Conditional). Restricted to binary/sparse vectors only.      |
+| **$L_\infty$ & $L_3$** | Maximum single divergence | Tier 3 (Custom). Requires writing your own brute-force or C++ code.  |
+
 
 ### 2. Inverted File Indexing (IVF)
 
