@@ -172,10 +172,14 @@ In general the system calculates the mathematical distance between $q$ and every
 In the follwing we will mention some ofthese distances. Again these distances (metrics) happen **after** indexing. 
 
 Throughout this section  $q$ is a query vector and $x$ is a sample point in our dataset. Both $q$ and $x$ cane be represented as: 
+
 $$q = (q_1,q_2,\cdots,q_d)$$
+
 and 
+
 $$x = (x_1,x_2,\cdots,x_d)$$
-for $ q_1,q_2,\cdots,q_d, x_1,x_2,\cdots,x_d in \mathbb{R}$
+
+for $ q_1,q_2,\cdots,q_d, x_1,x_2,\cdots,x_d \in \mathbb{R}$.
 
 #### ***Cosine (aka Cosine Similarity)** 
 
