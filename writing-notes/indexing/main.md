@@ -227,21 +227,16 @@ Why the shift to Inner Product? It comes down to pure hardware efficiency. If we
 
 Here we would like to mention that in pure mathematics, a "metric" (or distance function) on an $n$-dimensional space $\mathbb{R}^n$ is a specific function $d: \mathbb{R}^n \times \mathbb{R}^n \to \mathbb{R}$ that *must* satisfy three unbending rules:
 
-1. **Identity of Indiscernibles (and Non-negativity):** The distance between two points is always $\ge 0$, and the distance is exactly $0$ if and only if the two points are identical. ($d(x, y) = 0 \iff x = y$).
-2. **Symmetry:** The distance from A to B is the exact same as B to A. ($d(x, y) = d(y, x)$).
-3. **The Triangle Inequality:** The direct path from A to C is always shorter than or equal to going from A to B, and then B to C. ($d(x, z) \le d(x, y) + d(y, z)$).
+1. **Non-negativity:** The distance between two points is always $\ge 0$, and the distance is exactly $0$ if and only if the two points are identical. ($d(x, y) = 0 \iff x = y$).
+2. **Symmetry:** The distance from $x$ to $y$ is the exact same as $y$ to $x$. ($d(x, y) = d(y, x)$).
+3. **The Triangle Inequality:** The direct path from $x$$ to $z$ is always shorter than or equal to going from $x$ to $y$, and then $y$ to $z$. ($d(x, z) \le d(x, y) + d(y, z)$).
 
 As engineers, we accept this jargon, but strictly mathematically speaking, **this is heavily misused.**  
 
-**Inner Product and Cosine Similarity completely fail these mathematical tests.** They are *similarity comparisons*, not actual distances. Inner product can yield negative numbers, failing rule #1. Cosine similarity increases the closer two vectors get, which is the exact opposite of a distance function. Even if you invert it into "Cosine Distance" ($1 - \text{Cosine Similarity}$), it still famously violates the Triangle Inequality.
+**Inner Product and Cosine Similarity completely fail these mathematical tests.** They are *similarity comparisons*, not actual distances. Inner product can yield negative numbers, failing rule #1. Cosine similarity increases the closer two vectors get, which is the exact opposite of a distance function. Even if you invert it into "Cosine Distance" ($1 - \text{Cosine Similarity}$), it still famously violates the Triangle Inequality (For more information of how we can create a distance frim inner product you can refer to my article on postional encodding [here](https://erfansoheil.github.io/writing-notes/positional_embeddings/main.html)).
 
-If you read the documentation for FAISS, Milvus, or ChromaDB, you will constantly see the word "metric" used to describe how vectors are compared (e.g., `metric_type="IP"`).
-
-So, when vector databases talk about "metrics," remember that they are using it as a sloppy catch-all term for "scoring functions." Only the $L_p$ norms (like Euclidean or Manhattan) are true mathematical metrics.
-
-
-
-#### The $L_p$ Metric Family (Minkowski Distances)
+If you read the documentation for FAISS, Milvus, or ChromaDB, you will constantly see the word "metric" used to describe how vectors are compared (e.g., `metric_type="IP"`). So, when vector databases talk about "metrics," remember that they are using it as a sloppy catch-all term for **scoring functions**.
+#### **The $L_p$ Metric Family (Minkowski Distances)**
 
 If we move away from angles and look at geometric distance in $n$-dimensional space ($\mathbb{R}^n$), we use the $L_p$ norms, or Minkowski distances. The parameter $p$ acts as a knob that controls how harshly we penalize large differences in a single dimension.
 
