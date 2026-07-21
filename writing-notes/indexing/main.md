@@ -165,24 +165,29 @@ Altough the first method `Flat Indexing` is not a *real* indexing method it is j
 
 ### 1. Flat Indexing (Brute Force)
 
-Before we jump into all the fancy approximate search methods (ANN), we have to establish our exact-match baseline: the Flat Index. In a Flat Index, we just store the vectors exactly as they are generated. No structural organization, no compression, just raw data.
+Before we jump into all the fancy approximate search methods (ANN), we have to establish our exact-match baseline: the Flat Index. In a Flat Index, we just store the vectors exactly as they are generated. No structural organization, no compression, just raw data. When a query vector $q$ arrives, the system does an exhaustive (through all vectors of the database) search. Basically we are done with indexing. The indexing step is done at this stage, **however** the intresting part is **how** the search is done. 
 
-When a query vector $q$ arrives, the system does an exhaustive search. It calculates the mathematical distance between $q$ and every single document vector $x_i$ in the entire dataset $X$ of size $N$. Because we are comparing every single dimension ($d$) of every single vector ($N$), the time complexity is $O(N \cdot d)$. It guarantees 100% perfect recall, but as our dataset grows, this brute-force approach becomes computationally paralyzing.
+In general the system calculates the mathematical distance between $q$ and every single document vector $x$ in the entire dataset $X$ of size $N$. Because we are comparing every single dimension ($d$) of every single vector ($N$), the time complexity is $O(N \cdot d)$. It guarantees 100% perfect recall, but as our dataset grows, this brute-force approach becomes computationally non appealing to marketing team.
 
-But what really makes or breaks this search is the distance metric we choose. It’s not an arbitrary decision; the metric has to perfectly align with how our embedding model was trained in the first place.
+In the follwing we will mention some ofthese distances. Again these distances (metrics) happen **after** indexing. 
 
+Throughout this section  $q$ is a query vector and $x$ is a sample point in our dataset. Both $q$ and $x$ cane be represented as: 
+$$q = (q_1,q_2,\cdots,q_d)$$
+and 
+$$x = (x_1,x_2,\cdots,x_d)$$
+for $ q_1,q_2,\cdots,q_d, x_1,x_2,\cdots,x_d in \mathbb{R}$
 
-#### Angles and Projections: Cosine vs. Inner Product
+#### ***Cosine (aka Cosine Similarity)** 
 
 When working with text embeddings, we usually care more about the semantic direction of the vectors rather than their magnitude (how long the document is).
 
 **Cosine Similarity** measures exactly that—the angle between two vectors.
 
-$$S_C(q, x_i) = \frac{q \cdot x_i}{\Vert q\Vert \Vert x_i\Vert} = \frac{\sum_{j=1}^{d} q_j x_{ij}}{\sqrt{\sum_{j=1}^{d} q_j^2} \sqrt{\sum_{j=1}^{d} x_{ij}^2}}$$
+$$S_C(q, x) = \frac{q \cdot x}{\Vert q\Vert \Vert x\Vert} = \frac{\sum_{j=1}^{d} q_j x_{j}}{\sqrt{\sum_{j=1}^{d} q_j^2} \sqrt{\sum_{j=1}^{d} x_{j}^2}}$$
 
 However, in modern RAG architectures, we almost always prefer the **Inner Product** (Dot Product) instead. It’s simply the unnormalized projection of one vector onto another:
 
-$$IP(q, x_i) = q \cdot x_i = \sum_{j=1}^{d} q_j x_{ij}$$
+$$IP(q, x) = q \cdot x = \sum_{j=1}^{d} q_j x_{j}$$
 
 Why the shift to Inner Product? It comes down to pure hardware efficiency. If we L2-normalize our vectors before indexing them, the denominators in the Cosine Similarity equation become $1$. This makes Cosine Similarity and Inner Product mathematically equivalent. By stripping out the square roots and division, the Inner Product drastically reduces the CPU/GPU cycles needed during a massive brute-force scan while giving us the exact same ranking.
 
@@ -190,33 +195,33 @@ Why the shift to Inner Product? It comes down to pure hardware efficiency. If we
 
 If we move away from angles and look at geometric distance in $n$-dimensional space ($\mathbb{R}^n$), we use the $L_p$ norms, or Minkowski distances. The parameter $p$ acts as a knob that controls how harshly we penalize large differences in a single dimension.
 
-$$D_p(q, x_i) = \left( \sum_{j=1}^{d} \vert{}q_j - x_{ij}\vert{}^p \right)^{\frac{1}{p}}$$
+$$D_p(q, x) = \left( \sum_{j=1}^{d} \vert{}q_j - x_{j}\vert{}^p \right)^{\frac{1}{p}}$$
 
 **Euclidean Distance ($L_2$ Norm)**
 This is the standard "straight-line" distance. Because it squares the differences, $L_2$ is isotropic—it behaves uniformly in all directions.
 
-$$D_{L2}(q, x_i) = \sqrt{\sum_{j=1}^{d} (q_j - x_{ij})^2}$$
+$$D_{L2}(q, x) = \sqrt{\sum_{j=1}^{d} (q_j - x_{j})^2}$$
 
 The catch with $L_2$ is that the squaring makes it highly sensitive to outliers. A massive difference in just one dimension can blow up the entire distance score.
 
 **Manhattan Distance ($L_1$ Norm)**
 Instead of a straight line, $L_1$ calculates the distance as a grid-like path (the sum of absolute differences).
 
-$$D_{L1}(q, x_i) = \sum_{j=1}^{d} \vert{}q_j - x_{ij}\vert{}$$
+$$D_{L1}(q, x) = \sum_{j=1}^{d} \vert{}q_j - x_{j}\vert{}$$
 
 As our dimensionality $d$ increases (like the 1536 dimensions in OpenAI embeddings), we run into the "Curse of Dimensionality," where the distances between our nearest and farthest neighbors start to blur together. $L_1$ is actually much more robust to outliers and combats this concentration of distances slightly better than $L_2$, making it theoretically great for highly sparse, high-dimensional spaces.
 
 **The $L_3$ Norm**
 You rarely see $L_3$ in production RAG systems, but mathematically, it's a fascinating bridge.
 
-$$D_{L3}(q, x_i) = \left( \sum_{j=1}^{d} \vert{}q_j - x_{ij}\vert{}^3 \right)^{\frac{1}{3}}$$
+$$D_{L3}(q, x) = \left( \sum_{j=1}^{d} \vert{}q_j - x_{j}\vert{}^3 \right)^{\frac{1}{3}}$$
 
 By cubing the differences, $L_3$ starts aggressively penalizing any single dimension that has a large disparity, while almost completely ignoring dimensions where the vectors are similar.
 
 **Chebyshev Distance ($L_\infty$ Norm)**
 If we push $p$ all the way to infinity, we get $L_\infty$. This metric completely ignores the sum of differences and looks *only* at the single maximum difference across all dimensions.
 
-$$D_{\infty}(q, x_i) = \lim_{p \to \infty} \left( \sum_{j=1}^{d} \vert{}q_j - x_{ij}\vert{}^p \right)^{\frac{1}{p}} = \max_{j} \vert{}q_j - x_{ij}\vert{}$$
+$$D_{\infty}(q, x) = \lim_{p \to \infty} \left( \sum_{j=1}^{d} \vert{}q_j - x_{j}\vert{}^p \right)^{\frac{1}{p}} = \max_{j} \vert{}q_j - x_{j}\vert{}$$
 
 Think of $L_\infty$ as the ultimate strict bounding box. If you want a query to completely reject a document just because it drastically fails on *one* specific latent feature—even if the other 1535 features are a perfect match—$L_\infty$ is the tool for the job.
 
@@ -224,7 +229,7 @@ Think of $L_\infty$ as the ultimate strict bounding box. If you want a query to 
 
 We usually think of Jaccard distance as a way to measure the overlap of sets, but we can adapt it for continuous vectors using the Ruzicka (or MinMax) formulation:
 
-$$D_J(q, x_i) = 1 - \frac{\sum_{j=1}^{d} \min(q_j, x_{ij})}{\sum_{j=1}^{d} \max(q_j, x_{ij})}$$
+$$D_J(q, x) = 1 - \frac{\sum_{j=1}^{d} \min(q_j, x_{j})}{\sum_{j=1}^{d} \max(q_j, x_{j})}$$
 
 While we don't use this for dense embeddings like BERT, it becomes incredibly powerful when we start using Sparse Retrieval (like SPLADE or BM25). In sparse spaces, our vectors represent token vocabularies where 99% of the dimensions are zero. Jaccard is perfect here because it zeroes in on the exact overlap of activated tokens without being heavily skewed by the sheer volume of mutual zeros.
 
@@ -254,7 +259,6 @@ If you absolutely must use $L_\infty$ or $L_3$, you have two choices:
 1. **The Brute-Force Route:** Skip the database's built-in HNSW index entirely, pull the vectors into memory, and write a custom Numpy/PyTorch script to do a Flat (brute-force) scan.
 2. **The Hardcore Route:** Fork the underlying open-source C++ library (like `hnswlib` or FAISS), write your custom $L_\infty$ metric in C++, recompile the library, and bind it back to your Python environment.
 
----
 
 #### Summary Checklist for RAG Indexing
 
@@ -422,19 +426,19 @@ print("\n--- Building IndexIVFFlat ---")
 nlist = 100                                  # Number of Voronoi cells (clusters)
 quantizer = faiss.IndexFlatL2(d)             # Coarse quantizer used to assign vectors to cells
 
-index_ivf = faiss.IndexIVFFlat(quantizer, d, nlist, faiss.METRIC_L2)
+indexvf = faiss.IndexIVFFlat(quantizer, d, nlist, faiss.METRIC_L2)
 
-print(f"Is trained before: {index_ivf.is_trained}")
-index_ivf.train(xb)                          # Critical: Must train to find cluster centroids
-print(f"Is trained after: {index_ivf.is_trained}")
+print(f"Is trained before: {indexvf.is_trained}")
+indexvf.train(xb)                          # Critical: Must train to find cluster centroids
+print(f"Is trained after: {indexvf.is_trained}")
 
-index_ivf.add(xb)
+indexvf.add(xb)
 
 # Adjust search-time parameters
-index_ivf.nprobe = 10                        # Look into the 10 closest clusters at query time
+indexvf.nprobe = 10                        # Look into the 10 closest clusters at query time
 
 start_time = time.time()
-distances, indices = index_ivf.search(xq, k)
+distances, indices = indexvf.search(xq, k)
 print(f"IVF Search Time: {(time.time() - start_time) * 1000:.3f} ms")
 
 ```
@@ -476,7 +480,7 @@ index_composite.train(xb)
 index_composite.add(xb)
 
 # Set runtime cluster probe depth
-faiss.extract_index_ivf(index_composite).nprobe = 16
+faiss.extract_indexvf(index_composite).nprobe = 16
 
 start_time = time.time()
 distances, indices = index_composite.search(xq, k)
