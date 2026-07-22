@@ -268,7 +268,7 @@ $$D_{\infty}(q, x) = \lim_{p \to \infty} \left( \sum_{j=1}^{d} \vert{}q_j - x_{j
 
 Think of $L_\infty$ as the ultimate strict bounding box. If you want a query to completely reject a document just because it drastically fails on *one* specific latent feature—even if the other 1535 features are a perfect match—$L_\infty$ is the tool for the job.
 
-#### Jaccard Distance for Sparse Vectors
+**Jaccard Distance for Sparse Vectors**
 
 We usually think of Jaccard distance as a way to measure the overlap of sets, but we can adapt it for continuous vectors using the Ruzicka (or MinMax) formulation:
 
@@ -277,7 +277,7 @@ $$D_J(q, x) = 1 - \frac{\sum_{j=1}^{d} \min(q_j, x_{j})}{\sum_{j=1}^{d} \max(q_j
 While we don't use this for dense embeddings like BERT, it becomes incredibly powerful when we start using Sparse Retrieval (like SPLADE or BM25). In sparse spaces, our vectors represent token vocabularies where 99% of the dimensions are zero. Jaccard is perfect here because it zeroes in on the exact overlap of activated tokens without being heavily skewed by the sheer volume of mutual zeros.
 
 
-#### The Vector Database Reality: Native Support vs. Custom Code
+#### **The Vector Database Reality: Native Support vs. Custom Code**
 
 When you move from mathematical theory into production tools like FAISS, Milvus, ChromaDB, LlamaIndex, or Qdrant, you quickly realize that not all distance metrics are treated equally. Vector databases rely on extreme hardware optimization (C++ routines, SIMD instructions, and GPU kernels) to make searches fast. Because of this, they are highly opinionated about which metrics they actually let you use.
 
@@ -303,19 +303,19 @@ If you absolutely must use $L_\infty$ or $L_3$, you have two choices:
 2. **The Hardcore Route:** Fork the underlying open-source C++ library (like `hnswlib` or FAISS), write your custom $L_\infty$ metric in C++, recompile the library, and bind it back to your Python environment.
 
 
-#### Summary Checklist for RAG Indexing
+#### **Summary Checklist for RAG Indexing**
 
-| Metric                 | Mathematical Focus        | Database Support                                                     |
-| ------------------------| ---------------------------| ----------------------------------------------------------------------|
-| **Inner Product**      | Unnormalized projection   | Tier 1 (Universal). Fastest to compute.                              |
-| **Cosine**             | Pure orientation / angle  | Tier 1 (Universal). Often mapped to IP via L2-normalization.         |
-| **$L_2$ (Euclidean)**  | Straight-line geometry    | Tier 1 (Universal). Default for metric-space embeddings.             |
-| **$L_1$ (Manhattan)**  | Axis-aligned differences  | Tier 2 (Conditional). Great for high dimensions; limited DB support. |
-| **Jaccard**            | Intersection over Union   | Tier 2 (Conditional). Restricted to binary/sparse vectors only.      |
-| **$L_\infty$ & $L_3$** | Maximum single divergence | Tier 3 (Custom). Requires writing your own brute-force or C++ code.  |
+| Metric                | Mathematical Focus        | Database Support                                                     |
+| -----------------------| ---------------------------| ----------------------------------------------------------------------|
+| **Inner Product**     | Unnormalized projection   | Tier 1 (Universal). Fastest to compute.                              |
+| **Cosine**            | Pure orientation / angle  | Tier 1 (Universal). Often mapped to IP via L2-normalization.         |
+| **$L_2$ (Euclidean)** | Straight-line geometry    | Tier 1 (Universal). Default for metric-space embeddings.             |
+| **$L_1$ (Manhattan)** | Axis-aligned differences  | Tier 2 (Conditional). Great for high dimensions; limited DB support. |
+| **Jaccard**           | Intersection over Union   | Tier 2 (Conditional). Restricted to binary/sparse vectors only.      |
+| **$L_\infty$**        | Maximum single divergence | Tier 3 (Custom). Requires writing your own brute-force or C++ code.  |
 
 
-### 2. Inverted File Indexing (IVF)
+### **2. Inverted File Indexing (IVF)**
 
 Inverted File Indexing shifts the paradigm from exhaustive search to clustered vector quantization. IVF uses **Voronoi partitioning** to divide the vector space into distinct computational regions.
 
@@ -343,9 +343,8 @@ $$V_i = \{ x \in X \mid D(x, c_i) \le D(x, c_j) \text{ for all } j \neq i \}$$
 
 * **The Math Trade-off:** By partitioning the data, the search complexity drops from $O(N \cdot d)$ to approximately $O(k \cdot d + \text{nprobe} \cdot \frac{N}{k} \cdot d)$. Increasing `nprobe` improves recall by checking adjacent cells (catching edge-case vectors) but linearly increases compute time.
 
----
 
-### 3. HNSW (Hierarchical Navigable Small World)
+### **3. HNSW (Hierarchical Navigable Small World)**
 
 While IVF relies on clusters, HNSW relies on graph theory. It builds a multi-layer proximity graph that acts like a probabilistic skip list in high-dimensional space.
 
@@ -361,9 +360,8 @@ where $l$ is the layer number and $m_L$ is a scaling factor.
 
 * **The Math Trade-off:** HNSW drops search complexity to $O(\log N)$, offering blistering query speeds and elite recall. However, storing the adjacency lists for the complex graph connections requires an immense memory footprint (RAM), often taking up more space than the vectors themselves.
 
----
 
-### 4. PQ (Product Quantization)
+### **4. PQ (Product Quantization)**
 
 Unlike IVF and HNSW—which optimize *how* we search—Product Quantization optimizes *what* we store. It is a mathematical compression technique that shrinks the memory footprint of high-dimensional vectors.
 
@@ -385,7 +383,7 @@ $$D(q, x) \approx \sum_{j=1}^{m} D(q^{(j)}, c_{i_j}^{(j)})$$
 
 
 * **The Math Trade-off:** PQ drastically reduces memory consumption (often by 90% or more) and replaces heavy floating-point arithmetic with lightning-fast $O(m)$ table lookups. The trade-off is a mathematically guaranteed drop in recall due to the lossy compression of the vectors. In massive production systems, it is frequently combined with IVF (as **IVF-PQ**) to achieve scale that would otherwise be impossible on limited hardware.
-## 4. The Engineering Point of View: Trade-offs & The "No-Index" Regime
+## **4. The Engineering Point of View: Trade-offs & The "No-Index" Regime**
 
 In engineering, there is no such thing as a "better" index—there are only different profiles of trade-offs. Building an index is not a default architectural choice; it must be justified by data volume and latency requirements.
 
