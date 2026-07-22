@@ -269,7 +269,7 @@ $$D_{\infty}(q, x) = \lim_{p \to \infty} \left( \sum_{j=1}^{d} \vert{}q_j - x_{j
 Think of $L_\infty$ as the ultimate strict bounding box. If you want a query to completely reject a document just because it drastically fails on *one* specific latent feature—even if the other 1535 features are a perfect match—$L_\infty$ is the tool for the job.
 
 <iframe 
-    src="indexing/asset/lp_wieght.html" 
+    src="./asset/lp_weight.html" 
     width="100%" 
     height="600px" 
     style="border: 1px solid #ddd; border-radius: 8px; overflow: hidden;" 
