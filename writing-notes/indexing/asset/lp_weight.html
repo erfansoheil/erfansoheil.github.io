@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Lp Norm Visualization</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+        .controls { margin-bottom: 20px; width: 80%; max-width: 600px; text-align: center; }
+        #plots { display: flex; flex-wrap: wrap; justify-content: center; width: 100%; }
+        .plot-container { width: 45%; min-width: 300px; height: 400px; }
+        input[type=range] { width: 100%; }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <h3>L<sub>p</sub> Norm Parameter: <span id="pValue">2.0</span></h3>
+        <input type="range" id="pSlider" min="0.5" max="10" step="0.1" value="2">
+    </div>
+
+    <div id="plots">
+        <div id="plot2d" class="plot-container"></div>
+        <div id="plot3d" class="plot-container"></div>
+    </div>
+
+    <script>
+        // Helper function for the mathematical sign keeping the magnitude
+        function signedPow(val, power) {
+            return Math.sign(val) * Math.pow(Math.abs(val), power);
+        }
+
+        function generateData(p) {
+            const resolution = 50;
+            let x2d = [], y2d = [];
+            let x3d = [], y3d = [], z3d = [];
+
+            // 2D Data Generation (Circle/Square/Diamond)
+            for (let i = 0; i <= resolution; i++) {
+                let theta = (i / resolution) * 2 * Math.PI;
+                x2d.push(signedPow(Math.cos(theta), 2/p));
+                y2d.push(signedPow(Math.sin(theta), 2/p));
+            }
+
+            // 3D Data Generation (Sphere/Cube/Octahedron) using parametric surfaces
+            for (let i = 0; i <= resolution; i++) {
+                let rowX = [], rowY = [], rowZ = [];
+                let phi = (i / resolution) * Math.PI - Math.PI/2; 
+                for (let j = 0; j <= resolution; j++) {
+                    let theta = (j / resolution) * 2 * Math.PI;
+                    
+                    rowX.push(signedPow(Math.cos(theta), 2/p) * signedPow(Math.cos(phi), 2/p));
+                    rowY.push(signedPow(Math.sin(theta), 2/p) * signedPow(Math.cos(phi), 2/p));
+                    rowZ.push(signedPow(Math.sin(phi), 2/p));
+                }
+                x3d.push(rowX); y3d.push(rowY); z3d.push(rowZ);
+            }
+
+            return { x2d, y2d, x3d, y3d, z3d };
+        }
+
+        function drawPlots(p) {
+            const data = generateData(p);
+
+            // 2D Trace
+            const trace2d = {
+                x: data.x2d, y: data.y2d,
+                mode: 'lines', fill: 'toself',
+                line: {color: '#3498db'},
+                name: '2D Boundary'
+            };
+
+            // 3D Trace
+            const trace3d = {
+                type: 'surface',
+                x: data.x3d, y: data.y3d, z: data.z3d,
+                colorscale: 'Viridis', showscale: false
+            };
+
+            const layout2d = {
+                title: '2D Unit Disk (R=1)',
+                xaxis: {range: [-1.5, 1.5], zeroline: true},
+                yaxis: {range: [-1.5, 1.5], zeroline: true, scaleanchor: 'x'},
+                margin: {l: 30, r: 30, b: 30, t: 50}
+            };
+
+            const layout3d = {
+                title: '3D Unit Ball (R=1)',
+                scene: {
+                    xaxis: {range: [-1.5, 1.5]}, yaxis: {range: [-1.5, 1.5]}, zaxis: {range: [-1.5, 1.5]},
+                    aspectmode: 'cube'
+                },
+                margin: {l: 0, r: 0, b: 0, t: 50}
+            };
+
+            Plotly.newPlot('plot2d', [trace2d], layout2d, {responsive: true});
+            Plotly.newPlot('plot3d', [trace3d], layout3d, {responsive: true});
+        }
+
+        // Initialize and handle slider
+        let currentP = 2.0;
+        drawPlots(currentP);
+
+        document.getElementById('pSlider').addEventListener('input', function(e) {
+            let p = parseFloat(e.target.value);
+            document.getElementById('pValue').innerText = p.toFixed(1) + (p === 10 ? " (approx. Infinity)" : "");
+            drawPlots(p);
+        });
+    </script>
+</body>
+</html>
