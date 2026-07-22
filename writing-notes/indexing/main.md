@@ -268,6 +268,16 @@ $$D_{\infty}(q, x) = \lim_{p \to \infty} \left( \sum_{j=1}^{d} \vert{}q_j - x_{j
 
 Think of $L_\infty$ as the ultimate strict bounding box. If you want a query to completely reject a document just because it drastically fails on *one* specific latent feature—even if the other 1535 features are a perfect match—$L_\infty$ is the tool for the job.
 
+<iframe 
+    src="./asset/lp_wieght.html" 
+    width="100%" 
+    height="600px" 
+    style="border: 1px solid #ddd; border-radius: 8px; overflow: hidden;" 
+    scrolling="no">
+</iframe>
+
+
+
 **Jaccard Distance for Sparse Vectors**
 
 We usually think of Jaccard distance as a way to measure the overlap of sets, but we can adapt it for continuous vectors using the Ruzicka (or MinMax) formulation:
