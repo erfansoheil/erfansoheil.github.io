@@ -233,35 +233,33 @@ Here we would like to mention that in pure mathematics, a "metric" (or distance 
 
 As engineers, we accept this jargon, but strictly mathematically speaking, **this is heavily misused.**  
 
-**Inner Product and Cosine Similarity completely fail these mathematical tests.** They are *similarity comparisons*, not actual distances. Inner product can yield negative numbers, failing rule #1. Cosine similarity increases the closer two vectors get, which is the exact opposite of a distance function. Even if you invert it into "Cosine Distance" ($1 - \text{Cosine Similarity}$), it still famously violates the Triangle Inequality (For more information of how we can create a distance frim inner product you can refer to my article on postional encodding [here](https://erfansoheil.github.io/writing-notes/positional_embeddings/main.html)).
+**Inner Product and Cosine Similarity completely fail these mathematical tests.** They are *similarity comparisons*, not actual distances. Inner product can yield negative numbers, failing rule #1. Cosine similarity increases the closer two vectors get, which is the exact opposite of a distance function. Even if you invert it into $1 -$ Cosine Similarity, it still famously violates the Triangle Inequality (For more information of how we can create a distance frim inner product you can refer to my article on postional encodding [here](https://erfansoheil.github.io/writing-notes/positional_embeddings/main.html)).
 
 If you read the documentation for FAISS, Milvus, or ChromaDB, you will constantly see the word "metric" used to describe how vectors are compared (e.g., `metric_type="IP"`). So, when vector databases talk about "metrics," remember that they are using it as a sloppy catch-all term for **scoring functions**.
+
 #### **The $L_p$ Metric Family (Minkowski Distances)**
 
-If we move away from angles and look at geometric distance in $n$-dimensional space ($\mathbb{R}^n$), we use the $L_p$ norms, or Minkowski distances. The parameter $p$ acts as a knob that controls how harshly we penalize large differences in a single dimension.
+One of the most common metic we use to look at geometric distance in $d$-dimensional space ($\mathbb{R}^n$), is Minkowski distance. We denote this metric by $L_p$ where $p \geq 1$ and define as:
 
 $$D_p(q, x) = \left( \sum_{j=1}^{d} \vert{}q_j - x_{j}\vert{}^p \right)^{\frac{1}{p}}$$
 
-**Euclidean Distance ($L_2$ Norm)**
-This is the standard "straight-line" distance. Because it squares the differences, $L_2$ is isotropic—it behaves uniformly in all directions.
+The $l_p$ satisfies all of the three properties of a metric mentioned above. There are some more familiar formulas when we put $p = 1,2$. 
+
+**Euclidean Distance - $p=2$ ($L_2$ Norm)**
+
+This is the standard "straight-line" distance.
 
 $$D_{L2}(q, x) = \sqrt{\sum_{j=1}^{d} (q_j - x_{j})^2}$$
 
 The catch with $L_2$ is that the squaring makes it highly sensitive to outliers. A massive difference in just one dimension can blow up the entire distance score.
 
-**Manhattan Distance ($L_1$ Norm)**
+**Manhattan Distance - $p=1$ ($L_1$ Norm)**
 Instead of a straight line, $L_1$ calculates the distance as a grid-like path (the sum of absolute differences).
 
 $$D_{L1}(q, x) = \sum_{j=1}^{d} \vert{}q_j - x_{j}\vert{}$$
 
 As our dimensionality $d$ increases (like the 1536 dimensions in OpenAI embeddings), we run into the "Curse of Dimensionality," where the distances between our nearest and farthest neighbors start to blur together. $L_1$ is actually much more robust to outliers and combats this concentration of distances slightly better than $L_2$, making it theoretically great for highly sparse, high-dimensional spaces.
 
-**The $L_3$ Norm**
-You rarely see $L_3$ in production RAG systems, but mathematically, it's a fascinating bridge.
-
-$$D_{L3}(q, x) = \left( \sum_{j=1}^{d} \vert{}q_j - x_{j}\vert{}^3 \right)^{\frac{1}{3}}$$
-
-By cubing the differences, $L_3$ starts aggressively penalizing any single dimension that has a large disparity, while almost completely ignoring dimensions where the vectors are similar.
 
 **Chebyshev Distance ($L_\infty$ Norm)**
 If we push $p$ all the way to infinity, we get $L_\infty$. This metric completely ignores the sum of differences and looks *only* at the single maximum difference across all dimensions.
