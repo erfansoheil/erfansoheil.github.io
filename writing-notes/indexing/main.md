@@ -462,20 +462,84 @@ The vector IDs connect the search results to the original documents, chunks, ima
 
 1. **Query Phase:** The query vector $q$ is first compared against only the $k$ centroids. The system selects the $n$ closest centroids (a hyperparameter called `nprobe`) and the system then compares the query with every candidate vector stored in the selected inverted lists. This local scan uses the same distance or similarity measure introduced in the Flat Indexing section, such as Euclidean distance, inner product, or cosine similarity. The difference is that Flat Indexing scans the entire dataset, whereas IVF scans only the vectors belonging to the selected clusters.
 
+Here is the improved Markdown, utilizing proper LaTeX formatting for the math equations and code blocks to preserve the alignment of your diagrams.
 
-#### The Boundary Problem: Why `nprobe` Exists at All
+---
 
-Here's the uncomfortable truth about IVF that the diagram above hides: Voronoi cells have hard edges, but data doesn't respect them. Imagine your true nearest neighbor sits one millimeter on the wrong side of a cell boundary — geometrically closest to your query, but administratively assigned to the *neighboring* cell because that's where its centroid happened to land during training. If you only search the single closest centroid's cell, you will silently miss it. Every single time.
+### **The Boundary Problem: Why `nprobe` Exists**
 
-This is why `nprobe` exists. By searching the $n$ closest centroids instead of just one, you're hedging against exactly this boundary-crossing failure mode. But it's a hedge, not a fix — IVF is fundamentally a probabilistic index. It trades a *guarantee* of correctness (which Flat Indexing gives you) for *speed*, and `nprobe` is the dial you turn to decide how much of that guarantee you want back.
+Assigning every vector to only one centroid creates a problem near the boundaries between clusters. Two vectors can be very close to each other while being assigned to different inverted lists.
 
-| `nprobe`        | Cells Searched         | Recall                                    | Latency                                                 |
-| -----------------| ------------------------| -------------------------------------------| ---------------------------------------------------------|
-| 1               | Only the closest cell  | Lowest — boundary misses are common       | Fastest                                                 |
-| 8–16            | A handful of neighbors | Good enough for most production RAG       | Moderate                                                |
-| $k$ (all cells) | Every cell             | Mathematically identical to Flat Indexing | Slowest — you've paid for clustering and gained nothing |
+Consider a simple one-dimensional example with two centroids:
 
-That last row is worth sitting with: crank `nprobe` all the way up and IVF degenerates back into brute force, except now you've *also* paid the upfront cost of training centroids. The whole value proposition of IVF lives in the middle of that table.
+
+$$c_1 = 0, \qquad c_2 = 10$$
+
+The boundary between their **Voronoi cells** is located at $5$. Any point smaller than $5$ is assigned to $c_1$, while any point larger than $5$ is assigned to $c_2$.
+
+Now consider a query vector $q$ and a database vector $x$:
+
+
+$$q = 4.9, \qquad x = 5.1$$
+
+Their positions can be visualized as follows:
+
+```text
+       Cell assigned to c1       │       Cell assigned to c2
+─────────────────────────────────│─────────────────────────────────
+ c1                            q │ x                            c2
+ 0                           4.9 │ 5.1                          10
+                                 ↑
+                           Cell boundary
+
+```
+
+The query $q$ is assigned to $c_1$ because:
+
+
+$$D(q,c_1) = 4.9 \quad \text{and} \quad D(q,c_2) = 5.1$$
+
+The vector $x$ is assigned to $c_2$ because:
+
+
+$$D(x,c_1) = 5.1 \quad \text{and} \quad D(x,c_2) = 4.9$$
+
+However, the distance between the query and the vector is only:
+
+
+$$D(q,x) = \vert{}4.9 - 5.1\vert{} = 0.2$$
+
+Therefore, $x$ may be the true nearest neighbor of $q$, even though they belong to different inverted lists.
+
+### **How `nprobe` Fixes This**
+
+If `nprobe = 1`, IVF searches only the list associated with the closest centroid, $c_1$. Since $x$ is stored in the list of $c_2$, it is not examined and may be missed.
+
+```text
+[nprobe = 1]
+
+Query q
+   │
+   ▼
+Search list[c1] only
+   │
+   └── x is not considered because x is stored in list[c2]
+
+```
+
+If `nprobe = 2`, IVF searches both the closest and the second-closest centroid lists:
+
+```text
+[nprobe = 2]
+
+Query q
+   │
+   ├── Search list[c1]
+   └── Search list[c2]  ──>  x is examined
+
+```
+
+> **The Takeaway:** This is the reason `nprobe` exists. Searching multiple nearby cells reduces the probability of missing close vectors that lie on the other side of a cluster boundary. However, increasing `nprobe` also increases the number of candidate vectors that must be compared with the query, creating a tradeoff between accuracy and speed.
 
 #### Advantages
 
@@ -483,13 +547,27 @@ That last row is worth sitting with: crank `nprobe` all the way up and IVF degen
 * **Low memory overhead:** Unlike graph-based methods, IVF doesn't store dense adjacency structures. You're storing centroids and flat lists, which is cheap.
 * **Fast to build:** Training $k$-means on a sample and assigning vectors to clusters is dramatically cheaper than constructing a multi-layer graph over the entire dataset.
 
-#### Flaws
+#### **Flaws**
 
-* **Sensitive to data distribution:** $k$-means assumes your clusters are roughly convex and comparably sized. Real embedding spaces are rarely this polite — you can end up with a few enormous, densely populated cells and many nearly-empty ones, which quietly defeats the point of partitioning in the first place.
-* **Static structure:** The centroids are fixed at training time. If your underlying data distribution drifts — new document types, a shift in domain vocabulary — the partitioning becomes stale and recall degrades until you retrain.
-* **No free lunch on recall:** As shown above, IVF's speed comes directly at the expense of a correctness guarantee. It is not — and cannot be — used in domains where missing the true nearest neighbor is unacceptable.
 
-**The Math Trade-off:** By partitioning the data, the search complexity drops from $O(N \cdot d)$ to approximately $O(k \cdot d + \text{nprobe} \cdot \frac{N}{k} \cdot d)$. The first term is the cost of comparing against all centroids; the second is the cost of the flat scan within the probed cells. Increasing `nprobe` improves recall by checking adjacent cells (catching those boundary-crossing edge cases) but linearly increases compute time — you are, quite literally, buying back correctness with FLOPs.
+* **Boundary errors:** Each vector is normally assigned to only one centroid. As shown in the previous example, a query and its true nearest neighbor may lie on opposite sides of a Voronoi boundary and therefore be stored in different inverted lists. Searching more lists by increasing `nprobe` reduces this problem, but also increases the number of distance computations.
+
+* **Uneven inverted-list sizes:** Standard (k)-means minimizes the distance between vectors and their assigned centroids, but it does not guarantee that every cluster will contain approximately the same number of vectors. Dense regions of the embedding space may create very large inverted lists, while sparse regions may create small or nearly empty ones. This makes search latency less predictable because the cost depends not only on `nprobe`, but also on how many vectors are stored in the selected lists.
+
+* **Sensitive to the shape of the data distribution:** (k)-means works best when clusters are reasonably compact and can be represented well by a single centroid. Real embedding distributions may contain elongated, overlapping, or irregularly shaped regions. In such cases, the centroid partitioning may not reflect the actual nearest-neighbor structure of the data.
+
+* **The number of clusters must be selected carefully:** The number of centroids, commonly called `nlist`, directly affects index quality and search cost. If `nlist` is too small, each inverted list contains many vectors and the local flat search remains expensive. If `nlist` is too large, centroid search becomes more expensive, some lists may contain very few vectors, and more training data is required to estimate reliable centroids.
+
+* **The quality of the training sample matters:** IVF usually trains its centroids on a sample rather than the complete dataset. If the sample does not represent the full distribution, rare document types or semantic regions may be missing during training. Their vectors will then be assigned to centroids that do not represent them well, which can reduce recall and produce unbalanced inverted lists.
+
+* **Centroids can become outdated:** The centroids describe the distribution of the data at the time the index is trained. If the dataset later changes—for example, because documents from a new domain are added—the new vectors must still be assigned to the old centroids. Some lists may become overloaded, while new regions of the embedding space may be represented poorly. Correcting this usually requires retraining the centroids and reassigning the indexed vectors.
+
+* **Training is not deterministic:** (k)-means can converge to different solutions depending on its initialization, training sample, and number of iterations. Two training runs may therefore produce different centroids, cluster sizes, and retrieval performance. Initialization methods such as (k)-means++ can reduce this variability, but they do not remove it completely.
+
+* **Updates require index maintenance:** Adding a vector is relatively simple: the system finds its nearest centroid and appends it to the corresponding inverted list. Updating an existing vector may require moving it from one list to another. Deletions may require additional ID mappings, deletion markers, or periodic index rebuilding, depending on the implementation.
+
+* **Exact recall is not guaranteed when only part of the index is searched:** IVF is approximate when `nprobe` is smaller than the total number of lists. A relevant vector may exist inside a list that was not selected. When exact nearest-neighbor results are required, IVF must either search every list or be followed by an exact verification stage over a sufficiently complete candidate set.
+
 
 
 ### **3. HNSW (Hierarchical Navigable Small World)**
