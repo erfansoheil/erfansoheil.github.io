@@ -377,7 +377,10 @@ $$D(q, x) \approx \sum_{j=1}^{m} D(q^{(j)}, c_{i_j}^{(j)})$$
 
 Go back to the library metaphor from Section 1 for a second. The moment you stopped scattering books randomly and started grouping them by subject — math here, physics there — with a master map telling you which aisle holds which subject, you had already invented IVF. Inverted File Indexing is that idea, made mathematical: instead of one giant undifferentiated pile of vectors, you carve the space into regions, and you only search the regions that could plausibly contain your answer.
 
-Formally, IVF shifts the paradigm from exhaustive search to clustered vector quantization, using **Voronoi partitioning** to divide the vector space into distinct computational regions.
+IVF avoids comparing the query with every vector in the dataset. It first divides the vector space into clusters. During search, it identifies the clusters closest to the query and compares the query only with the vectors stored in those clusters.
+
+
+Each cluster is represented by a centroid. Assigning every vector to its nearest centroid divides the space into regions known as Voronoi cells.
 
 ```text
           Voronoi Cells (Clustered Vector Space)
@@ -395,12 +398,56 @@ Formally, IVF shifts the paradigm from exhaustive search to clustered vector qua
 
 The mechanism has three distinct phases, and it's worth being precise about which phase does which job — a lot of confusion about IVF comes from conflating "building the index" with "searching the index," when they are mathematically separate operations.
 
-1. **Training Phase:** The system runs a $k$-means clustering algorithm on a representative sample of the dataset to partition it into $k$ clusters, determining a set of centroids $C = \{c_1, c_2, \dots, c_k\}$. Note the word *sample* — you typically don't need to run $k$-means over all $N$ vectors to get a good set of centroids; a well-chosen subset converges to nearly the same partitioning at a fraction of the cost.
+1. **Training Phase:** The system runs a $k$-means clustering algorithm on a representative sample of the dataset to partition it into $k$ clusters, determining a set of centroids $C = \{c_1, c_2, \dots, c_k\}$. Suppose that you have $N$ data points (vectors). Running $k$-means on all $N$ vectors can be expensive because every iteration requires assigning each training vector to one of the k centroids. For a sufficiently large and representative dataset, a random sample often contains enough information about the main regions of the vector distribution. The centroids learned from this sample can therefore approximate the centroids that would be obtained from the full dataset, while requiring much less computation.
+
+However, the sample must represent the original distribution. If rare document types or small semantic regions are missing from the sample, the resulting centroids may not allocate suitable clusters to them. This can create unbalanced inverted lists and reduce recall.
+
 2. **Ingestion Phase:** Every incoming vector $x$ is mapped to its nearest centroid $c_i$ such that the distance $D(x, c_i)$ is minimized. The index stores this as an **inverted list**—a mapping of Centroid ID $\rightarrow$ List of Vector IDs. Mathematically, it places the vector in a Voronoi cell $V_i$:
 
 $$V_i = \{ x \in X \mid D(x, c_i) \le D(x, c_j) \text{ for all } j \neq i \}$$
 
-3. **Query Phase:** The query vector $q$ is first compared against only the $k$ centroids. The system selects the $n$ closest centroids (a hyperparameter called `nprobe`) and executes an exhaustive flat search *only* within those specific Voronoi cells.
+After assigning the vector, IVF stores it inside an inverted list associated with that centroid. The structure can be represented as:
+```text
+Centroid ID → IDs of vectors assigned to that centroid
+```
+$$
+c1 \rightarrow [v2, v5, v9] \\
+c2 \rightarrow [v1, v4] \\
+c3 \rightarrow [v3, v6, v7, v8] \\
+$$
+
+It is called an inverted list because it reverses the natural mapping. During ingestion, we determine:
+```text
+Vector ID → Centroid ID
+```
+
+For example:
+$$
+v1 \rightarrow c2 \\
+v2 \rightarrow c1 \\
+v3 \rightarrow c3 \\
+$$
+
+However, during search, the system needs to perform the **opposite** operation: after selecting a centroid, it must immediately retrieve all vectors assigned to it. Therefore, the stored index uses:
+```text
+Centroid ID → Vector IDs
+```
+
+This is similar to a traditional text inverted index, where a word points to the documents containing it:
+```text
+"physics" → [doc_2, doc_8, doc_15]
+```
+
+In IVF, the word is replaced by a centroid:
+
+```text
+centroid_3 → [vector_12, vector_41, vector_96]
+```
+
+The vector IDs connect the search results to the original documents, chunks, images, or database records. In an IVF-Flat index, the corresponding full vectors are also stored in, or referenced by, each inverted list. Other IVF variants may instead store compressed vector representations to reduce memory usage.
+
+1. **Query Phase:** The query vector $q$ is first compared against only the $k$ centroids. The system selects the $n$ closest centroids (a hyperparameter called `nprobe`) and the system then compares the query with every candidate vector stored in the selected inverted lists. This local scan uses the same distance or similarity measure introduced in the Flat Indexing section, such as Euclidean distance, inner product, or cosine similarity. The difference is that Flat Indexing scans the entire dataset, whereas IVF scans only the vectors belonging to the selected clusters.
+
 
 #### The Boundary Problem: Why `nprobe` Exists at All
 
