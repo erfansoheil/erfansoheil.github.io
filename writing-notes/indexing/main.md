@@ -411,11 +411,15 @@ After assigning the vector, IVF stores it inside an inverted list associated wit
 Centroid ID → IDs of vectors assigned to that centroid
 ```
 $$
-c1 \rightarrow [v2, v5, v9] \\
+c1 \rightarrow [v2, v5, v9] 
+$$
 
-c2 \rightarrow [v1, v4] \\
+$$
+c2 \rightarrow [v1, v4] 
+$$
 
-c3 \rightarrow [v3, v6, v7, v8] \\
+$$
+c3 \rightarrow [v3, v6, v7, v8] 
 $$
 
 It is called an inverted list because it reverses the natural mapping. During ingestion, we determine:
