@@ -410,6 +410,7 @@ After assigning the vector, IVF stores it inside an inverted list associated wit
 ```text
 Centroid ID → IDs of vectors assigned to that centroid
 ```
+
 $$
 c1 \rightarrow [v2, v5, v9] 
 $$
@@ -428,12 +429,17 @@ Vector ID → Centroid ID
 ```
 
 For example:
+
 $$
-v1 \rightarrow c2 \\
+v1 \rightarrow c2
+$$
 
-v2 \rightarrow c1 \\
+$$
+v2 \rightarrow c1
+$$
 
-v3 \rightarrow c3 \\
+$$
+v3 \rightarrow c3
 $$
 
 However, during search, the system needs to perform the **opposite** operation: after selecting a centroid, it must immediately retrieve all vectors assigned to it. Therefore, the stored index uses:
