@@ -412,7 +412,9 @@ Centroid ID → IDs of vectors assigned to that centroid
 ```
 $$
 c1 \rightarrow [v2, v5, v9] \\
+
 c2 \rightarrow [v1, v4] \\
+
 c3 \rightarrow [v3, v6, v7, v8] \\
 $$
 
@@ -424,7 +426,9 @@ Vector ID → Centroid ID
 For example:
 $$
 v1 \rightarrow c2 \\
+
 v2 \rightarrow c1 \\
+
 v3 \rightarrow c3 \\
 $$
 
