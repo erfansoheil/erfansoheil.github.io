@@ -171,18 +171,6 @@ In general the system calculates the mathematical distance between $q$ and every
 
 In the follwing we will mention some of these metrics. Again these (metrics) happen **after** indexing. 
 
-## 1. Flat Indexing (Brute Force)
-
-Before we jump into all the fancy approximate search methods (ANN), we have to establish our exact-match baseline: the Flat Index. In a Flat Index, we just store the vectors exactly as they are generated. No structural organization, no compression, just raw data.
-
-When a query vector $q$ arrives, the system does an exhaustive search. It calculates the distance between $q$ and every single document vector $x_i$ in the entire dataset $X$ of size $N$. Because we are comparing every single dimension ($d$) of every single vector ($N$), the time complexity is $O(N \cdot d)$. It guarantees 100% perfect recall, but as our dataset grows, this brute-force approach becomes computationally paralyzing.
-
-But what really makes or breaks this search is how we score the vectors against each other. And before we look at the formulas, we need to clear up a massive terminology clash between pure mathematics and software engineering.
-
-### A Pedantic (But Crucial) Note on the Word "Metric"
-
-
-
 Throughout this section  $q$ is a query vector and $x$ is a sample point in our dataset. Both $q$ and $x$ cane be represented as: 
 
 $$q = (q_1,q_2,\cdots,q_d)$$
@@ -313,7 +301,7 @@ If you absolutely must use $L_\infty$ or $L_3$, you have two choices:
 | **Jaccard**           | Intersection over Union   | Tier 2 (Conditional). Restricted to binary/sparse vectors only.      |
 | **$L_\infty$**        | Maximum single divergence | Tier 3 (Custom). Requires writing your own brute-force or C++ code.  |
 
-
+<!-- 
 ### **2. Inverted File Indexing (IVF)**
 
 Inverted File Indexing shifts the paradigm from exhaustive search to clustered vector quantization. IVF uses **Voronoi partitioning** to divide the vector space into distinct computational regions.
@@ -382,6 +370,151 @@ $$D(q, x) \approx \sum_{j=1}^{m} D(q^{(j)}, c_{i_j}^{(j)})$$
 
 
 * **The Math Trade-off:** PQ drastically reduces memory consumption (often by 90% or more) and replaces heavy floating-point arithmetic with lightning-fast $O(m)$ table lookups. The trade-off is a mathematically guaranteed drop in recall due to the lossy compression of the vectors. In massive production systems, it is frequently combined with IVF (as **IVF-PQ**) to achieve scale that would otherwise be impossible on limited hardware.
+ -->
+
+
+### **2. Inverted File Indexing (IVF)**
+
+Go back to the library metaphor from Section 1 for a second. The moment you stopped scattering books randomly and started grouping them by subject — math here, physics there — with a master map telling you which aisle holds which subject, you had already invented IVF. Inverted File Indexing is that idea, made mathematical: instead of one giant undifferentiated pile of vectors, you carve the space into regions, and you only search the regions that could plausibly contain your answer.
+
+Formally, IVF shifts the paradigm from exhaustive search to clustered vector quantization, using **Voronoi partitioning** to divide the vector space into distinct computational regions.
+
+```text
+          Voronoi Cells (Clustered Vector Space)
+          ┌─────────────────┬─────────────────┐
+          │     •    •      │       •         │
+          │   •   c1 (Centroid)  •   c2       │
+          │     •    •      │    •     •      │
+          ├─────────────────┼─────────────────┤
+          │       •         │      •   •      │
+          │   •  c3         │   •   c4  •     │
+          │    •    •       │      •   •      │
+          └─────────────────┴─────────────────┘
+
+```
+
+The mechanism has three distinct phases, and it's worth being precise about which phase does which job — a lot of confusion about IVF comes from conflating "building the index" with "searching the index," when they are mathematically separate operations.
+
+1. **Training Phase:** The system runs a $k$-means clustering algorithm on a representative sample of the dataset to partition it into $k$ clusters, determining a set of centroids $C = \{c_1, c_2, \dots, c_k\}$. Note the word *sample* — you typically don't need to run $k$-means over all $N$ vectors to get a good set of centroids; a well-chosen subset converges to nearly the same partitioning at a fraction of the cost.
+2. **Ingestion Phase:** Every incoming vector $x$ is mapped to its nearest centroid $c_i$ such that the distance $D(x, c_i)$ is minimized. The index stores this as an **inverted list**—a mapping of Centroid ID $\rightarrow$ List of Vector IDs. Mathematically, it places the vector in a Voronoi cell $V_i$:
+
+$$V_i = \{ x \in X \mid D(x, c_i) \le D(x, c_j) \text{ for all } j \neq i \}$$
+
+3. **Query Phase:** The query vector $q$ is first compared against only the $k$ centroids. The system selects the $n$ closest centroids (a hyperparameter called `nprobe`) and executes an exhaustive flat search *only* within those specific Voronoi cells.
+
+#### The Boundary Problem: Why `nprobe` Exists at All
+
+Here's the uncomfortable truth about IVF that the diagram above hides: Voronoi cells have hard edges, but data doesn't respect them. Imagine your true nearest neighbor sits one millimeter on the wrong side of a cell boundary — geometrically closest to your query, but administratively assigned to the *neighboring* cell because that's where its centroid happened to land during training. If you only search the single closest centroid's cell, you will silently miss it. Every single time.
+
+This is why `nprobe` exists. By searching the $n$ closest centroids instead of just one, you're hedging against exactly this boundary-crossing failure mode. But it's a hedge, not a fix — IVF is fundamentally a probabilistic index. It trades a *guarantee* of correctness (which Flat Indexing gives you) for *speed*, and `nprobe` is the dial you turn to decide how much of that guarantee you want back.
+
+| `nprobe` | Cells Searched | Recall | Latency |
+|---|---|---|---|
+| 1 | Only the closest cell | Lowest — boundary misses are common | Fastest |
+| 8–16 | A handful of neighbors | Good enough for most production RAG | Moderate |
+| $k$ (all cells) | Every cell | Mathematically identical to Flat Indexing | Slowest — you've paid for clustering and gained nothing |
+
+That last row is worth sitting with: crank `nprobe` all the way up and IVF degenerates back into brute force, except now you've *also* paid the upfront cost of training centroids. The whole value proposition of IVF lives in the middle of that table.
+
+#### Advantages
+
+* **Tunable trade-off:** `nprobe` gives you a single, intuitive knob to trade recall for latency at query time — no re-indexing required.
+* **Low memory overhead:** Unlike graph-based methods, IVF doesn't store dense adjacency structures. You're storing centroids and flat lists, which is cheap.
+* **Fast to build:** Training $k$-means on a sample and assigning vectors to clusters is dramatically cheaper than constructing a multi-layer graph over the entire dataset.
+
+#### Flaws
+
+* **Sensitive to data distribution:** $k$-means assumes your clusters are roughly convex and comparably sized. Real embedding spaces are rarely this polite — you can end up with a few enormous, densely populated cells and many nearly-empty ones, which quietly defeats the point of partitioning in the first place.
+* **Static structure:** The centroids are fixed at training time. If your underlying data distribution drifts — new document types, a shift in domain vocabulary — the partitioning becomes stale and recall degrades until you retrain.
+* **No free lunch on recall:** As shown above, IVF's speed comes directly at the expense of a correctness guarantee. It is not — and cannot be — used in domains where missing the true nearest neighbor is unacceptable.
+
+**The Math Trade-off:** By partitioning the data, the search complexity drops from $O(N \cdot d)$ to approximately $O(k \cdot d + \text{nprobe} \cdot \frac{N}{k} \cdot d)$. The first term is the cost of comparing against all centroids; the second is the cost of the flat scan within the probed cells. Increasing `nprobe` improves recall by checking adjacent cells (catching those boundary-crossing edge cases) but linearly increases compute time — you are, quite literally, buying back correctness with FLOPs.
+
+
+### **3. HNSW (Hierarchical Navigable Small World)**
+
+Where IVF thinks in terms of *regions*, HNSW thinks in terms of *paths*. It abandons clustering entirely and instead builds a multi-layer proximity graph that behaves like a probabilistic skip list stretched across high-dimensional space.
+
+If you haven't met skip lists before: imagine a sorted linked list, except every so often a node also gets a pointer that skips far ahead — an "express lane." You start on the express lane, cover most of the distance in a few big hops, then drop down to the regular lane for the final fine-grained steps. HNSW does exactly this, except the "lanes" are layers of a graph and the "distance" being minimized is vector similarity rather than sorted order.
+
+1. **Graph Construction:** Vectors are inserted into multiple layers. The bottom layer ($L_0$) contains all vectors. Each vector has a mathematically defined probability of appearing in higher layers, dictated by an exponentially decaying probability distribution:
+
+$$P(l) \propto e^{-l / m_L}$$
+
+where $l$ is the layer number and $m_L$ is a scaling factor. In practice this means most vectors live only at $L_0$, a shrinking fraction climbs each layer up, and only a handful of "hub" vectors ever make it to the very top — exactly the long-tail structure you'd want for an express-lane system.
+
+2. **The Hierarchy:** Top layers contain very few nodes connected by long-range "highways" (large distances). Bottom layers contain dense, short-range connections representing granular local neighborhoods.
+
+3. **Greedy Routing:** When a query vector $q$ arrives, the search starts at the highest, sparsest layer. It evaluates neighbors and greedily jumps to the node mathematically closest to $q$. Once it hits a local minimum in that layer, it drops down to the exact same node in layer $l-1$ and repeats the process until it reaches the ground layer ($L_0$).
+
+#### The Knobs That Actually Matter: M, efConstruction, efSearch
+
+Three parameters govern almost everything about how an HNSW index behaves, and it's worth knowing what each one is actually doing:
+
+* **`M`** — the maximum number of neighbor connections each node keeps per layer. Higher $M$ means a denser, more richly connected graph — better recall, but more memory and slower construction.
+* **`efConstruction`** — how exhaustively the algorithm searches for good neighbors *while building* the graph. Higher values produce a higher-quality graph at the cost of a much slower index build.
+* **`efSearch`** — the same idea, but at query time: how many candidates the greedy router keeps in its exploration frontier before settling on an answer. This is your recall/latency dial, playing a role analogous to `nprobe` in IVF.
+
+#### Advantages
+
+* **Best-in-class recall/latency trade-off:** For most real-world embedding distributions, HNSW simply outperforms IVF on the recall-vs-speed frontier. This is why it's the default choice in most modern vector databases (Qdrant, Weaviate, Milvus, and FAISS's `IndexHNSWFlat`).
+* **No hard partitioning assumption:** Because it navigates via graph proximity rather than fixed clusters, HNSW doesn't suffer from IVF's "unlucky centroid" boundary problem in the same structural way.
+* **Naturally incremental:** New vectors can be inserted into the existing graph without a full retraining pass, unlike IVF's centroid-dependent structure.
+
+#### Flaws
+
+* **Memory hunger:** Storing the adjacency lists for every node, at every layer, for a graph with potentially dozens of connections per node, often costs *more* RAM than storing the raw vectors themselves. For billion-scale datasets, this is frequently the binding constraint, not compute.
+* **Slow to build:** Constructing a high-quality graph (high `efConstruction`) over millions of vectors is computationally expensive and doesn't parallelize as cleanly as IVF's cluster assignment.
+* **Deletion is awkward:** Because nodes are woven into a graph via bidirectional edges, removing a vector cleanly means also repairing every edge that pointed to it. In practice, most implementations avoid this entirely and use tombstoning (marking a node dead without removing it), which means deleted vectors quietly continue to cost memory and traversal time until a full rebuild.
+
+**The Math Trade-off:** HNSW drops search complexity to $O(\log N)$, offering blistering query speeds and elite recall. However, storing the adjacency lists for the complex graph connections requires an immense memory footprint (RAM), and unlike IVF — where you can rebuild centroids relatively cheaply — an HNSW graph is expensive enough to construct that engineers are often reluctant to rebuild it often, even as the underlying data distribution shifts.
+
+
+### **4. PQ (Product Quantization)**
+
+IVF and HNSW both answer the same question: *which vectors should I even bother comparing against?* Product Quantization answers a completely different one: *once I've decided to compare against a vector, how cheaply can I store and score it?* IVF and HNSW optimize *how* we search; PQ optimizes *what* we store. It is, at its core, a lossy compression technique for high-dimensional vectors.
+
+1. **Vector Splitting:** A large, memory-heavy vector $x \in \mathbb{R}^d$ is chopped into $m$ smaller sub-vectors, each with $d/m$ dimensions.
+
+$$x = [x^{(1)}, x^{(2)}, \dots, x^{(m)}]$$
+
+2. **Sub-space Quantization:** For each of the $m$ sub-spaces, the system runs clustering (usually $k$-means) to find $k^*$ sub-centroids. Typically, $k^* = 256$, meaning each sub-centroid can be represented by an 8-bit integer (1 byte).
+3. **Encoding:** The original sub-vectors are replaced by the ID (the 1-byte code) of their nearest sub-centroid. A massive 768-dimensional array of 32-bit floats is mathematically approximated as a tiny string of $m$ bytes.
+
+$$x \approx [c_{i_1}^{(1)}, c_{i_2}^{(2)}, \dots, c_{i_m}^{(m)}]$$
+
+4. **Asymmetric Distance Computation (ADC):** At query time, the query vector $q$ is *not* compressed. Instead, $q$ is split into $m$ parts. The system pre-calculates the distances between $q$'s sub-vectors and all possible 256 sub-centroids, storing them in a small lookup table. The total distance is simply the sum of these pre-calculated distances:
+
+$$D(q, x) \approx \sum_{j=1}^{m} D(q^{(j)}, c_{i_j}^{(j)})$$
+
+We'll formalize all four of these steps rigorously — codebooks, the full ADC derivation, memory arithmetic — in Section 6. For now, the intuition is enough to understand the trade-off.
+
+#### Advantages
+
+* **Dramatic memory savings:** Compressing a 3,072-byte float vector down to 64 bytes (a $48\times$ reduction, worked out in full in Section 6) is the difference between a dataset fitting in RAM and not fitting at all. For billion-scale corpora, this isn't a nice-to-have — it's often the only thing that makes the problem tractable on commodity hardware.
+* **Cheap distance computation:** Because ADC replaces floating-point arithmetic with table lookups, scoring a compressed vector is extremely fast — you're doing $m$ array reads and a sum, not $d$ multiplications.
+* **Composable:** PQ doesn't compete with IVF or HNSW; it *combines* with them. IVF-PQ is a standard production pattern precisely because the two solve orthogonal problems — IVF narrows down *which* vectors to check, PQ shrinks the cost of storing and checking each one.
+
+#### Flaws
+
+* **It is lossy, unavoidably:** Compression means information loss by definition. The distance you compute at query time is an *approximation* of the true distance, not the real thing — recall will always be strictly worse than an uncompressed index, no matter how well you tune it.
+* **Codebooks need representative training data:** The $k$-means codebooks are only as good as the data they were trained on. If your live traffic drifts away from the distribution the codebooks were fit on, quantization error grows and recall silently degrades — the same staleness problem IVF has, but here it corrupts the *scoring*, not just the *routing*.
+* **A tuning parameter you can get wrong in both directions:** Too few sub-vectors ($m$ small) and you don't save much memory; too many and each sub-space becomes so low-dimensional that the $k$-means clustering within it stops being meaningful, and quantization error balloons.
+
+**The Math Trade-off:** PQ drastically reduces memory consumption (often by 90% or more) and replaces heavy floating-point arithmetic with lightning-fast $O(m)$ table lookups. The trade-off is a mathematically guaranteed drop in recall due to the lossy compression of the vectors. In massive production systems, it is frequently combined with IVF (as **IVF-PQ**) to achieve scale that would otherwise be impossible on limited hardware — a combination worth remembering, since it's what you'll actually deploy far more often than either technique alone. (A further refinement, Optimized Product Quantization (OPQ), rotates the vector space before splitting it into sub-vectors specifically to make the $m$ subspaces more independent — but that's a rabbit hole for another article.)
+
+
+---
+
+Three archetypes, three different bets: IVF bets on partitioning, HNSW bets on graph traversal, and PQ bets on compression instead of pruning. None of them is strictly "better" in the abstract — which is exactly the question the next section is actually about.
+
+
+
+
+
+
+
+
 
 
 ## **4. The Engineering Point of View: Trade-offs & The "No-Index" Regime**
