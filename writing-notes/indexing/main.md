@@ -382,6 +382,8 @@ $$D(q, x) \approx \sum_{j=1}^{m} D(q^{(j)}, c_{i_j}^{(j)})$$
 
 
 * **The Math Trade-off:** PQ drastically reduces memory consumption (often by 90% or more) and replaces heavy floating-point arithmetic with lightning-fast $O(m)$ table lookups. The trade-off is a mathematically guaranteed drop in recall due to the lossy compression of the vectors. In massive production systems, it is frequently combined with IVF (as **IVF-PQ**) to achieve scale that would otherwise be impossible on limited hardware.
+
+
 ## **4. The Engineering Point of View: Trade-offs & The "No-Index" Regime**
 
 In engineering, there is no such thing as a "better" index—there are only different profiles of trade-offs. Building an index is not a default architectural choice; it must be justified by data volume and latency requirements.
@@ -414,9 +416,8 @@ There are many architectural scenarios where you should **not** use an index at 
 * **100% Recall Requirement:** If your application cannot tolerate missing relevant data context (e.g., medical diagnostics, legal discovery, compliance auditing), ANN indexes are disqualified due to their inherent probabilistic loss of recall.
 * **High-Frequency Writes:** If your application is writing new documents or updating vectors continuously, the CPU overhead of constantly modifying graph structures or recalculating centroids can bring your ingestion pipeline to a complete halt. Flat indexes handle dynamic append-only writes with zero overhead.
 
----
 
-## 5. Concrete Engineering Implementations with FAISS
+## **5. Concrete Engineering Implementations with FAISS**
 
 The following code templates demonstrate how to implement the discussed index archetypes using **FAISS** (Facebook AI Similarity Search) in Python. We will use a standard dense vector dimension ($d = 768$, typical for models like `text-embedding-3-small` or `BERT`) and simulate a dataset of 100,000 documents.
 
