@@ -488,11 +488,7 @@ Query q
 
 * **The number of clusters must be selected carefully:** The number of centroids, commonly called `nlist`, directly affects index quality and search cost. If `nlist` is too small, each inverted list contains many vectors and the local flat search remains expensive. If `nlist` is too large, centroid search becomes more expensive, some lists may contain very few vectors, and more training data is required to estimate reliable centroids.
 
-* **The quality of the training sample matters:** IVF usually trains its centroids on a sample rather than the complete dataset. If the sample does not represent the full distribution, rare document types or semantic regions may be missing during training. Their vectors will then be assigned to centroids that do not represent them well, which can reduce recall and produce unbalanced inverted lists.
-
 * **Centroids can become outdated:** The centroids describe the distribution of the data at the time the index is trained. If the dataset later changes—for example, because documents from a new domain are added—the new vectors must still be assigned to the old centroids. Some lists may become overloaded, while new regions of the embedding space may be represented poorly. Correcting this usually requires retraining the centroids and reassigning the indexed vectors.
-
-* **Training is not deterministic:** (k)-means can converge to different solutions depending on its initialization, training sample, and number of iterations. Two training runs may therefore produce different centroids, cluster sizes, and retrieval performance. Initialization methods such as (k)-means++ can reduce this variability, but they do not remove it completely.
 
 * **Updates require index maintenance:** Adding a vector is relatively simple: the system finds its nearest centroid and appends it to the corresponding inverted list. Updating an existing vector may require moving it from one list to another. Deletions may require additional ID mappings, deletion markers, or periodic index rebuilding, depending on the implementation.
 
