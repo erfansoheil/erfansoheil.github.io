@@ -22,7 +22,7 @@ However, an engineering trap awaits: no matter how computationally efficient or 
 
 This guide provides a comprehensive, mathematically grounded, and engineering-focused deep dive into indexing paradigms, tracking their evolution from classic databases to modern RAG architectures.
 
-### What We Cover in This Guide
+### **What We Cover in This Guide**
 
 This guide is divided into two parts.
 
@@ -37,7 +37,6 @@ In **Part II**, we continue with:
 * **HNSW and Product Quantization:** How graph-based search and vector compression work.
 * **The effect of bad input data:** Why an index cannot fix poor tokenization, chunking, or embedding models.
 * **When an index is not needed:** When searching all the data directly can be a better choice.
-* 
 
 ## 1. The Foundational Mechanics: Why Indexing Matters
 
