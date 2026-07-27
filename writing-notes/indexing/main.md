@@ -22,19 +22,22 @@ However, an engineering trap awaits: no matter how computationally efficient or 
 
 This guide provides a comprehensive, mathematically grounded, and engineering-focused deep dive into indexing paradigms, tracking their evolution from classic databases to modern RAG architectures.
 
-### What This Guide Covers 
+### What We Cover in This Guide
 
-I **Part I** we mainly cover
-*   **The Fundamentals:** An abstract look at how indexes trade space complexity for time complexity, and the exact cost of running an unindexed system.
-*   **The Traditional vs. Vector Divide:** Disentangling exact, deterministic lookups (B-Trees, Hash maps) from probabilistic, high-dimensional **Approximate Nearest Neighbor (ANN)** search.
-*   **Core Algorithmic Archetypes:**
-    *   **Inverted File Indexing (IVF):** Voronoi partitioning, $k$-means quantization, and inverted lists. 
+This guide is divided into two parts.
 
-Then in **Part II** we continue to disucss on 
+In **Part I**, we start with the basics:
 
-*   **Graph & Quantization Variants:** The mechanics of HNSW (Hierarchical Navigable Small World) and Product Quantization (PQ).
-*   **The "Garbage In, Garbage Out" Trap:** Why indexing cannot save bad tokenization, poor chunking strategies, or misaligned embedding models.
-*   **The "No-Index" Regime:** When exhaustive brute-force search is actually superior to building an index.
+* **Why indexing matters:** How an index makes searching faster and what happens when we do not use one.
+* **Traditional and vector indexes:** The difference between exact search methods, such as B-Trees and hash maps, and Approximate Nearest Neighbor (ANN) search.
+* **Inverted File Indexing (IVF):** How IVF uses Voronoi partitions, $k$-means, and inverted lists to organize and search vectors.
+
+In **Part II**, we continue with:
+
+* **HNSW and Product Quantization:** How graph-based search and vector compression work.
+* **The effect of bad input data:** Why an index cannot fix poor tokenization, chunking, or embedding models.
+* **When an index is not needed:** When searching all the data directly can be a better choice.
+* 
 
 ## 1. The Foundational Mechanics: Why Indexing Matters
 
