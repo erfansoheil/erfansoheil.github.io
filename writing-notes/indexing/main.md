@@ -5,9 +5,7 @@ title: "Indexing in RAG pipeline - Part I"
 
 
 
-# The Architecture of Speed: A Deep Dive into Indexing, RAG, and the Limits of Search Efficiency
-
-## Introduction
+## **Introduction**
 In this article, I deeply explore indexing in **retrieval** systems. Amidst the current hype surrounding agentic AI, retrieval systems operating on specialized data remain the leading AI application in the industry—and will continue to be. Inherently, this means dealing with **millions** of messy data points, searching through them, and finding the most relevant results as fast as possible. If you want to operate *fast* on *big* data, you must use **indexing**. 
 
 The name suggests the core idea: assigning **indexes** to data to facilitate search. Without an index, every search degrades into a brute-force scan. In traditional databases, this means checking every row linearly. In modern vector spaces, it means calculating the distance between a query vector and every single embedded document in your dataset. 
@@ -38,7 +36,7 @@ In **Part II**, we continue with:
 * **The effect of bad input data:** Why an index cannot fix poor tokenization, chunking, or embedding models.
 * **When an index is not needed:** When searching all the data directly can be a better choice.
 
-## 1. The Foundational Mechanics: Why Indexing Matters
+## **1. The Foundational Mechanics: Why Indexing Matters**
 
 The most noamal and common question is: **What happens if we do not index our data?**
 
@@ -56,7 +54,7 @@ Now, let's introduce a master directory or clear aisle labels—which acts exact
 
 With this example in mind let's talk about indexing in a technical way. When you write data to a raw storage medium without an index, it is typically appended to a log or organized in a heap structure. This makes writes incredibly cheap ($O(1)$), but it turns reads into an expensive computational nightmare.
 
-### The Mechanics of the "No-Index" Regime
+### **The Mechanics of the "No-Index" Regime**
 
 Without an index, any lookup requires a sequential, exhaustive scan. The system must load every record from storage into memory and evaluate it against the query predicate.
 
@@ -78,7 +76,7 @@ For a dataset of 10 million vectors with 1,536 dimensions, single query requires
 
 At scale, running an unindexed system converts real-time retrieval into a mathematical and financial challenge.
 
-### How Indexing Works in the Abstract
+### **How Indexing Works in the Abstract**
 
 An index works by organizing data into deterministic or probabilistic structural maps *before* the query arrives. Instead of looking at the data itself, the query engine traverses the index structure to isolate a tiny fraction of the total dataset.
 
@@ -94,7 +92,7 @@ An index works by organizing data into deterministic or probabilistic structural
 By imposing geometric, hierarchical, or mathematical order onto the data during ingestion, the index allows the query processor to discard the vast majority of the search space immediately. This shifts the runtime boundary from linear ($O(N)$) down to logarithmic ($O(\log N)$) or near-constant ($O(1)$) complexities. Exactly like knowing the math book is always on the top shelf on the left in the metaphor. 
 
 
-## 2. Relational Databases vs. Vector RAG Pipelines
+## **2. Relational Databases vs. Vector RAG Pipelines**
 
 In this section, we will look at what has changed regarding indexing since the rise of generative AI, especially LLMs. For traditional use cases—which still make up the vast majority of software applications—we continue to use the same highly efficient indexing methods we always have. However, as mentioned earlier, these legacy indexing methods are not quite aligned with new paradigms like semantic search.
 
@@ -105,7 +103,7 @@ While the macro goal of indexing remains uniform, the underlying math and engine
 * **Deterministic (Exact)**
 * **Probabilistic (Semantic)**
 
-### Exact Match and Routing
+### **Exact Match and Routing**
 
 Traditional database indexing relies entirely on **exact match** and **deterministic routing**. Suppose you query a database with `WHERE user_id = 49201` (an example from SQL, or Structured Query Language, which is highly effective for managing relational tables in databases like MySQL or PostgreSQL). The system's answer is strictly binary: the record matches, or it does not.
 
@@ -160,7 +158,7 @@ In the rest of this article, we will explore the most common ways to index data 
 | **Output**             | Exact record match                      | Ranked list of semantically similar vectors              |
 
 
-## 3. Algorithmic Archetypes: Tree, IVF, and Modern Vector Methods
+## **3. Algorithmic Archetypes: Flat, IVF, HNSW and PQ Methods**
 
 In this section we will mention most common indexing algorithms used in modern database libraries such as `FAISS` , `LlamaIndex` and `ChromaDB`. These are open-source libraries and have a good compatibility with RAG and Agentic frameworks. 
 
@@ -168,7 +166,7 @@ For understanding this section no prior knowledge about embedding models needed.
 
 Although the first method `Flat Indexing` is not a *real* indexing method it is just comparison between all other vectors with Eucledean metric. But in the AI community it is often mentioned as a way of indexing.
 
-### 1. Flat Indexing (Brute Force)
+### **1. Flat Indexing (Brute Force)**
 
 Before we jump into all the fancy approximate search methods (ANN), we have to establish our exact-match baseline: the Flat Index. In a Flat Index, we just store the vectors exactly as they are generated. No structural organization, no compression, just raw data. When a query vector $q$ arrives, the system does an exhaustive (through all vectors of the database) search. Basically we are done with indexing. The indexing step is done at this stage, **however** the interesting part is **how** the search is done. 
 
