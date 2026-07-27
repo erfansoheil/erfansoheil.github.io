@@ -570,29 +570,997 @@ Query q
 
 
 
-### **3. HNSW (Hierarchical Navigable Small World)**
+Gemini
+New chat
+Search chats
+Images
+Videos
+Library
+Gems
+New notebook
+Skip List Construction and Search Explained
+Improving Markdown Formatting for `nprobe`
+Interactive LP Norm Visualization for Markdown
+Exploring Vector Indexing Metrics
+I am writing a draft article about indexing, especially indexing in RAG, and I am talking about flat indexing. This part I talk about flat indexing. I send it to you. What I want you to do is: 1. Add the Jacobian distance. 2. Add inner product. 3. Also, explain them mathematically. 4. Also, compare them. 5. Also, talk about different distance in RN, like L2, L3, and talk about L-infinity and L1. I want you to elaborate on these metric types from a mathematical point of view and also an AI scientist. I know that there are lots of shallow and not deep draft on them, but I want to really, really explore on them.
+Traditional Indexing: Speed and Scalability
+AI Indexing Article Opening Review
+Indexing vs. Embeddings in RAG
+searching system look right, what are the Indexing methods and just the names at the moment. That are used usually recommendations systems rack systems.
+I was reading about indexing a step in the right pipeline and I encounter with this I guess here the relevancy and accuracy. It is not a related to the indexing. It is related to the embeddings because if the two models if embedding is not good. It doesn't matter how you index it you cannot retrieve relevance information but for the speed and escape liability yes okay with that. What do you think?
+Advancing RAG: Embeddings and Architectures
+Cleaning Up Mermaid Diagrams
+Embeddings & RAG Ecosystem Explained
+Optimizing Code for Faster Generation
+Tokenization Challenges and Solutions
+Enhancing Tokenization Draft Sections
+Understanding SentencePiece Tokenization
+Tokenization vs. Token Representation
+Fast vs. Standard WordPiece Video
+WordPiece Mathematical Analysis
+LLM Tokenization: From Text to IDs
+Tokenization vs. Token Representation in LLMs
+LLM Sampling Math Explained
+Improving LLM Temperature Explanation
+LLM Token Generation Animation Request
+Temperature in Machine Learning
+LLM Token Sampling Dynamics Explained
+Decompression Type I: Activation Correlation and Ridge Leverage Score
+Transformer Architecture Interview Cheat Sheet
+Transformer Mixture of Experts Deep Dive
+Visualizing Word Embedding Mechanism
+Interview Prep: Sharing Technical Notes
+Transformer Architecture Cheat Sheet
 
-Where IVF thinks in terms of *regions*, HNSW thinks in terms of *paths*. It abandons clustering entirely and instead builds a multi-layer proximity graph that behaves like a probabilistic skip list stretched across high-dimensional space.
+Activity
+Toulouse, France
+From your IP address
+Update location
+Conversation with Gemini
+I am studying about HNSW (Hierarchical Navigable Small Worlds) algorithm for indexing. I know that there are two concepts: navigable small worlds and linked skip list. I want to learn these two. About skip list, please explain about skip list. Also, I have two precise questions. One, how a skip list is made from the beginning, how the skip links and the layers and the nodes are created? Second, suppose that when you are looking for an item in a skip link list, how do you start? And if you start randomly, usually how much operations you have to go to reach to that item based on the links and the nodes and the layers? I'm a mathematician, but I'm new to this.
 
-If you haven't met skip lists before: imagine a sorted linked list, except every so often a node also gets a pointer that skips far ahead — an "express lane." You start on the express lane, cover most of the distance in a few big hops, then drop down to the regular lane for the final fine-grained steps. HNSW does exactly this, except the "lanes" are layers of a graph and the "distance" being minimized is vector similarity rather than sorted order.
+It is great that you are looking into HNSW. To understand how HNSW works, you first need a solid grasp of its foundational components. A skip list is exactly that—it is the one-dimensional predecessor to the multi-dimensional, graph-based architecture of HNSW.
 
-1. **Graph Construction:** Vectors are inserted into multiple layers. The bottom layer ($L_0$) contains all vectors. Each vector has a mathematically defined probability of appearing in higher layers, dictated by an exponentially decaying probability distribution:
+Since you are a mathematician, the easiest way to think about a skip list is as a randomized data structure that provides O(logn) expected time complexity for search, insertion, and deletion. It achieves the efficiency of a balanced binary search tree, but instead of complex tree rotations, it uses a probabilistic stacking of linked lists.
 
-$$P(l) \propto e^{-l / m_L}$$
+Here is exactly how they are built and searched.
+A multi-layered skip list data structure.. Source: TutorialsPoint
 
-where $l$ is the layer number and $m_L$ is a scaling factor. In practice this means most vectors live only at $L_0$, a shrinking fraction climbs each layer up, and only a handful of "hub" vectors ever make it to the very top — exactly the long-tail structure you'd want for an express-lane system.
+1. How a Skip List is Created (Construction)
+A skip list is built iteratively, layer by layer, relying on a probabilistic "coin flip" to determine the height of each node.
 
-2. **The Hierarchy:** Top layers contain very few nodes connected by long-range "highways" (large distances). Bottom layers contain dense, short-range connections representing granular local neighborhoods.
+The Base Layer (L 
+0
+​
+ )
+You always start with a standard, singly linked list that is strictly sorted. Let's call this bottom layer L 
+0
+​
+ . Every single inserted element exists in L 
+0
+​
+ . If you only had L 
+0
+​
+ , searching for an element would take O(n) time.
 
-3. **Greedy Routing:** When a query vector $q$ arrives, the search starts at the highest, sparsest layer. It evaluates neighbors and greedily jumps to the node mathematically closest to $q$. Once it hits a local minimum in that layer, it drops down to the exact same node in layer $l-1$ and repeats the process until it reaches the ground layer ($L_0$).
+Probabilistic Promotion (Building the Layers)
+To create the "skip" links, the algorithm promotes some nodes to higher layers (L 
+1
+​
+ ,L 
+2
+​
+ ,…,L 
+k
+​
+ ). When a new node is inserted into L 
+0
+​
+ , the algorithm flips a biased or fair coin (usually with a probability p, often p=1/2).
 
-#### The Knobs That Actually Matter: M, efConstruction, efSearch
+The Coin Flip: If the coin lands heads (probability p), the node is promoted to layer L 
+1
+​
+ .
 
-Three parameters govern almost everything about how an HNSW index behaves, and it's worth knowing what each one is actually doing:
+Iteration: The algorithm flips the coin again. If heads, the node is promoted to L 
+2
+​
+ . This continues until the coin lands tails.
 
-* **`M`** — the maximum number of neighbor connections each node keeps per layer. Higher $M$ means a denser, more richly connected graph — better recall, but more memory and slower construction.
-* **`efConstruction`** — how exhaustively the algorithm searches for good neighbors *while building* the graph. Higher values produce a higher-quality graph at the cost of a much slower index build.
-* **`efSearch`** — the same idea, but at query time: how many candidates the greedy router keeps in its exploration frontier before settling on an answer. This is your recall/latency dial, playing a role analogous to `nprobe` in IVF.
+The Resulting Height: The probability that a node reaches height k is p 
+k
+ . Consequently, the number of nodes at level k is roughly n⋅p 
+k
+ . As k increases, the layers become exponentially sparser.
+
+Creating the Links
+Once a node is promoted, it is inserted into the linked list for that specific layer.
+
+A node at level k has k+1 forward pointers (one for each level from 0 to k).
+
+The pointer at level j points to the next node in the sequence that also has a height of at least j.
+
+This creates "express lanes." The top layers have very few nodes and allow you to skip over massive sections of the base list.
+
+2. How the Search Works & Operations Required
+When searching for a target value (let's call it T) in a skip list, you do not start randomly. You always start at the top-leftmost node (the highest layer of the "Head" node).
+
+The Traversal Logic
+From your current node at layer k, you look at the next node to the right.
+
+Move Right: If the value of the next node is less than or equal to T, you move your pointer to that node on the same layer.
+
+Drop Down: If the next node is greater than T, or if it is a Null pointer (end of the list), you cannot move right. Instead, you drop down one layer to k−1 on your current node and repeat the process.
+
+Termination: You continue this until you drop down to L 
+0
+​
+  and either find T or determine that T would be between two existing nodes (meaning it is not in the list).
+
+To help visualize this traversal path:
+
+target, highlighting the traversal path until it finds the node or reaches the bottom." />
+
+The Complexity (How many operations?)
+Because you are a mathematician, the probabilistic bounds will be intuitive.
+
+The number of operations (comparisons and pointer movements) depends on the maximum height of the list and the horizontal distance between nodes at each level.
+
+Maximum Height: Since the probability of a node reaching level k is p 
+k
+ , the expected maximum height of a skip list with n elements is log 
+1/p
+​
+ n. If p=1/2, the maximum height is ≈log 
+2
+​
+ n.
+
+Horizontal Steps: At any given level k, the expected number of nodes you have to traverse before dropping down to k−1 is 1/p. If p=1/2, you expect to make at most 2 horizontal steps per level on average.
+
+Therefore, the total expected search path is the height multiplied by the horizontal steps per level:
+
+Expected Steps=(log 
+1/p
+​
+ n)×( 
+p
+1
+​
+ )
+For p=1/2, this yields an expected search complexity of roughly O(logn). You are essentially performing a binary search, but instead of traversing a rigid tree, you are hopping along a randomized graph.
+
+Want to move on to Navigable Small Worlds (NSW)?
+
+Yes
+
+1- with an example tell me how this probabilistic iterative way of creating layers work. Specaily why using this method? Also tell me why layers become exponentially sparser.
+
+2- what do you mean by this : A node at level $k$ has $k+1$ forward pointers (one for each level from $0$ to $k$).?
+
+Here is a concrete breakdown of how the probabilistic coin flip works in practice, why it is used, and the physical memory structure of the nodes.
+
+1. The Probabilistic Coin Flip: An Example
+Imagine we are inserting five numbers sequentially into an empty skip list: 12, 17, 20, 25, and 31. We will use a fair coin where the probability of heads is p=1/2.
+
+Insert 12: We insert it at the base layer (L 
+0
+​
+ ). We flip the coin. It lands Tails. We stop. (Height = 0).
+
+Insert 17: Insert at L 
+0
+​
+ . Flip: Heads. Promote to L 
+1
+​
+ . Flip again: Tails. Stop. (Height = 1).
+
+Insert 20: Insert at L 
+0
+​
+ . Flip: Tails. Stop. (Height = 0).
+
+Insert 25: Insert at L 
+0
+​
+ . Flip: Heads (L 
+1
+​
+ ), Heads (L 
+2
+​
+ ), Tails. Stop. (Height = 2).
+
+Insert 31: Insert at L 
+0
+​
+ . Flip: Heads (L 
+1
+​
+ ), Tails. Stop. (Height = 1).
+
+Here is what the resulting list looks like. Notice how the highest layers act as "express lanes":
+
+Plaintext
+L2: [Head] ----------------------> [25] ---------> [Null]
+L1: [Head] ---> [17] ------------> [25] ---> [31] -> [Null]
+L0: [Head] -> [12] -> [17] -> [20] -> [25] -> [31] -> [Null]
+Why use this randomized method?
+As a mathematician, you know that rigid structures often require complex maintenance. In traditional balanced search trees (like AVL or Red-Black trees), inserting or deleting a node often unbalances the tree. To fix this, the algorithm must perform complex, deterministic "tree rotations" to ensure the search paths remain O(logn).
+
+The probabilistic coin flip is a brilliant workaround. It guarantees the average search time remains O(logn) without ever needing to rebalance or rotate the structure. If one node randomly flips 10 heads in a row and creates a strange peak, the math guarantees that the overall structure still averages out perfectly over n elements. It is drastically simpler to code and much faster for parallel processing, because inserting a node only affects the immediate local pointers, rather than triggering a cascade of structural changes.
+
+Why do layers become exponentially sparser?
+It is a direct consequence of geometric probability. Because a node must flip "heads" consecutively to reach higher layers, the probability of reaching level k is p 
+k
+ .
+
+If p=1/2:
+
+100% of nodes are at L 
+0
+​
+  (0 consecutive heads required).
+
+50% of nodes reach L 
+1
+​
+  (1 head).
+
+25% of nodes reach L 
+2
+​
+  (2 heads: 0.5×0.5).
+
+12.5% of nodes reach L 
+3
+​
+  (3 heads: 0.5×0.5×0.5).
+
+Because the probability halves at every single step, the number of nodes at each subsequent layer decays exponentially. This exponential decay is exactly what creates the logarithmic search time — each step up cuts the search space by a constant fraction.
+
+2. Unpacking the "k+1 Forward Pointers"
+When you visualize a standard linked list, a node is just an object containing a value and a single next arrow pointing to the next node.
+
+In a skip list, think of a node as a vertical tower. If a node is promoted to level k=2 (like the number 25 in our example above), it physically exists across three layers: L 
+0
+​
+ ,L 
+1
+​
+ , and L 
+2
+​
+ .
+
+Because it participates in three different "lanes" of traffic, it cannot have just one next arrow. It must have an array of pointers, one for each level it occupies.
+
+For the node 25 (where k=2):
+
+Pointer 0: Points to the next node in L 
+0
+​
+  (which is 31).
+
+Pointer 1: Points to the next node in L 
+1
+​
+  (which is 31).
+
+Pointer 2: Points to the next node in L 
+2
+​
+  (which is Null).
+
+Because we start counting layers at 0, a node that reaches height k needs pointers for indices 0,1,2,…,k. The total number of pointers inside that node's memory block is therefore k+1.
+
+Ready to see how this translates to multi-dimensional space with HNSW?
+
+Yes
+
+now explain NSW
+
+Now we are moving from the 1D world of numbers into the multi-dimensional space where machine learning actually happens.
+
+In a skip list, you are dealing with scalar values (like the number 25) that can be neatly ordered from smallest to largest. But in modern vector search, data points (images, text embeddings) are complex vectors in high-dimensional space. You cannot easily line them up left-to-right.
+
+Instead, we organize them into a graph. This is where Navigable Small Worlds (NSW) comes in.
+
+1. What is a "Small World"?
+In network theory, a "Small World" graph is a specific type of network that has two key properties:
+
+High Clustering: If node A is connected to node B, and A is connected to C, there is a high probability that B and C are also connected to each other (they form local "neighborhoods").
+
+Short Path Length: Despite the clustering, the average number of steps it takes to get from any random node to any other node is surprisingly small. Think of the "six degrees of separation" concept in human social networks.
+
+2. What makes it "Navigable"?
+A graph is "navigable" if a decentralized algorithm can actually find those short paths using only local information.
+
+Imagine you are in a city without a map, trying to find the post office. At every intersection, you look down all the streets, guess which one goes in the general direction of the post office, and walk that way.
+
+In NSW, this is called Greedy Routing. Here is how it works when searching for a target vector T:
+
+Start randomly: Pick an arbitrary node in the graph (let's call it x).
+
+Evaluate neighbors: Calculate the mathematical distance (e.g., Euclidean distance) between the target T and all the nodes directly connected to x.
+
+Move closer: If one of the neighbors is closer to T than x is, move to that neighbor.
+
+Repeat: Repeat this process until you reach a node where none of its neighbors are closer to T than it is.
+
+When you cannot get any closer, you stop. That final node is your approximate nearest neighbor.
+
+Generating interactive visual...
+Structuring code, this may take a minute
+
+Was this visual helpful?
+
+3. The Flaw in NSW (and why HNSW is needed)
+If you only use a flat NSW graph, you run into a major problem: Local Minima.
+
+Because you are using greedy routing, you might walk into a "cul-de-sac" — a cluster of nodes where you cannot find a path that gets you mathematically closer to the target, even though the true nearest neighbor is just over the next hill. You get stuck, and the search fails.
+
+Additionally, starting the search at a random node means you might have to take many tiny hops through dense neighborhoods to cross the graph, which is computationally expensive.
+
+This is exactly where the Skip List concept rescues the graph.
+
+By turning the flat NSW graph into a Hierarchical Navigable Small World (HNSW), we introduce the probabilistic layers you learned about earlier.
+
+The top layers have very few nodes and long-range links (the express lanes).
+
+The bottom layers have all the nodes and short-range links (local streets).
+
+Instead of starting randomly on a flat graph, you start at the top layer. You take massive leaps across the graph, avoiding local minima. When you cannot get any closer on the top layer, you drop down a layer and continue. By the time you reach the bottom layer, you are already guaranteed to be in the correct local neighborhood.
+
+Where should we focus next?
+
+How are the NSW graph links actually built?
+
+Put it all together: Walk through HNSW
+
+1- In NSW the graph is path connected ?
+
+2- How you create this graph?
+
+1. Is the NSW graph path-connected?
+From a strict mathematical standpoint, a basic NSW graph is probabilistically path-connected, meaning it almost always forms a single giant connected component, but absolute path-connectedness for every single node is not structurally guaranteed without specific heuristics.
+
+If you are inserting points uniformly in a space and connecting them to their M nearest neighbors, the probability of a node (or a small cluster of nodes) becoming completely isolated approaches zero as M increases.
+
+However, in real-world high-dimensional data, if M is set too low (e.g., M=2) and the data contains highly separated, dense clusters, it is theoretically possible for isolated "islands" to form. If an island forms, greedy routing between islands will fail. To prevent this, actual implementations of HNSW use a heuristic during construction: if the search algorithm fails to find a connection, or if a set of connections leaves a node isolated, the algorithm will forcefully create links to bridge the gap, ensuring global path-connectedness.
+
+2. How the NSW Graph is Created (Insertion Algorithm)
+The beauty of NSW is that it is built sequentially. You do not need to know the entire dataset upfront; you build the network node by node.
+
+Here is the exact algorithmic process for inserting a new node, v 
+new
+​
+ , into an existing NSW graph.
+
+The Algorithm
+Define the degree (M): You decide upfront how many edges each new node should create. Let's say M=3.
+
+Start the Search: When v 
+new
+​
+  arrives, you need to find the M nodes in the existing graph that are geometrically closest to it. You do this using the exact same Greedy Routing algorithm we discussed earlier, starting from a random entry point in the graph.
+
+Form the Connections: Once the greedy search identifies the M closest existing nodes, you create bidirectional edges (links) between v 
+new
+​
+  and those M nodes.
+
+Repeat: You repeat this for every single vector in your dataset.
+
+Why this creates a "Small World"
+This simple sequential insertion is what naturally generates both the long-range links (for fast graph traversal) and the short-range links (for local neighborhood accuracy).
+
+The Early Nodes (Long-Range Links): Imagine you are the 5th node inserted into the graph. There are only 4 other nodes to connect to, and they might be completely on the opposite side of the vector space. You are forced to connect to them anyway. These early, forced connections become the massive "highways" that span across the entire geometric space.
+
+The Later Nodes (Short-Range Links): Imagine you are the 1,000,000th node inserted. The graph is now extremely dense. When you search for your M nearest neighbors, you will easily find M nodes that are extremely close to you geometrically. These form the dense, highly clustered "local streets."
+
+Generating interactive visual...
+Structuring code, this may take a minute
+
+Was this visual helpful?
+
+Key insight: The order of insertion dictates the topology. Early nodes get connected to distant points by necessity, acting as the structural "hubs" of the graph.
+
+Want to combine Skip Lists and NSW?
+
+Yes
+
+yes combine them but always put mathematics and intuition first
+
+To combine Skip Lists and Navigable Small Worlds (NSW) into HNSW, we must synthesize the probabilistic hierarchy of the skip list with the geometric graph routing of NSW.
+
+Let us start with the intuition, and then build the mathematical machinery.
+
+1. The Intuition: Zooming in on a Map
+Imagine you are looking for a specific coffee shop in Paris.
+
+Without HNSW (Flat NSW): You start in a random city in France and ask people for directions to the coffee shop. You walk village to village (greedy routing). It takes forever, and you might get stuck in a rural valley (local minimum) where no roads point toward Paris.
+
+With HNSW: You look at a world map (Top Layer). You find France. You zoom in to a country map (Middle Layer). You find Paris. You zoom in to a city map (Bottom Layer). You find the street.
+
+HNSW builds this multi-scale map for high-dimensional vectors. The top layers give you the macroscopic geometry, and the bottom layers give you the microscopic geometry.
+
+2. The Mathematics of Hierarchy (The Skip List DNA)
+In a 1D skip list, we flipped a coin (a geometric distribution) to determine a node's height. In HNSW, we do the exact same thing, but it is typically implemented using a continuous probability distribution for efficiency.
+
+When a new vector v is inserted, its maximum layer l is determined by an exponentially decaying probability function:
+
+l=⌊−ln(uniform(0,1))⋅m 
+L
+​
+ ⌋
+uniform(0,1) is a random number between 0 and 1.
+
+m 
+L
+​
+  is a scaling factor (often 1/ln(M)) that normalizes the distribution based on the number of connections M per node.
+
+Why this math?
+As a mathematician, you recognize this as the inverse transform sampling of an exponential distribution. Taking the floor gives us an integer layer. This mathematically guarantees that the number of nodes at layer k is exponentially smaller than at layer k−1.
+
+If layer L 
+0
+​
+  (the bottom) has N nodes, layer L 
+k
+​
+  will roughly have N⋅e 
+−k/m 
+L
+​
+ 
+  nodes. This exponential sparsity is what forces the O(logn) search time, exactly like the skip list.
+
+3. Building the Graphs (The NSW DNA)
+Once a vector is assigned a maximum layer l, it is inserted into that layer and every layer below it (down to L 
+0
+​
+ ).
+
+But instead of a single forward pointer like in a 1D skip list, every layer is an independent NSW graph.
+
+Layer L 
+k
+​
+  (High up): Very few vectors exist here. Because they are sparse, the mathematical distance between neighbors is large. The connections (edges) formed here naturally span massive geometric distances.
+
+Layer L 
+0
+​
+  (Bottom): Every single vector exists here. The connections formed here are very short, connecting only the closest local neighbors.
+
+To connect a new node at layer k, we use the standard NSW greedy search to find its M nearest neighbors only among the nodes that exist at layer k, and draw edges to them.
+
+4. The HNSW Search Algorithm (Putting it in Motion)
+Suppose we have a trained HNSW index and we want to find the nearest neighbor to a target vector T. Here is the exact routing math:
+
+Let dist(x,y) be our distance metric (e.g., Euclidean distance, L 
+2
+​
+  norm, or Cosine distance). Let our entry point be EP, the single node sitting at the absolute highest layer (L 
+max
+​
+ ).
+
+Step 1: Start at the top
+Current node C=EP. Current layer k=L 
+max
+​
+ .
+
+Step 2: Greedy search on current layer
+Look at all neighbors N 
+i
+​
+  of C on layer k.
+Calculate dist(N 
+i
+​
+ ,T) for all neighbors.
+Find the neighbor N 
+best
+​
+  that minimizes the distance to T.
+
+If dist(N 
+best
+​
+ ,T)<dist(C,T), move to N 
+best
+​
+  (set C=N 
+best
+​
+ ) and repeat Step 2.
+
+If dist(N 
+best
+​
+ ,T)≥dist(C,T), you have reached a local minimum for layer k. You cannot get closer on this graph.
+
+Step 3: Drop down a layer (The Skip List mechanic)
+Keep your current node C, but move your focus to layer k−1.
+Because you dropped down, the graph suddenly becomes denser. Node C now has a new set of local neighbors that didn't exist on the higher layer.
+
+Step 4: Repeat until L 
+0
+​
+ 
+Repeat Step 2 and 3 until you reach the bottom layer (L 
+0
+​
+ ). The local minimum you find at L 
+0
+​
+  is returned as your Nearest Neighbor.
+
+5. Why this is mathematically brilliant
+Bypassing Local Minima: In flat NSW, greedy routing gets trapped in local geometric clusters. In HNSW, the top layers are so sparse that local clusters do not exist. You glide right over them. By the time you drop down to the dense layers where local minima are a risk, you are already physically inside the correct cluster.
+
+Complexity:
+
+The expected maximum height of the graph is O(logn).
+
+Because of the exponential decay, the expected number of nodes you have to check at any given layer before dropping down is bounded by a constant c (which depends on M and m 
+L
+​
+ ).
+
+Therefore, the total expected search complexity is O(logn), a massive reduction from the O(n) or O(n 
+c
+ ) you might face in unoptimized high-dimensional spaces.
+
+my question is that how this hierarchical layers are made?
+
+The hierarchical layers in HNSW are not pre-built scaffolds; they are constructed organically and dynamically as every single new vector is inserted.
+
+To understand exactly how the layers are made, we have to look at the HNSW Insertion Algorithm. When a new vector v 
+new
+​
+  arrives, the algorithm must figure out which layers it belongs to, and then physically wire it into the NSW graphs at those specific levels.
+
+Here is the exact mathematical and algorithmic sequence of how a new node weaves itself into the hierarchy to build the layers.
+
+1
+Determine the node's maximum layer (l)
+The Probabilistic Birth
+Before v 
+new
+​
+  touches the graph, we use the inverse transform sampling function we discussed:
+
+l=⌊−ln(uniform(0,1))⋅m 
+L
+​
+ ⌋
+
+This integer l is the highest layer where this specific node will exist. It will also exist in every layer below it, down to L 
+0
+​
+ . If l=2, this node will be inserted into the graphs at L 
+2
+​
+ , L 
+1
+​
+ , and L 
+0
+​
+ .
+
+2
+Descend to the insertion layer (No connections yet)
+Routing from L_{max} down to l+1
+Let L 
+max
+​
+  be the absolute highest layer currently existing in the entire HNSW structure, and let EP be the global Entry Point node at that top layer.
+
+If l<L 
+max
+​
+ , the new node v 
+new
+​
+  does not belong in the top layers. However, we still use those top layers to navigate!
+Starting at EP, the algorithm performs a greedy search to find the single closest node to v 
+new
+​
+  at layer L 
+max
+​
+ . It then drops down to L 
+max−1
+​
+ , uses that closest node as the new starting point, and searches again.
+
+It repeats this descent without making any connections until it drops down to layer l+1. The closest node found at l+1 becomes the local entry point for the actual insertion phase.
+
+3
+Connect and build downwards
+Wiring the graphs from l down to 0
+Now the algorithm drops into layer l — the highest layer where v 
+new
+​
+  will actually live.
+
+Search: Using the entry point passed down from layer l+1, it performs a greedy search strictly within layer l to find the M nearest neighbors to v 
+new
+​
+ .
+
+Connect: It creates bidirectional edges between v 
+new
+​
+  and these M neighbors. This physical linking is what builds the NSW graph for layer l.
+
+Drop and Repeat: The algorithm then drops down to layer l−1. It uses the M nearest neighbors it just found in layer l as the multiple starting points for a new search in layer l−1. It finds the M nearest neighbors in layer l−1, connects them, and drops again.
+
+This continues until v 
+new
+​
+  is fully wired into layer L 
+0
+​
+ .
+
+4
+Update the Global Entry Point
+Handling structural peaks
+If the probabilistic formula in Step 1 generated an l that is greater than the current global L 
+max
+​
+  (meaning v 
+new
+​
+  flipped an exceptionally long streak of "heads"), then v 
+new
+​
+  becomes the new highest peak of the entire structure.
+
+The algorithm simply creates the new layers (e.g., L 
+max+1
+​
+ ,…,l), places v 
+new
+​
+  in them (initially with no connections, as it is the only node there), and updates the global Entry Point EP to point to v 
+new
+​
+  at layer l.
+
+
+The Intuition of the Build
+Think of this process like dropping a heavy anchor into the ocean.
+
+If the anchor is designated to stop at a depth of 50 meters (layer l), it first falls freely through the upper layers of the water (Step 2). It doesn't interact with the fish there; it just uses gravity to go straight down to the right area.
+
+Once it hits 50 meters, it deploys tethers (edges) to the M closest fish at that exact depth. Then it drops to 51 meters, deploys tethers to the M closest fish there, and continues tethering itself at every single meter until it hits the sea floor (L 
+0
+​
+ ).
+
+Because every node does this upon insertion, the layers construct themselves. The top layers end up containing only the "lucky" nodes that rolled a high l, and their connections naturally span vast distances because those layers are so sparsely populated.
+
+Want to know how HNSW chooses the best edges?
+
+Yes
+
+When HNSW connects to the M nearest neighbors, does it just pick the absolute closest ones mathematically, or is there a heuristic to ensure the graph stays navigable?
+
+This is a fantastic question and hits on one of the most critical breakthroughs in the HNSW paper.
+
+If you just mathematically pick the M absolute closest nodes, the graph actually breaks down in high dimensions.
+
+To understand why, and how the algorithm fixes it, we need to look at the geometry of high-dimensional clusters and a brilliant trick called the HNSW Edge Selection Heuristic.
+
+1. The Problem with "Absolute Closest" (The Clumping Effect)
+Imagine you are inserting a new node v 
+new
+​
+  into the graph, and your maximum connections are set to M=3.
+
+During the search phase, the algorithm finds a super-dense cluster of 100 nodes right next to v 
+new
+​
+ . If we use the naïve approach (selectNeighborsSimple), v 
+new
+​
+  will use all 3 of its edges to connect to three nodes inside that single dense cluster.
+
+Mathematically, this is disastrous for navigability.
+Those 3 edges are highly redundant. They all point in the exact same geometric direction. If you are trying to route out of that cluster to a different part of the vector space, v 
+new
+​
+  is useless—it has no edges pointing anywhere else. You have created a highly clustered island, destroying the "Small World" long-range connectivity.
+
+2. The Solution: The Spatial Diversity Heuristic
+To fix this, the creator of HNSW (Yury Malkov) introduced selectNeighborsHeuristic. Instead of just looking for the shortest edges, it looks for the most spatially diverse edges.
+
+The heuristic is heavily inspired by the geometry of Relative Neighborhood Graphs (RNG). The core philosophy is this: Never add an edge to a neighbor if you can easily reach that neighbor through an edge you have already added.
+
+The Mathematics of the Heuristic
+Let’s say the greedy search returns a pool of candidate nodes, sorted from closest to furthest from v 
+new
+​
+ . We want to select M of them to form our set of finalized edges, which we will call R.
+
+Start Empty: Start with an empty set of finalized edges R=∅.
+
+Evaluate Closest First: Take the absolute closest candidate C 
+1
+​
+  and add it to R. (The closest node is always safe).
+
+The Triangle Inequality Test: Take the next closest candidate, C 
+2
+​
+ . Before adding it to R, you check a geometric condition:
+
+Is the distance from C 
+2
+​
+  to v 
+new
+​
+  strictly less than the distance from C 
+2
+​
+  to any node already in R (which currently just contains C 
+1
+​
+ )?
+
+If dist(C 
+2
+​
+ ,v 
+new
+​
+ )<dist(C 
+2
+​
+ ,C 
+1
+​
+ ), you add C 
+2
+​
+  to R.
+
+If dist(C 
+2
+​
+ ,v 
+new
+​
+ )≥dist(C 
+2
+​
+ ,C 
+1
+​
+ ), you skip C 
+2
+​
+  entirely.
+
+Repeat: Continue down the sorted list of candidates. A candidate C 
+k
+​
+  is only added to R if it is closer to v 
+new
+​
+  than it is to every single node currently sitting in R.
+
+Stop: Stop when ∣R∣=M, or you run out of candidates.
+
+3. The Geometric Intuition (The Angle of Edges)
+Why does checking dist(C 
+2
+​
+ ,C 
+1
+​
+ ) solve the clustering problem?
+
+Imagine a triangle formed by v 
+new
+​
+ , C 
+1
+​
+ , and C 
+2
+​
+ .
+If C 
+2
+​
+  is closer to C 
+1
+​
+  than it is to v 
+new
+​
+ , it means C 
+1
+​
+  and C 
+2
+​
+  are clustered together in the same general direction.
+
+If we already have an edge from v 
+new
+​
+ →C 
+1
+​
+ , adding a second edge v 
+new
+​
+ →C 
+2
+​
+  is redundant. If a future search needs to reach C 
+2
+​
+ , it can just travel v 
+new
+​
+ →C 
+1
+​
+ →C 
+2
+​
+ .
+
+By explicitly rejecting C 
+2
+​
+ , the algorithm saves that precious edge. It keeps moving down the candidate list until it finds a node C 
+3
+​
+  that is in a completely different spatial direction (meaning it is far away from C 
+1
+​
+ , so it passes the distance test).
+
+The Result
+This heuristic acts like a gravitational repulsion field between the edges of a node. It forces the M edges to spread out like the spokes of a wheel, covering completely different vectors of the space.
+
+By sacrificing a tiny bit of local accuracy (not picking the absolute closest node), HNSW guarantees that every node acts as a highly efficient traffic intersection, pointing in M distinct geometric directions. This is the secret mechanism that makes the graph permanently navigable, regardless of how many millions of vectors you insert or how densely clustered the dataset becomes.
+
+now suppose you want to write a section about HNWS algorithm
+
+start from begining of our discussion and write the draft
+
+I want to see a transtion from skip list, NSW to HNWS
+
+also I want to keep the math and intuition.
+
+write veruthing in markdown
+
+I want to copy and paste to my main markdown file
+
+Your Markdown file is ready
+MD icon
+hnsw_draft
+ MD 
+Open
+
+I have created a comprehensive markdown file that traces the evolution from the 1D skip list to Navigable Small Worlds, and finally synthesizes them into the HNSW algorithm.
+
+The draft focuses heavily on the intuition (the "why") behind the design choices, while ensuring the underlying math—such as the probabilistic coin flips, exponential decay functions, and the spatial diversity heuristic (triangle inequality)—remains rigorous and well-formatted in LaTeX. You can easily copy and paste the contents of this file directly into your main markdown document!
+
+
+
+
+Gemini is AI and can make mistakes, including about people. Your privacy & GeminiOpens in a new window
+
+# The Hierarchical Navigable Small World (HNSW) Algorithm
+
+## Introduction
+The Hierarchical Navigable Small World (HNSW) algorithm is currently one of the most efficient and widely used structures for approximate nearest neighbor (ANN) search in high-dimensional spaces. To deeply understand how HNSW works, we must deconstruct it into its two foundational concepts: the probabilistic hierarchy of a **Skip List** (which operates in 1D space) and the decentralized graph routing of **Navigable Small Worlds (NSW)** (which operates in high-dimensional space). 
+
+By synthesizing the mathematics and intuition of these two structures, HNSW elegantly solves the problem of searching massive vector databases with $O(\log n)$ complexity.
+
+---
+
+## 1. The 1D Predecessor: The Skip List
+
+In traditional computer science, searching a sorted linked list takes $O(n)$ time. A balanced binary search tree achieves $O(\log n)$ but requires complex, deterministic rotations to maintain its balance when new data is inserted or deleted. 
+
+The **Skip List** acts as a brilliant, randomized alternative. It achieves $O(\log n)$ expected time complexity for search and insertion without any rigid rebalancing, relying entirely on probabilistic layering.
+
+### Probabilistic Construction (The Coin Flip)
+A skip list is built iteratively, layer by layer. 
+1. **The Base Layer ($L_0$):** Every element inserted into the skip list exists in a strictly sorted base layer, $L_0$. 
+2. **Promotion:** When a new node is inserted into $L_0$, the algorithm flips a biased or fair coin (with probability of heads, $p$). 
+3. **Height Determination:** If the coin lands heads, the node is promoted to layer $L_1$. The algorithm flips again. If heads, it is promoted to $L_2$. This continues until a tail is flipped. 
+
+Because the probability of flipping $k$ consecutive heads is $p^k$, the probability of a node reaching layer $k$ decays exponentially. For $p = 1/2$, half the nodes reach $L_1$, a quarter reach $L_2$, and so on. This creates "express lanes": the top layers have exponentially fewer nodes, allowing a search algorithm to skip massive sections of the list.
+
+### Search Mechanics and Complexity
+To search for a target value $T$:
+1. Start at the highest layer of the "Head" node.
+2. Look at the next node on the current layer $k$. 
+3. If its value is $\le T$, traverse horizontally to that node.
+4. If its value is $> T$ (or if it is a Null pointer), drop down vertically to layer $k-1$ and repeat.
+
+The expected maximum height of a skip list with $n$ elements is $\approx \log_{1/p} n$. The expected number of horizontal traversals per layer before dropping down is $1/p$. Therefore, the total search time is the product of the height and the horizontal steps per level:
+$$ \text{Expected Steps} = \left(\log_{1/p} n\right) \times \left(\frac{1}{p}\right) $$
+This yields an overall time complexity of $O(\log n)$.
+
+---
+
+## 2. Moving to High Dimensions: Navigable Small Worlds (NSW)
+
+Skip lists are perfect for scalar values (1D) that can be sorted left-to-right. However, in modern machine learning, data points are complex vectors in high-dimensional space. We cannot easily sort them in a straight line. Instead, we organize them into a graph. 
+
+### Small World Properties
+A "Small World" graph has two defining properties:
+1. **High Clustering:** Local neighborhoods form dense communities (if A is connected to B and C, B and C are likely connected).
+2. **Short Path Length:** Despite local clustering, long-range "highways" exist, meaning the number of hops between any two random nodes is surprisingly small.
+
+### Greedy Routing
+A graph is "navigable" if an algorithm can find the shortest path using only local information. In NSW, this is done via **Greedy Routing**.
+To find the nearest neighbor to a target vector $T$:
+1. Start at a random node in the graph.
+2. Calculate the distance (e.g., Euclidean or Cosine) between $T$ and all immediate neighbors of the current node.
+3. Move to the neighbor that is mathematically closest to $T$.
+4. Repeat until you reach a **local minimum**—a node where *none* of its neighbors are closer to $T$ than it is itself.
+
+### The Problem: Local Minima
+A flat NSW graph suffers from two issues:
+1. Starting randomly means crossing the graph via many small hops is computationally expensive.
+2. Greedy routing can get trapped in **local minima** (geometric "cul-de-sacs"), failing to find the true global nearest neighbor.
+
+
+### **3. The Synthesis: HNSW**
+
+HNSW solves the local minima and efficiency problems of flat NSW by introducing the probabilistic hierarchy of the Skip List. 
+
+Instead of a single graph, HNSW creates multiple NSW graphs stacked on top of each other. The top layers are extremely sparse (acting as the skip list's express lanes), while the bottom layer contains every single vector.
+
+#### **The Mathematics of Hierarchy**
+When a new vector $v$ is inserted, its maximum layer $l$ is determined by a continuous geometric distribution, conceptually identical to the skip list's coin flip:
+$$ l = \lfloor -\ln(\text{uniform}(0, 1)) \cdot m_L \rfloor $$
+* $\text{uniform}(0, 1)$ generates a random float between 0 and 1.
+* $m_L$ is a scaling factor (typically $1 / \ln(M)$) that normalizes the decay.
+
+Taking the natural log of a uniform distribution guarantees that the population of layers decays exponentially. If $L_0$ has $N$ nodes, $L_k$ will have approximately $N \cdot e^{-k/m_L}$ nodes.
+
+#### **The Insertion Algorithm (Dropping the Anchor)**
+The multi-scale layers construct themselves dynamically as nodes are inserted:
+1. **Freefall:** Starting from the global top layer ($L_{max}$), the algorithm performs a greedy search to find the closest node to $v$, dropping down layer by layer without making any connections, until it reaches the node's assigned maximum layer $l$.
+2. **Wiring:** Once at layer $l$, it performs a greedy search strictly within that layer to find the $M$ nearest neighbors and creates bidirectional edges. 
+3. **Descent:** It drops to layer $l-1$, using the neighbors found in layer $l$ as the new starting points, finds the $M$ nearest neighbors in $l-1$, and connects them. This repeats until $v$ is wired into $L_0$.
+
+Because top layers are sparse, the edges formed there naturally bridge massive geometric distances. The bottom layers are dense, forming tight local clusters. During a search, you start at the top, taking massive leaps across the vector space (avoiding local minima entirely), and drop down through the layers to zero in on the precise local neighborhood.
+
+#### **The Secret Engine: The Spatial Diversity Heuristic**
+If HNSW simply connected $v$ to the $M$ absolute closest nodes mathematically, it would fail. In high dimensions, the $M$ closest nodes are often clumped together in a dense cluster. Connecting only to them creates redundant edges pointing in the exact same geometric direction, destroying global navigability.
+
+HNSW solves this using an **Edge Selection Heuristic** inspired by Relative Neighborhood Graphs. When deciding whether to connect $v$ to a candidate neighbor $C$, it applies the triangle inequality test:
+* It evaluates candidates from closest to furthest.
+* A candidate $C_x$ is only selected if its distance to $v$ is **strictly less than** its distance to any neighbor $C_{selected}$ already added to $v$'s connection list.
+$$ \text{Keep } C_x \text{ if } dist(C_x, v) < dist(C_x, C_{selected}) \text{ for all } C_{selected} $$
+
+**The Intuition:** If $C_x$ is closer to an already-connected neighbor than it is to $v$, it means $C_x$ is in the same spatial cluster. Adding a direct edge to it is redundant. By skipping it, the algorithm forces the $M$ edges to spread out across diverse geometric angles, ensuring that every node acts as an efficient multi-directional intersection.
+hnsw_draft.md
+Displaying hnsw_draft.md.
 
 #### Advantages
 
