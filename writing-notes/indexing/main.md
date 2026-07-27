@@ -301,76 +301,6 @@ If you absolutely must use $L_\infty$ or $L_3$, you have two choices:
 | **Jaccard**           | Intersection over Union   | Tier 2 (Conditional). Restricted to binary/sparse vectors only.      |
 | **$L_\infty$**        | Maximum single divergence | Tier 3 (Custom). Requires writing your own brute-force or C++ code.  |
 
-<!-- 
-### **2. Inverted File Indexing (IVF)**
-
-Inverted File Indexing shifts the paradigm from exhaustive search to clustered vector quantization. IVF uses **Voronoi partitioning** to divide the vector space into distinct computational regions.
-
-```text
-          Voronoi Cells (Clustered Vector Space)
-          ┌─────────────────┬─────────────────┐
-          │     •    •      │       •         │
-          │   •   c1 (Centroid)  •   c2       │
-          │     •    •      │    •     •      │
-          ├─────────────────┼─────────────────┤
-          │       •         │      •   •      │
-          │   •  c3         │   •   c4  •     │
-          │    •    •       │      •   •      │
-          └─────────────────┴─────────────────┘
-
-```
-
-1. **Training Phase:** The system runs a $k$-means clustering algorithm on the dataset to partition it into $k$ clusters, determining a set of centroids $C = \{c_1, c_2, \dots, c_k\}$.
-2. **Ingestion Phase:** Every incoming vector $x$ is mapped to its nearest centroid $c_i$ such that the distance $D(x, c_i)$ is minimized. The index stores this as an **inverted list**—a mapping of Centroid ID $\rightarrow$ List of Vector IDs. Mathematically, it places the vector in a Voronoi cell $V_i$:
-
-$$V_i = \{ x \in X \mid D(x, c_i) \le D(x, c_j) \text{ for all } j \neq i \}$$
-
-
-3. **Query Phase:** The query vector $q$ is first compared against only the $k$ centroids. The system selects the $n$ closest centroids (a hyperparameter called `nprobe`) and executes an exhaustive flat search *only* within those specific Voronoi cells.
-
-* **The Math Trade-off:** By partitioning the data, the search complexity drops from $O(N \cdot d)$ to approximately $O(k \cdot d + \text{nprobe} \cdot \frac{N}{k} \cdot d)$. Increasing `nprobe` improves recall by checking adjacent cells (catching edge-case vectors) but linearly increases compute time.
-
-
-### **3. HNSW (Hierarchical Navigable Small World)**
-
-While IVF relies on clusters, HNSW relies on graph theory. It builds a multi-layer proximity graph that acts like a probabilistic skip list in high-dimensional space.
-
-1. **Graph Construction:** Vectors are inserted into multiple layers. The bottom layer ($L_0$) contains all vectors. Each vector has a mathematically defined probability of appearing in higher layers, dictated by an exponentially decaying probability distribution:
-
-$$P(l) \propto e^{-l / m_L}$$
-
-
-
-where $l$ is the layer number and $m_L$ is a scaling factor.
-2. **The Hierarchy:** Top layers contain very few nodes connected by long-range "highways" (large distances). Bottom layers contain dense, short-range connections representing granular local neighborhoods.
-3. **Greedy Routing:** When a query vector $q$ arrives, the search starts at the highest, sparsest layer. It evaluates neighbors and greedily jumps to the node mathematically closest to $q$. Once it hits a local minimum in that layer, it drops down to the exact same node in layer $l-1$ and repeats the process until it reaches the ground layer ($L_0$).
-
-* **The Math Trade-off:** HNSW drops search complexity to $O(\log N)$, offering blistering query speeds and elite recall. However, storing the adjacency lists for the complex graph connections requires an immense memory footprint (RAM), often taking up more space than the vectors themselves.
-
-
-### **4. PQ (Product Quantization)**
-
-Unlike IVF and HNSW—which optimize *how* we search—Product Quantization optimizes *what* we store. It is a mathematical compression technique that shrinks the memory footprint of high-dimensional vectors.
-
-1. **Vector Splitting:** A large, memory-heavy vector $x \in \mathbb{R}^d$ is chopped into $m$ smaller sub-vectors, each with $d/m$ dimensions.
-
-$$x = [x^{(1)}, x^{(2)}, \dots, x^{(m)}]$$
-
-
-2. **Sub-space Quantization:** For each of the $m$ sub-spaces, the system runs clustering (usually $k$-means) to find $k^*$ sub-centroids. Typically, $k^* = 256$, meaning each sub-centroid can be represented by an 8-bit integer (1 byte).
-3. **Encoding:** The original sub-vectors are replaced by the ID (the 1-byte code) of their nearest sub-centroid. A massive 768-dimensional array of 32-bit floats is mathematically approximated as a tiny string of $m$ bytes.
-
-$$x \approx [c_{i_1}^{(1)}, c_{i_2}^{(2)}, \dots, c_{i_m}^{(m)}]$$
-
-
-4. **Asymmetric Distance Computation (ADC):** At query time, the query vector $q$ is *not* compressed. Instead, $q$ is split into $m$ parts. The system pre-calculates the distances between $q$'s sub-vectors and all possible 256 sub-centroids, storing them in a small lookup table. The total distance is simply the sum of these pre-calculated distances:
-
-$$D(q, x) \approx \sum_{j=1}^{m} D(q^{(j)}, c_{i_j}^{(j)})$$
-
-
-
-* **The Math Trade-off:** PQ drastically reduces memory consumption (often by 90% or more) and replaces heavy floating-point arithmetic with lightning-fast $O(m)$ table lookups. The trade-off is a mathematically guaranteed drop in recall due to the lossy compression of the vectors. In massive production systems, it is frequently combined with IVF (as **IVF-PQ**) to achieve scale that would otherwise be impossible on limited hardware.
- -->
 
 
 ### **2. Inverted File Indexing (IVF)**
@@ -466,7 +396,7 @@ Here is the improved Markdown, utilizing proper LaTeX formatting for the math eq
 
 ---
 
-### **The Boundary Problem: Why `nprobe` Exists**
+#### **The Boundary Problem: Why `nprobe` Exists**
 
 Assigning every vector to only one centroid creates a problem near the boundaries between clusters. Two vectors can be very close to each other while being assigned to different inverted lists.
 
@@ -511,7 +441,7 @@ $$D(q,x) = \vert{}4.9 - 5.1\vert{} = 0.2$$
 
 Therefore, $x$ may be the true nearest neighbor of $q$, even though they belong to different inverted lists.
 
-### **How `nprobe` Fixes This**
+#### **How `nprobe` Fixes This**
 
 If `nprobe = 1`, IVF searches only the list associated with the closest centroid, $c_1$. Since $x$ is stored in the list of $c_2$, it is not examined and may be missed.
 
@@ -541,7 +471,7 @@ Query q
 
 > **The Takeaway:** This is the reason `nprobe` exists. Searching multiple nearby cells reduces the probability of missing close vectors that lie on the other side of a cluster boundary. However, increasing `nprobe` also increases the number of candidate vectors that must be compared with the query, creating a tradeoff between accuracy and speed.
 
-#### Advantages
+#### **Advantages**
 
 * **Tunable trade-off:** `nprobe` gives you a single, intuitive knob to trade recall for latency at query time — no re-indexing required.
 * **Low memory overhead:** Unlike graph-based methods, IVF doesn't store dense adjacency structures. You're storing centroids and flat lists, which is cheap.
@@ -572,29 +502,464 @@ Query q
 
 ### **3. HNSW (Hierarchical Navigable Small World)**
 
-Where IVF thinks in terms of *regions*, HNSW thinks in terms of *paths*. It abandons clustering entirely and instead builds a multi-layer proximity graph that behaves like a probabilistic skip list stretched across high-dimensional space.
-
-If you haven't met skip lists before: imagine a sorted linked list, except every so often a node also gets a pointer that skips far ahead — an "express lane." You start on the express lane, cover most of the distance in a few big hops, then drop down to the regular lane for the final fine-grained steps. HNSW does exactly this, except the "lanes" are layers of a graph and the "distance" being minimized is vector similarity rather than sorted order.
-
-1. **Graph Construction:** Vectors are inserted into multiple layers. The bottom layer ($L_0$) contains all vectors. Each vector has a mathematically defined probability of appearing in higher layers, dictated by an exponentially decaying probability distribution:
-
-$$P(l) \propto e^{-l / m_L}$$
-# The Hierarchical Navigable Small World (HNSW) Algorithm
-
-## Introduction
 The Hierarchical Navigable Small World (HNSW) algorithm is currently one of the most efficient and widely used structures for approximate nearest neighbor (ANN) search in high-dimensional spaces. To deeply understand how HNSW works, we must deconstruct it into its two foundational concepts: the probabilistic hierarchy of a **Skip List** (which operates in 1D space) and the decentralized graph routing of **Navigable Small Worlds (NSW)** (which operates in high-dimensional space). 
 
-By synthesizing the mathematics and intuition of these two structures, HNSW elegantly solves the problem of searching massive vector databases with $O(\log n)$ complexity.
+
+
+HNSW adapts two key properties from two mentioned algorithms: 1- Skipping most of data 2- Navigating in a compact subsapce of data. Wit hthes two proeptires, HNSW elegantly solves the problem of searching massive vector databases with $O(\log n)$ complexity.
+
+
+
+
+
+
+#### **1. The Skip List**
+
+Imagine a long sorted linked list. Every element knows only its immediate successor. If we are searching for a target value, the ordering tells us whether to continue moving forward or stop. We do not need to search in arbitrary directions, but we still have to advance one node at a time.
+
+For a short list, this is acceptable. For millions of elements, however, it becomes inefficient. Reaching a value near the end of the list may require visiting almost every element that comes before it. Therefore, searching an ordinary linked list has a worst-case time complexity of $O(n)$.
+
+The natural idea is to skip over some elements instead of visiting every node. However, a single system of large jumps is not sufficient. If a jump takes us beyond the target, a singly linked list does not provide an efficient way to move backward and recover. We need large jumps when we are far from the target, followed by progressively smaller and more precise steps as we approach it.
+
+A skip list provides exactly this mechanism by representing the same ordered collection at multiple levels. The bottom level, $L_0$, contains every element. Each higher level contains only a subset of the elements in the level below it.
+
+The upper levels therefore act as express lanes. They allow the search to cross large parts of the list quickly. When the next jump would pass the target, the search descends to a denser level, where the jumps are shorter and more precise. Eventually, it reaches the complete bottom level, where the exact target can be found.
+
+The structure can be summarized as follows:
+
+* The bottom level provides completeness and precision.
+* The upper levels provide speed.
+* Searching alternates between moving right and moving down.
 
 ---
 
-## 1. The 1D Predecessor: The Skip List
+#### **Probabilistic Construction: The Coin Flip**
 
-In traditional computer science, searching a sorted linked list takes $O(n)$ time. A balanced binary search tree achieves $O(\log n)$ but requires complex, deterministic rotations to maintain its balance when new data is inserted or deleted. 
+A skip list is constructed incrementally. Whenever a new node is inserted, it is always placed in the base level $L_0$. A randomized procedure then determines whether the node should also appear in the higher levels.
 
-The **Skip List** acts as a brilliant, randomized alternative. It achieves $O(\log n)$ expected time complexity for search and insertion without any rigid rebalancing, relying entirely on probabilistic layering.
+Let $p$ be the probability that a node is promoted to the next level.
 
-### Probabilistic Construction (The Coin Flip)
+1. Every node is inserted into $L_0$.
+2. With probability $p$, it is also promoted to $L_1$.
+3. If it reaches $L_1$, it is promoted to $L_2$ with probability $p$ again.
+4. This process continues until the first unsuccessful promotion.
+
+Equivalently, we may imagine repeatedly flipping a biased coin. A successful flip promotes the node by one level, while an unsuccessful flip stops the process.
+
+The probability that a node reaches level $k$ is
+
+$$
+p^k.
+$$
+
+For example, when $p=\frac{1}{2}$:
+
+* Every node appears in $L_0$.
+* Approximately half of the nodes appear in $L_1$.
+* Approximately one quarter appear in $L_2$.
+* Approximately one eighth appear in $L_3$.
+
+In general, the expected number of nodes in level $L_k$ is
+
+$$
+np^k,
+$$
+
+where $n$ is the total number of elements.
+
+The number of nodes therefore decreases exponentially as we move upward. This produces sparse upper levels containing long-range shortcuts and dense lower levels containing shorter, more precise connections.
+
+---
+
+#### **The Role of the Promotion Probability**
+
+The promotion probability $p$ directly controls the shape of the skip list.
+
+A larger value of $p$ causes more nodes to be promoted. This produces:
+
+* more populated upper levels;
+* more pointers and greater memory usage;
+* shorter distances between nodes within each level;
+* usually fewer horizontal steps before descending.
+
+A smaller value of $p$ causes fewer nodes to be promoted. This produces:
+
+* sparser upper levels;
+* fewer pointers and lower memory usage;
+* larger jumps between promoted nodes;
+* potentially more horizontal work during the search.
+
+For example, suppose that the list contains $1{,}000$ elements.
+
+If $p=\frac{1}{2}$, the expected level sizes are approximately
+
+$$
+1000,\ 500,\ 250,\ 125,\ 62,\ldots
+$$
+
+If $p=\frac{1}{4}$, the expected level sizes are approximately
+
+$$
+1000,\ 250,\ 62,\ 15,\ 4,\ldots
+$$
+
+The second skip list has fewer levels and requires less memory, but its levels are much sparser.
+
+Therefore, changing $p$ changes the number of levels, the number of nodes in each level, the average jump length, and the memory–search trade-off.
+
+---
+
+#### **Randomness as Both a Strength and a Weakness**
+
+The probabilistic construction is the central strength of a skip list. It creates a balanced hierarchy without requiring expensive rotations, global reorganization, or deterministic balancing rules.
+
+However, randomness also introduces an important weakness: the exact structure is not guaranteed.
+
+Even when two skip lists contain the same elements and use the same probability $p$, they may have different structures because their promotion outcomes can differ. A node may reach several upper levels in one construction but remain only in the base level in another.
+
+The expected shape is well controlled, but the exact shape is random.
+
+This means that:
+
+* the number of nodes in each level is only an expected value;
+* the actual maximum height may vary;
+* search paths may differ between constructions;
+* performance is guaranteed in expectation rather than for every possible random outcome;
+* a poor sequence of random promotions can produce an unbalanced structure.
+
+In an extreme but unlikely case, no node may be promoted beyond $L_0$. The skip list would then behave like an ordinary linked list and require $O(n)$ search time. Conversely, too many promotions could create unnecessarily dense upper levels and increase memory consumption.
+
+Thus, probability is not simply a defect of the skip list. It is both its balancing mechanism and a source of variability. The parameter $p$ must be chosen carefully because it controls the trade-off between memory usage, hierarchy height, and horizontal search cost.
+
+In practical implementations, a maximum permitted height is usually imposed to prevent the structure from growing without bound.
+
+---
+
+#### **Search Mechanics**
+
+To search for a target value $T$:
+
+1. Begin at the head node of the highest nonempty level.
+2. Inspect the next node on the current level.
+3. If the next node has key $T$, the target has been found.
+4. If the next key is smaller than $T$, move horizontally to that node.
+5. If the next key is greater than $T$, or if no next node exists, descend by one level.
+6. Repeat until the target is found or its possible position is passed in $L_0$.
+
+The search follows a simple rule:
+
+> Move right while the next jump does not overshoot the target. Move down when the next jump is too large.
+
+Suppose we are searching for $73$. At a sparse upper level, the search might move from $10$ to $40$ and then to $70$. If the next available node is $100$, moving to it would overshoot the target. The search therefore descends to a lower, denser level from $70$ and continues with smaller steps until it either reaches $73$ or determines that $73$ is absent.
+
+The algorithm never needs to move backward. Descending to a more detailed level replaces backward recovery.
+
+---
+
+#### **Expected Height**
+
+At level $k$, the expected number of nodes is
+
+$$
+np^k.
+$$
+
+The highest useful level is approximately the level at which only one node is expected to remain. Therefore, we set
+
+$$
+np^h \approx 1.
+$$
+
+Rearranging gives
+
+$$
+p^h \approx \frac{1}{n}.
+$$
+
+Taking logarithms gives
+
+$$
+h \approx \log_{1/p}n.
+$$
+
+Therefore, the expected height of a skip list grows logarithmically with the number of elements.
+
+For $p=\frac{1}{2}$, this becomes
+
+$$
+h \approx \log_2 n.
+$$
+
+For example, if $n=1{,}000{,}000$, then
+
+$$
+\log_2(1{,}000{,}000)\approx 20.
+$$
+
+Thus, a skip list containing approximately one million elements may require only around twenty useful levels.
+
+---
+
+#### **Expected Search Complexity**
+
+At each level, the search performs some horizontal movements before descending. The expected amount of horizontal work per level is a constant that depends on $p$.
+
+A common intuitive approximation is
+
+$$
+\text{Expected horizontal work per level}\approx\frac{1}{p}.
+$$
+
+Since the expected number of levels is approximately
+
+$$
+\log_{1/p}n,
+$$
+
+the expected search cost can be described as
+
+$$
+\text{Expected search cost}
+\approx
+\frac{1}{p}\log_{1/p}n.
+$$
+
+When $p$ is treated as a fixed constant independent of $n$, both $\frac{1}{p}$ and the logarithm base are constant factors. Therefore,
+
+$$
+\frac{1}{p}\log_{1/p}n=O(\log n).
+$$
+
+A skip list consequently provides expected search complexity
+
+$$
+O(\log n),
+$$
+
+compared with
+
+$$
+O(n)
+$$
+
+for an ordinary linked list.
+
+The word **expected** is important. The skip list does not guarantee logarithmic search time for every possible random construction. Its worst-case search time remains
+
+$$
+O(n).
+$$
+
+The logarithmic result describes its average behaviour over the random promotion process.
+
+---
+
+#### **A Library Metaphor**
+
+Imagine a very large library whose books are arranged by catalogue number. Suppose a librarian needs to find book number $847{,}230$.
+
+The complete catalogue lists every book in increasing numerical order. The librarian could begin at the first entry and inspect every catalogue number until reaching $847{,}230$. The ordering ensures that the librarian knows whether to continue, but this method may still require examining hundreds of thousands of entries.
+
+To accelerate the search, the library creates several directory maps.
+
+* The most detailed directory contains every shelf.
+* A higher-level directory marks only selected shelves.
+* Another directory marks only selected aisles.
+* The sparsest directory may mark only a few major sections of the library.
+
+The librarian begins with the sparsest directory. As long as the next checkpoint remains below catalogue number $847{,}230$, the librarian moves to it. When the next checkpoint would go beyond the desired number, the librarian switches to a more detailed directory.
+
+For example, the librarian might follow checkpoints corresponding to
+
+$$
+100{,}000 \rightarrow 500{,}000 \rightarrow 800{,}000.
+$$
+
+If the next major checkpoint is $900{,}000$, it would pass the target. The librarian therefore consults a more detailed directory beginning from $800{,}000$. The process continues until the exact shelf and book are found.
+
+The sparse directories provide speed, while the complete directory provides precision.
+
+The correspondence is:
+
+| Skip-list concept   | Library equivalent                            |
+| ------------------- | --------------------------------------------- |
+| Node                | Book or catalogue position                    |
+| Key                 | Catalogue number                              |
+| Base level $L_0$    | Complete catalogue                            |
+| Upper levels        | Progressively sparser directories             |
+| Horizontal movement | Moving to the next checkpoint                 |
+| Vertical movement   | Consulting a more detailed directory          |
+| Promotion           | Selecting a book or shelf as a checkpoint     |
+| Overshooting        | The next checkpoint exceeds the target number |
+
+The probabilistic element means that checkpoints are not chosen according to a perfectly regular rule. Two libraries containing the same books could select different shelves as checkpoints. Their directory structures would differ, although both would have the same expected density at each level.
+
+---
+
+#### **Why Total Order Matters**
+
+A skip list relies on the fact that its keys belong to a **totally ordered set**.
+
+A set is totally ordered when any two elements can be compared. For two different elements $a$ and $b$, either
+
+$$
+a<b
+$$
+
+or
+
+$$
+b<a.
+$$
+
+This property provides a unique direction for the search. If the next value is smaller than the target, we continue moving right. If it is larger, we descend to a more precise level.
+
+Numbers have a natural total order. Words can also be ordered alphabetically. Dates can be ordered chronologically.
+
+Multidimensional vectors, however, do not have an equally natural order that represents their geometry.
+
+For example, consider the two-dimensional vectors
+
+$$
+(2,10)
+$$
+
+and
+
+$$
+(3,1).
+$$
+
+It is not geometrically meaningful to say that one vector naturally comes before the other in the same way that $2<3$.
+
+We can impose an artificial total order on vectors. One common choice is called **lexicographic order**.
+
+For two vectors
+
+$$
+x=(x_1,x_2)
+$$
+
+and
+
+$$
+y=(y_1,y_2),
+$$
+
+we say
+
+$$
+x<_{\mathrm{lex}}y
+$$
+
+when either
+
+$$
+x_1<y_1,
+$$
+
+or when the first coordinates are equal and
+
+$$
+x_2<y_2.
+$$
+
+In other words, we compare the first coordinates. Only if they are equal do we compare the second coordinates. In higher dimensions, we continue coordinate by coordinate until the first unequal pair is found.
+
+For example,
+
+$$
+(1,100)<_{\mathrm{lex}}(2,0)
+$$
+
+because $1<2$. The second coordinates do not matter once the first coordinates differ.
+
+This is similar to dictionary ordering. The words “apple” and “banana” are ordered according to their first different letter.
+
+Lexicographic order gives vectors a valid total order, but it does not preserve geometric proximity. Two vectors that are close in lexicographic order may be far apart in space, while two geometrically close vectors may be separated by many other vectors in the lexicographic ordering.
+
+For instance,
+
+$$
+(1,100)
+$$
+
+and
+
+$$
+(2,0)
+$$
+
+are consecutive under some lexicographic arrangements, but their Euclidean distance is approximately
+
+$$
+\sqrt{(2-1)^2+(0-100)^2}
+========================
+
+\sqrt{10001},
+$$
+
+which is close to $100$.
+
+Therefore, an imposed order such as lexicographic order is not sufficient for nearest-neighbour search. In multiple dimensions, we are usually interested not in which vector comes before another, but in which vector is closest to a query.
+
+This requires a distance or similarity function, such as Euclidean distance, cosine similarity, or inner-product similarity.
+
+---
+
+#### **From Skip Lists to HNSW**
+
+The skip list provides the central intuition behind HNSW:
+
+* use sparse upper levels for long-range movement;
+* use dense lower levels for precise local search;
+* begin with large steps;
+* gradually move toward smaller steps.
+
+However, the navigation rule changes.
+
+In a skip list, movement is guided by total order. The algorithm knows whether the target lies to the right because keys can be compared using $<$ and $>$.
+
+In HNSW, there is no useful one-dimensional order. Instead, movement is guided by distance. At every step, the algorithm selects neighbouring vectors that appear closer to the query.
+
+Therefore:
+
+> A skip list navigates through an ordered sequence, while HNSW navigates through a metric or similarity space.
+
+The skip list asks:
+
+> Is the next key still smaller than the target?
+
+HNSW instead asks:
+
+> Does this neighbouring vector bring us closer to the query?
+
+Both structures use a hierarchy of increasingly dense layers. The difference is that skip-list shortcuts follow a linear order, whereas HNSW connections form a proximity graph.
+
+There is also an important parallel in their probabilistic construction. In both structures, randomization influences the level assigned to each element. Changing the level probability changes the density of the hierarchy, the number of elements in upper layers, memory consumption, and search behaviour.
+
+This randomness makes the structure efficient to construct, but it also means that the resulting hierarchy is not unique or completely deterministic.
+
+
+
+
+
+
+
+
+
+
+#### **1. The Skip List**
+
+Imagine a long sorted linked list. Every element knows only its immediate successor. If you are searching for a value, the ordering immediately tells you whether you should continue moving forward or stop—you never need to move backward—but you still have to advance one node at a time.
+
+For a short list this is acceptable. For millions of elements, however, this becomes painfully inefficient because reaching a distant item may require traversing almost every intermediate node.
+
+The obvious idea is to skip ahead instead of visiting every element. But skipping introduces a new problem: if the jumps are too large, you may leap over the element you are searching for with no easy way to recover. What we need is a mechanism that allows large jumps when we are far away from the target, yet gradually switches to smaller, more precise steps as we get closer.
+
+A skip list achieves exactly this by organizing the same ordered sequence into multiple layers. The bottom layer contains every element and guarantees that the target can always be reached exactly. Higher layers contain progressively fewer elements, acting as express lanes that let the search cover large portions of the list in a handful of jumps before descending to finer-grained layers for the final search.
+
+#### **Probabilistic Construction (The Coin Flip)**
 A skip list is built iteratively, layer by layer. 
 1. **The Base Layer ($L_0$):** Every element inserted into the skip list exists in a strictly sorted base layer, $L_0$. 
 2. **Promotion:** When a new node is inserted into $L_0$, the algorithm flips a biased or fair coin (with probability of heads, $p$). 
@@ -602,7 +967,7 @@ A skip list is built iteratively, layer by layer.
 
 Because the probability of flipping $k$ consecutive heads is $p^k$, the probability of a node reaching layer $k$ decays exponentially. For $p = 1/2$, half the nodes reach $L_1$, a quarter reach $L_2$, and so on. This creates "express lanes": the top layers have exponentially fewer nodes, allowing a search algorithm to skip massive sections of the list.
 
-### Search Mechanics and Complexity
+#### **Search Mechanics and Complexity**
 To search for a target value $T$:
 1. Start at the highest layer of the "Head" node.
 2. Look at the next node on the current layer $k$. 
@@ -613,9 +978,8 @@ The expected maximum height of a skip list with $n$ elements is $\approx \log_{1
 $$ \text{Expected Steps} = \left(\log_{1/p} n\right) \times \left(\frac{1}{p}\right) $$
 This yields an overall time complexity of $O(\log n)$.
 
----
 
-## 2. Moving to High Dimensions: Navigable Small Worlds (NSW)
+#### **2. Navigable Small Worlds (NSW)**
 
 Skip lists are perfect for scalar values (1D) that can be sorted left-to-right. However, in modern machine learning, data points are complex vectors in high-dimensional space. We cannot easily sort them in a straight line. Instead, we organize them into a graph. 
 
@@ -637,7 +1001,7 @@ A flat NSW graph suffers from two issues:
 1. Starting randomly means crossing the graph via many small hops is computationally expensive.
 2. Greedy routing can get trapped in **local minima** (geometric "cul-de-sacs"), failing to find the true global nearest neighbor.
 
----
+
 
 ## 3. The Synthesis: HNSW
 
