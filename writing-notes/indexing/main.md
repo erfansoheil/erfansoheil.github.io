@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Indexing in RAG piepline - Part I"
+title: "Indexing in RAG pipeline - Part I"
 ---
 
 
@@ -24,7 +24,7 @@ This guide provides a comprehensive, mathematically grounded, and engineering-fo
 
 ### What This Guide Covers
 
-*   **The :** An abstract look at how indexes trade space complexity for time complexity, and the exact cost of running an unindexed system.
+*   **The Fundamentals:** An abstract look at how indexes trade space complexity for time complexity, and the exact cost of running an unindexed system.
 *   **The Traditional vs. Vector Divide:** Disentangling exact, deterministic lookups (B-Trees, Hash maps) from probabilistic, high-dimensional **Approximate Nearest Neighbor (ANN)** search.
 *   **Core Algorithmic Archetypes:**
     *   **Inverted File Indexing (IVF):** Voronoi partitioning, $k$-means quantization, and inverted lists.
@@ -35,7 +35,7 @@ This guide provides a comprehensive, mathematically grounded, and engineering-fo
 
 ## 1. The Foundational Mechanics: Why Indexing Matters
 
-The most noraml and common question is: **What happens if we do not index our data?**
+The most noamal and common question is: **What happens if we do not index our data?**
 
 To answer this question, let's start with a metaphor. Imagine you have a massive library filled with books on math, physics, chemistry, sports, and various other topics.
 
@@ -49,26 +49,26 @@ To find the correct shelf, you have to check the first book of every single aisl
 
 Now, let's introduce a master directory or clear aisle labels—which acts exactly like a database index. If you not only group common subjects together, but also create a master map showing exactly where each specific subject lives, the search changes completely. For example, the map tells you that math books are always on the first floor, on the left. When you are asked to find a math book, you don't wander or guess; you immediately go straight to that specific shelf. And since all the math books are consolidated right there, your search is narrowed down to just a tiny fraction of the library.
 
-With this example in mind lets talk about indexing in technical way. When you write data to a raw storage medium without an index, it is typically appended to a log or organized in a heap structure. This makes writes incredibly cheap ($O(1)$), but it turns reads into an expensive computational nightmare.
+With this example in mind let's talk about indexing in a technical way. When you write data to a raw storage medium without an index, it is typically appended to a log or organized in a heap structure. This makes writes incredibly cheap ($O(1)$), but it turns reads into an expensive computational nightmare.
 
 ### The Mechanics of the "No-Index" Regime
 
 Without an index, any lookup requires a sequential, exhaustive scan. The system must load every record from storage into memory and evaluate it against the query predicate.
 
-* **In Traditional Databases:** In this case each data is a point (has $1$ dimenstion). A point lookup on an unindexed column forces a Full Table Scan. The time complexity scales strictly linearly:
+* **In Traditional Databases:** In this case each data is a point (has $1$ dimension). A point lookup on an unindexed column forces a Full Table Scan. The time complexity scales strictly linearly:
 
 $$O(N)$$
 
 where $N$ is the number of rows.
 
-* **In Vector Spaces (RAG Pipelines):** Each data is a vector with domesntion $d$. Searching an unindexed vector space requires an exhaustive flat search. To find the nearest neighbor, the system must compute the distance (e.g., Cosine or Euclidean) between the query vector and every stored vector. The time complexity scales as:
+* **In Vector Spaces (RAG Pipelines):** Each data is a vector with domesnion $d$. Searching an unindexed vector space requires an exhaustive flat search. To find the nearest neighbor, the system must compute the distance (e.g., cosine or Euclidean) between the query vector and every stored vector. The time complexity scales as:
 
 $$O(N \cdot d)$$
 
 where $N$ is the number of vectors and $d$ is the dimensionality of the vector space (typically $d = 768$ or $d = 1536$ in modern embedding models).
 
 For a dataset of 10 million vectors with 1,536 dimensions, single query requires
-*   **10 million floating-point operations (FLOPs)** in traditionl case. 
+*   **10 million floating-point operations (FLOPs)** in traditional case. 
 *   **15.3 billion FLOPs** in vector spaces.
 
 At scale, running an unindexed system converts real-time retrieval into a mathematical and financial challenge.
@@ -86,7 +86,7 @@ An index works by organizing data into deterministic or probabilistic structural
 
 ```
 
-By imposing geometric, hierarchical, or mathematical order onto the data during ingestion, the index allows the query processor to discard the vast majority of the search space immediately. This shifts the runtime boundary from linear ($O(N)$) down to logarithmic ($O(\log N)$) or near-constant ($O(1)$) complexities. Exactly like knowing the math book is always on the top shelf on the left in the metheafor. 
+By imposing geometric, hierarchical, or mathematical order onto the data during ingestion, the index allows the query processor to discard the vast majority of the search space immediately. This shifts the runtime boundary from linear ($O(N)$) down to logarithmic ($O(\log N)$) or near-constant ($O(1)$) complexities. Exactly like knowing the math book is always on the top shelf on the left in the metaphor. 
 
 
 ## 2. Relational Databases vs. Vector RAG Pipelines
@@ -124,7 +124,7 @@ To understand why this exact-match system effortlessly handles massive scale—l
 Because the search phase doesn't read the documents, big data isn't a problem. These data structures operate on logarithmic time complexity, expressed mathematically as $O(\log n)$. Practically, this means if a database grows from one million to one billion records, finding an exact match doesn't take a thousand times longer—it only takes a few extra computational steps, because the system skips half the remaining data with every single step. Furthermore, comparing exact strings (`"Apple"` vs `"Apple"`) requires almost zero computational overhead.
 
 
-Traditional indexing is undeniably fast, infinitely scalable, and perfectly suited for exact searches. However, what happens if there is not exact match for you query? what happens if you onyl knw a partia lexact information of  you query? Lets talk about searching about words and sentences.  An exact-match index only knows what a word *is*, not what a word *means*. If you search a traditional database for "puppy," it will instantly return every document containing the word "puppy." But it will completely ignore a document about a "young dog," because those exact letters do not match. 
+Traditional indexing is undeniably fast, infinitely scalable, and perfectly suited for exact searches. However, what happens if there is no exact match for your query? what happens if you onyl know a partial  information of  you query? Let's talk about searching for words and sentences.  An exact-match index only knows what a word *is*, not what a word *means*. If you search a traditional database for "puppy," it will instantly return every document containing the word "puppy." But it will completely ignore a document about a "young dog," because those exact letters do not match. 
 
 To move forward, we must transition from finding the **exact** item to finding the **closest** item. More professionally, vector indexing in RAG pipelines operates in the realm of **Approximate Nearest Neighbor (ANN)** search.
 
@@ -138,7 +138,7 @@ To understand this more easily, imagine that you go to a massive bookstore to bu
 
 When you describe what you want, the seller's ability to help depends entirely on their mental understanding of the subject and how they have framed the store's inventory in their mind. Two distinct steps happen here:
 
-** **Understanding the Concept:** The bookseller must grasp the meaning of your request and mentally map it to the subjects in the store. They must realize that a book on geometry or calculus fits your needs, even if the word "mathematics" isn't on the cover. This conceptual mapping is the embedding.
+* **Understanding the Concept:** The bookseller must grasp the meaning of your request and mentally map it to the subjects in the store. They must realize that a book on geometry or calculus fits your needs, even if the word "mathematics" isn't on the cover. This conceptual mapping is the embedding.
 
 * **Knowing Where to Look:** Once the bookseller knows what concepts to look for, they need to know exactly which aisles and shelves hold those subjects so they can walk straight there, skipping the fiction and cooking sections entirely. This structural organization that allows them to skip irrelevant books is the indexing.
 
@@ -157,21 +157,21 @@ In the rest of this article, we will explore the most common ways to index data 
 
 ## 3. Algorithmic Archetypes: Tree, IVF, and Modern Vector Methods
 
-In this section we will mention most common indexing algorithms used in modern database libraries such as `FAISS` , `LlamaIndex` and `ChromaDB`. These are open source libraies and have a good compatiblity with RAG and Agentic frameworks. 
+In this section we will mention most common indexing algorithms used in modern database libraries such as `FAISS` , `LlamaIndex` and `ChromaDB`. These are open-source libraries and have a good compatibility with RAG and Agentic frameworks. 
 
-For undestadning this section no prior knowledge about embedding models needed. The only point that needs to be considered is that every input after passing trought the embedding model transforms into a vector of dimension $d$. 
+For understanding this section no prior knowledge about embedding models needed. The only point that needs to be considered is that every input after passing throught the embedding model is transformed into a vector of dimension $d$. 
 
-Altough the first method `Flat Indexing` is not a *real* indexing method it is just comparision between all other vectors with eucledean metric. But in the AI community it is often mentioned as a way of indexing.
+Although the first method `Flat Indexing` is not a *real* indexing method it is just comparison between all other vectors with Eucledean metric. But in the AI community it is often mentioned as a way of indexing.
 
 ### 1. Flat Indexing (Brute Force)
 
-Before we jump into all the fancy approximate search methods (ANN), we have to establish our exact-match baseline: the Flat Index. In a Flat Index, we just store the vectors exactly as they are generated. No structural organization, no compression, just raw data. When a query vector $q$ arrives, the system does an exhaustive (through all vectors of the database) search. Basically we are done with indexing. The indexing step is done at this stage, **however** the intresting part is **how** the search is done. 
+Before we jump into all the fancy approximate search methods (ANN), we have to establish our exact-match baseline: the Flat Index. In a Flat Index, we just store the vectors exactly as they are generated. No structural organization, no compression, just raw data. When a query vector $q$ arrives, the system does an exhaustive (through all vectors of the database) search. Basically we are done with indexing. The indexing step is done at this stage, **however** the interesting part is **how** the search is done. 
 
-In general the system calculates the mathematical distance between $q$ and every single document vector $x$ in the entire dataset $X$ of size $N$. Because we are comparing every single dimension ($d$) of every single vector ($N$), the time complexity is $O(N \cdot d)$. It guarantees 100% perfect recall, but as our dataset grows, this brute-force approach becomes computationally non appealing to marketing team.
+In general the system calculates the mathematical distance between $q$ and every single document vector $x$ in the entire dataset $X$ of size $N$. Because we are comparing every single dimension ($d$) of every single vector ($N$), the time complexity is $O(N \cdot d)$. It guarantees 100% perfect recall, but as our dataset grows, this brute-force approach becomes computationally unappealing to the marketing team.
 
-In the follwing we will mention some of these metrics. Again these (metrics) happen **after** indexing. 
+In the following we will mention some of these metrics. Again these (metrics) happen **after** indexing. 
 
-Throughout this section  $q$ is a query vector and $x$ is a sample point in our dataset. Both $q$ and $x$ cane be represented as: 
+Throughout this section  $q$ is a query vector and $x$ is a sample point in our dataset. Both $q$ and $x$ can be represented as: 
 
 $$q = (q_1,q_2,\cdots,q_d)$$
 
@@ -179,13 +179,13 @@ and
 
 $$x = (x_1,x_2,\cdots,x_d)$$
 
-for $ q_1,q_2,\cdots,q_d, x_1,x_2,\cdots,x_d \in \mathbb{R}$. And for every vector $x$ the $L2$ norm of $x$ is defines as:
+for $ q_1,q_2,\cdots,q_d, x_1,x_2,\cdots,x_d \in \mathbb{R}$. And for every vector $x$ the $L2$ norm of $x$ is defined as:
 
 $$  \Vert x\Vert_2 =  \sqrt{\sum_{j=1}^{d} x_{j}^2} $$
 
 #### **Cosine (aka Cosine Similarity) and Inner Product** 
 
-Between $q$ and $x$ the  **Cosine similarity** for 
+Between $q$ and $x$ the  **cosine similarity** for 
 
 $$S_C(q, x) = \frac{q \cdot x}{\Vert q\Vert \Vert x\Vert} = \frac{\sum_{j=1}^{d} q_j x_{j}}{\sqrt{\sum_{j=1}^{d} q_j^2} \sqrt{\sum_{j=1}^{d} x_{j}^2}}$$
 
@@ -203,7 +203,7 @@ Here we would like to mention that in pure mathematics, a "metric" (or distance 
 
 As engineers, we accept this jargon, but strictly mathematically speaking, **this is heavily misused.**  
 
-**Inner Product and Cosine Similarity completely fail these mathematical tests.** They are *similarity comparisons*, not actual distances. Inner product can yield negative numbers, failing rule #1. Cosine similarity increases the closer two vectors get, which is the exact opposite of a distance function. Even if you invert it into $1 -$ Cosine Similarity, it still famously violates the Triangle Inequality (For more information of how we can create a distance frim inner product you can refer to my article on postional encodding [here](https://erfansoheil.github.io/writing-notes/positional_embeddings/main.html)).
+**Inner product and cosine Similarity completely fail these mathematical tests.** They are *similarity comparisons*, not actual distances. Inner product can yield negative numbers, failing rule #1. cosine similarity increases the closer two vectors get, which is the exact opposite of a distance function. Even if you invert it into $1 -$ cosine Similarity, it still famously violates the Triangle Inequality (For more information of how we can create a distance from inner product you can refer to my article on positional encodding [here](https://erfansoheil.github.io/writing-notes/positional_embeddings/main.html)).
 
 If you read the documentation for FAISS, Milvus, or ChromaDB, you will constantly see the word "metric" used to describe how vectors are compared (e.g., `metric_type="IP"`). So, when vector databases talk about "metrics," remember that they are using it as a sloppy catch-all term for **scoring functions**.
 
@@ -271,7 +271,7 @@ When you move from mathematical theory into production tools like FAISS, Milvus,
 We can break these down into three tiers of production readiness:
 
 **Tier 1: The Universal Defaults (Native Everywhere)**
-If you are using **Inner Product (IP), Cosine Similarity, or Euclidean Distance ($L_2$)**, you are in the safe zone. Every major vector database supports these natively out-of-the-box. Their underlying graph algorithms (like HNSW) and quantization techniques are heavily optimized for these three specific calculations.
+If you are using **inner Product (IP), cosine Similarity, or Euclidean Distance ($L_2$)**, you are in the safe zone. Every major vector database supports these natively out-of-the-box. Their underlying graph algorithms (like HNSW) and quantization techniques are heavily optimized for these three specific calculations.
 
 **Tier 2: The Conditional Natives ($L_1$ and Jaccard)**
 Metrics like Manhattan ($L_1$) and Jaccard are supported natively, but with major asterisks attached to them:
@@ -390,11 +390,8 @@ centroid_3 → [vector_12, vector_41, vector_96]
 
 The vector IDs connect the search results to the original documents, chunks, images, or database records. In an IVF-Flat index, the corresponding full vectors are also stored in, or referenced by, each inverted list. Other IVF variants may instead store compressed vector representations to reduce memory usage.
 
-1. **Query Phase:** The query vector $q$ is first compared against only the $k$ centroids. The system selects the $n$ closest centroids (a hyperparameter called `nprobe`) and the system then compares the query with every candidate vector stored in the selected inverted lists. This local scan uses the same distance or similarity measure introduced in the Flat Indexing section, such as Euclidean distance, inner product, or cosine similarity. The difference is that Flat Indexing scans the entire dataset, whereas IVF scans only the vectors belonging to the selected clusters.
+3. **Query Phase:** The query vector $q$ is first compared against only the $k$ centroids. The system selects the $n$ closest centroids (a hyperparameter called `nprobe`) and the system then compares the query with every candidate vector stored in the selected inverted lists. This local scan uses the same distance or similarity measure introduced in the Flat Indexing section, such as Euclidean distance, inner product, or cosine similarity. The difference is that Flat Indexing scans the entire dataset, whereas IVF scans only the vectors belonging to the selected clusters.
 
-Here is the improved Markdown, utilizing proper LaTeX formatting for the math equations and code blocks to preserve the alignment of your diagrams.
-
----
 
 #### **The Boundary Problem: Why `nprobe` Exists**
 
@@ -482,7 +479,7 @@ Query q
 
 * **Boundary errors:** Each vector is normally assigned to only one centroid. As shown in the previous example, a query and its true nearest neighbor may lie on opposite sides of a Voronoi boundary and therefore be stored in different inverted lists. Searching more lists by increasing `nprobe` reduces this problem, but also increases the number of distance computations.
 
-* **Uneven inverted-list sizes:** Standard (k)-means minimizes the distance between vectors and their assigned centroids, but it does not guarantee that every cluster will contain approximately the same number of vectors. Dense regions of the embedding space may create very large inverted lists, while sparse regions may create small or nearly empty ones. This makes search latency less predictable because the cost depends not only on `nprobe`, but also on how many vectors are stored in the selected lists.
+* **Uneven inverted-list sizes:** Standard $k$-means minimizes the distance between vectors and their assigned centroids, but it does not guarantee that every cluster will contain approximately the same number of vectors. Dense regions of the embedding space may create very large inverted lists, while sparse regions may create small or nearly empty ones. This makes search latency less predictable because the cost depends not only on `nprobe`, but also on how many vectors are stored in the selected lists.
 
 * **Sensitive to the shape of the data distribution:** (k)-means works best when clusters are reasonably compact and can be represented well by a single centroid. Real embedding distributions may contain elongated, overlapping, or irregularly shaped regions. In such cases, the centroid partitioning may not reflect the actual nearest-neighbor structure of the data.
 
