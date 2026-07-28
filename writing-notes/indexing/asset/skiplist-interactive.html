@@ -28,7 +28,7 @@
         .layout-container {
             display: flex;
             gap: 30px;
-            max-width: 1000px;
+            max-width: 1050px;
             width: 100%;
             flex-wrap: wrap;
             align-items: flex-start;
@@ -37,7 +37,7 @@
         /* Sidebar for Rules */
         .rules-panel {
             flex: 1;
-            min-width: 250px;
+            min-width: 300px;
             background: var(--card-bg);
             padding: 24px;
             border-radius: 12px;
@@ -48,8 +48,10 @@
         .rules-panel h3 {
             margin-top: 0;
             margin-bottom: 16px;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             color: #0f172a;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .rules-list {
@@ -62,10 +64,11 @@
         }
 
         .rules-list li {
-            font-size: 0.95rem;
-            line-height: 1.5;
+            font-size: 0.9rem;
+            line-height: 1.4;
             padding-left: 28px;
             position: relative;
+            color: #334155;
         }
 
         /* Custom numbers for the list */
@@ -74,7 +77,7 @@
             counter-increment: item;
             position: absolute;
             left: 0;
-            top: 2px;
+            top: 0px;
             background: var(--primary-light);
             color: var(--primary);
             width: 20px;
@@ -88,7 +91,10 @@
         }
         .rules-list { counter-reset: item; }
 
-        .rules-list strong {
+        .math-var {
+            font-family: "Cambria Math", "Times New Roman", serif;
+            font-style: italic;
+            font-weight: bold;
             color: #0f172a;
         }
 
@@ -202,12 +208,14 @@
         
         <!-- Rules Sidebar -->
         <div class="rules-panel">
-            <h3>Routing Rules</h3>
+            <h3>Search Mechanism</h3>
             <ul class="rules-list">
-                <li><strong>Start</strong> at the top layer of the entry node.</li>
-                <li><strong>Move Right</strong> if the next value is less than or equal to the target.</li>
-                <li><strong>Drop Down</strong> if the next value is greater than the target, or if you hit a dead end.</li>
-                <li><strong>Repeat</strong> until the target is found, or you pass its position on the bottom layer (L0).</li>
+                <li>Begin at the head node of the highest nonempty level.</li>
+                <li>Inspect the next node on the current level.</li>
+                <li>If the next node has key <span class="math-var">T</span>, the target has been found.</li>
+                <li>If the next key is smaller than <span class="math-var">T</span>, move horizontally to that node.</li>
+                <li>If the next key is greater than <span class="math-var">T</span>, or if no next node exists, descend by one level.</li>
+                <li>Repeat until the target is found or its possible position is passed in <span class="math-var">L<sub>0</sub></span>.</li>
             </ul>
         </div>
 
@@ -215,10 +223,10 @@
         <div class="vis-panel">
             <div class="controls">
                 <div class="btn-group">
-                    <button id="btn-new" onclick="startNewSearch()">New Target</button>
+                    <button id="btn-new" onclick="startNewSearch()">New Target <span class="math-var">T</span></button>
                     <button id="btn-step" onclick="nextStep()">Step Forward</button>
                 </div>
-                <div class="status" id="status-display">Target: <strong>-</strong></div>
+                <div class="status" id="status-display">Target <span class="math-var">T</span>: <strong>-</strong></div>
             </div>
 
             <div id="skip-list-container"></div>
@@ -253,7 +261,9 @@
             let html = '<table>';
             
             for (let l = maxLevel; l >= 0; l--) {
-                html += `<tr><td class="level-label">L${l}</td>`;
+                // Formatting the lowest level as L0 for consistency with the rules
+                const label = l === 0 ? 'L<sub>0</sub>' : `L<sub>${l}</sub>`;
+                html += `<tr><td class="level-label">${label}</td>`;
                 for (let i = 0; i < nodes.length; i++) {
                     html += `<td>`;
                     if (nodes[i].height >= l) {
@@ -285,7 +295,7 @@
 
         function startNewSearch() {
             target = searchPool[Math.floor(Math.random() * searchPool.length)];
-            document.getElementById('status-display').innerHTML = `Target: <strong>${target}</strong>`;
+            document.getElementById('status-display').innerHTML = `Target <span class="math-var">T</span>: <strong>${target}</strong>`;
             document.getElementById('btn-step').disabled = false;
             document.getElementById('btn-step').innerText = "Step Forward";
             
@@ -317,7 +327,7 @@
 
                 if (nextVal === target) {
                     setNodeState(currLevel, currNodeIdx, 'found');
-                    document.getElementById('status-display').innerHTML = `Found: <strong>${target}</strong>`;
+                    document.getElementById('status-display').innerHTML = `Found <span class="math-var">T</span>: <strong>${target}</strong>`;
                     endSearch();
                 }
             } else {

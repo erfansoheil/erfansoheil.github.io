@@ -50,26 +50,7 @@ Let $p$ be the probability that a node is promoted to the next level.
 
 Equivalently, we may imagine repeatedly flipping a biased coin. A successful flip promotes the node by one level, while an unsuccessful flip stops the process.
 
-The probability that a node reaches level $k$ is
-
-$$
-p^k.
-$$
-
-For example, when $p=\frac{1}{2}$:
-
-* Every node appears in $L_0$.
-* Approximately half of the nodes appear in $L_1$.
-* Approximately one quarter appear in $L_2$.
-* Approximately one eighth appear in $L_3$.
-
-In general, the expected number of nodes in level $L_k$ is
-
-$$
-np^k,
-$$
-
-where $n$ is the total number of elements.
+The probability that a node reaches level $k$ is $p^k.$
 
 The number of nodes therefore decreases exponentially as we move upward. This produces sparse upper levels containing long-range shortcuts and dense lower levels containing shorter, more precise connections.
 
@@ -96,8 +77,7 @@ The probabilistic construction  can bee seen as both stenght and weakness of thi
 
 Even when two skip lists contain the same elements and use the same probability $p$, they may have different structures because their promotion outcomes can differ. A node may reach several upper levels in one construction but remain only in the base level in another.
 
-
-
+From the mathematical poinst of view it is interesting to investigate some 
 #### **Expected Height**
 
 At level $k$, the expected number of nodes is
