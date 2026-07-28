@@ -98,27 +98,6 @@ Even when two skip lists contain the same elements and use the same probability 
 
 
 
-#### **Search Mechanics**
-
-To search for a target value $T$:
-
-1. Begin at the head node of the highest nonempty level.
-2. Inspect the next node on the current level.
-3. If the next node has key $T$, the target has been found.
-4. If the next key is smaller than $T$, move horizontally to that node.
-5. If the next key is greater than $T$, or if no next node exists, descend by one level.
-6. Repeat until the target is found or its possible position is passed in $L_0$.
-
-The search follows a simple rule:
-
-> Move right while the next jump does not overshoot the target. Move down when the next jump is too large.
-
-Suppose we are searching for $73$. At a sparse upper level, the search might move from $10$ to $40$ and then to $70$. If the next available node is $100$, moving to it would overshoot the target. The search therefore descends to a lower, denser level from $70$ and continues with smaller steps until it either reaches $73$ or determines that $73$ is absent.
-
-The algorithm never needs to move backward. Descending to a more detailed level replaces backward recovery.
-
----
-
 #### **Expected Height**
 
 At level $k$, the expected number of nodes is

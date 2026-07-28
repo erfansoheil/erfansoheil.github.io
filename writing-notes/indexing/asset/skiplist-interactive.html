@@ -10,8 +10,10 @@
             --primary-light: #bfdbfe;
             --success: #22c55e;
             --text: #334155;
+            --text-light: #64748b;
             --bg: #f8fafc;
             --line: #cbd5e1;
+            --card-bg: #ffffff;
         }
         body {
             font-family: system-ui, -apple-system, sans-serif;
@@ -20,19 +22,102 @@
             margin: 0;
             padding: 20px;
             display: flex;
+            justify-content: center;
+        }
+        
+        .layout-container {
+            display: flex;
+            gap: 30px;
+            max-width: 1000px;
+            width: 100%;
+            flex-wrap: wrap;
+            align-items: flex-start;
+        }
+
+        /* Sidebar for Rules */
+        .rules-panel {
+            flex: 1;
+            min-width: 250px;
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+        }
+        
+        .rules-panel h3 {
+            margin-top: 0;
+            margin-bottom: 16px;
+            font-size: 1.2rem;
+            color: #0f172a;
+        }
+
+        .rules-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .rules-list li {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            padding-left: 28px;
+            position: relative;
+        }
+
+        /* Custom numbers for the list */
+        .rules-list li::before {
+            content: counter(item);
+            counter-increment: item;
+            position: absolute;
+            left: 0;
+            top: 2px;
+            background: var(--primary-light);
+            color: var(--primary);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+        .rules-list { counter-reset: item; }
+
+        .rules-list strong {
+            color: #0f172a;
+        }
+
+        /* Main Visualization Area */
+        .vis-panel {
+            flex: 2;
+            min-width: 400px;
+            display: flex;
             flex-direction: column;
             align-items: center;
         }
+
         .controls {
             display: flex;
             gap: 15px;
             margin-bottom: 25px;
             align-items: center;
-            background: white;
+            background: var(--card-bg);
             padding: 15px 25px;
             border-radius: 8px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+            width: 100%;
+            box-sizing: border-box;
+            justify-content: space-between;
         }
+
+        .btn-group { display: flex; gap: 10px; }
+
         button {
             background: var(--primary);
             color: white;
@@ -45,16 +130,17 @@
         }
         button:hover:not(:disabled) { background: #2563eb; }
         button:disabled { background: #94a3b8; cursor: not-allowed; }
-        .status { font-size: 1.1rem; font-weight: 500; min-width: 140px;}
+        
+        .status { font-size: 1.05rem; font-weight: 500;}
         
         table {
             border-collapse: collapse;
-            margin-top: 10px;
             position: relative;
+            margin: 0 auto;
         }
         td {
-            width: 55px;
-            height: 55px;
+            width: 50px;
+            height: 50px;
             text-align: center;
             position: relative;
         }
@@ -70,13 +156,12 @@
             z-index: 1;
             transform: translateY(-50%);
         }
-        /* Hide lines before start node and after end node */
         td:first-child::before { left: 50%; }
         td:last-child::before { right: 50%; }
 
         .node {
-            width: 38px;
-            height: 38px;
+            width: 36px;
+            height: 36px;
             background: white;
             border: 2px solid var(--line);
             border-radius: 50%;
@@ -87,43 +172,61 @@
             position: relative;
             z-index: 2;
             font-weight: 600;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
-        /* Node States */
         .node.visited { background: var(--primary-light); border-color: var(--primary); }
         .node.active { 
             background: var(--primary); 
             color: white; 
             border-color: var(--primary);
-            transform: scale(1.2);
-            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+            transform: scale(1.15);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
         }
         .node.found { background: var(--success); border-color: var(--success); color: white; }
         
-        /* Level labels */
         .level-label {
             font-weight: bold;
-            color: #64748b;
+            color: var(--text-light);
             padding-right: 15px;
             border: none !important;
+            font-size: 0.9rem;
         }
         .level-label::before { display: none; }
     </style>
 </head>
 <body>
 
-    <div class="controls">
-        <button id="btn-new" onclick="startNewSearch()">New Target</button>
-        <button id="btn-step" onclick="nextStep()">Step Forward</button>
-        <div class="status" id="status-display">Target: <strong>-</strong></div>
+    <div class="layout-container">
+        
+        <!-- Rules Sidebar -->
+        <div class="rules-panel">
+            <h3>Routing Rules</h3>
+            <ul class="rules-list">
+                <li><strong>Start</strong> at the top layer of the entry node.</li>
+                <li><strong>Move Right</strong> if the next value is less than or equal to the target.</li>
+                <li><strong>Drop Down</strong> if the next value is greater than the target, or if you hit a dead end.</li>
+                <li><strong>Repeat</strong> until the target is found, or you pass its position on the bottom layer (L0).</li>
+            </ul>
+        </div>
+
+        <!-- Visualization -->
+        <div class="vis-panel">
+            <div class="controls">
+                <div class="btn-group">
+                    <button id="btn-new" onclick="startNewSearch()">New Target</button>
+                    <button id="btn-step" onclick="nextStep()">Step Forward</button>
+                </div>
+                <div class="status" id="status-display">Target: <strong>-</strong></div>
+            </div>
+
+            <div id="skip-list-container"></div>
+        </div>
+
     </div>
 
-    <div id="skip-list-container"></div>
-
     <script>
-        // Define the nodes and their maximum height in the skip list
         const nodes = [
             { val: 'Start', height: 3 },
             { val: 10, height: 0 },
@@ -137,13 +240,13 @@
             { val: 90, height: 0 }
         ];
         
-        const searchPool = [10, 20, 30, 40, 50, 60, 70, 80, 90, 45, 100]; // Added 45 and 100 to show "not found" or overshoot mechanics
+        const searchPool = [10, 20, 30, 40, 50, 60, 70, 80, 90, 45, 100];
         const maxLevel = 3;
         
         let target = null;
         let currNodeIdx = 0;
         let currLevel = maxLevel;
-        let state = 'idle'; // idle, searching, done
+        let state = 'idle'; 
 
         function renderGrid() {
             const container = document.getElementById('skip-list-container');
@@ -197,32 +300,27 @@
         function nextStep() {
             if (state !== 'searching') return;
 
-            // 1. Find the next valid node on the current level
             let nextIdx = currNodeIdx + 1;
             while (nextIdx < nodes.length && nodes[nextIdx].height < currLevel) {
                 nextIdx++;
             }
 
-            // 2. Decide to move RIGHT or move DOWN
             const nextNodeExists = nextIdx < nodes.length;
             const nextVal = nextNodeExists ? nodes[nextIdx].val : Infinity;
 
             if (nextNodeExists && nextVal <= target) {
-                // MOVE RIGHT
                 setNodeState(currLevel, currNodeIdx, 'visited');
                 removeNodeState(currLevel, currNodeIdx, 'active');
                 
                 currNodeIdx = nextIdx;
                 setNodeState(currLevel, currNodeIdx, 'active');
 
-                // Check for exact match (Early stopping for exact search)
                 if (nextVal === target) {
                     setNodeState(currLevel, currNodeIdx, 'found');
                     document.getElementById('status-display').innerHTML = `Found: <strong>${target}</strong>`;
                     endSearch();
                 }
             } else {
-                // MOVE DOWN
                 if (currLevel > 0) {
                     setNodeState(currLevel, currNodeIdx, 'visited');
                     removeNodeState(currLevel, currNodeIdx, 'active');
@@ -230,8 +328,7 @@
                     currLevel--;
                     setNodeState(currLevel, currNodeIdx, 'active');
                 } else {
-                    // Reached L0 and can't move right or down
-                    document.getElementById('status-display').innerHTML = `Stopped. <strong>${target}</strong> not in list.`;
+                    document.getElementById('status-display').innerHTML = `Stopped. <strong>${target}</strong> not found.`;
                     endSearch();
                 }
             }
@@ -240,10 +337,9 @@
         function endSearch() {
             state = 'done';
             document.getElementById('btn-step').disabled = true;
-            document.getElementById('btn-step').innerText = "Search Complete";
+            document.getElementById('btn-step').innerText = "Complete";
         }
 
-        // Initialize
         renderGrid();
         startNewSearch();
     </script>
