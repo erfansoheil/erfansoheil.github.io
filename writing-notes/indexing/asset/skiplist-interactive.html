@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Skip List</title>
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-light: #bfdbfe;
+            --success: #22c55e;
+            --text: #334155;
+            --bg: #f8fafc;
+            --line: #cbd5e1;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            color: var(--text);
+            background: var(--bg);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            align-items: center;
+            background: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover:not(:disabled) { background: #2563eb; }
+        button:disabled { background: #94a3b8; cursor: not-allowed; }
+        .status { font-size: 1.1rem; font-weight: 500; min-width: 140px;}
+        
+        table {
+            border-collapse: collapse;
+            margin-top: 10px;
+            position: relative;
+        }
+        td {
+            width: 55px;
+            height: 55px;
+            text-align: center;
+            position: relative;
+        }
+        /* The connecting lines */
+        td::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--line);
+            z-index: 1;
+            transform: translateY(-50%);
+        }
+        /* Hide lines before start node and after end node */
+        td:first-child::before { left: 50%; }
+        td:last-child::before { right: 50%; }
+
+        .node {
+            width: 38px;
+            height: 38px;
+            background: white;
+            border: 2px solid var(--line);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: auto;
+            position: relative;
+            z-index: 2;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* Node States */
+        .node.visited { background: var(--primary-light); border-color: var(--primary); }
+        .node.active { 
+            background: var(--primary); 
+            color: white; 
+            border-color: var(--primary);
+            transform: scale(1.2);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+        .node.found { background: var(--success); border-color: var(--success); color: white; }
+        
+        /* Level labels */
+        .level-label {
+            font-weight: bold;
+            color: #64748b;
+            padding-right: 15px;
+            border: none !important;
+        }
+        .level-label::before { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="controls">
+        <button id="btn-new" onclick="startNewSearch()">New Target</button>
+        <button id="btn-step" onclick="nextStep()">Step Forward</button>
+        <div class="status" id="status-display">Target: <strong>-</strong></div>
+    </div>
+
+    <div id="skip-list-container"></div>
+
+    <script>
+        // Define the nodes and their maximum height in the skip list
+        const nodes = [
+            { val: 'Start', height: 3 },
+            { val: 10, height: 0 },
+            { val: 20, height: 1 },
+            { val: 30, height: 0 },
+            { val: 40, height: 2 },
+            { val: 50, height: 0 },
+            { val: 60, height: 1 },
+            { val: 70, height: 0 },
+            { val: 80, height: 3 },
+            { val: 90, height: 0 }
+        ];
+        
+        const searchPool = [10, 20, 30, 40, 50, 60, 70, 80, 90, 45, 100]; // Added 45 and 100 to show "not found" or overshoot mechanics
+        const maxLevel = 3;
+        
+        let target = null;
+        let currNodeIdx = 0;
+        let currLevel = maxLevel;
+        let state = 'idle'; // idle, searching, done
+
+        function renderGrid() {
+            const container = document.getElementById('skip-list-container');
+            let html = '<table>';
+            
+            for (let l = maxLevel; l >= 0; l--) {
+                html += `<tr><td class="level-label">L${l}</td>`;
+                for (let i = 0; i < nodes.length; i++) {
+                    html += `<td>`;
+                    if (nodes[i].height >= l) {
+                        html += `<div class="node" id="node-${l}-${i}">${nodes[i].val === 'Start' ? 'S' : nodes[i].val}</div>`;
+                    }
+                    html += `</td>`;
+                }
+                html += `</tr>`;
+            }
+            html += '</table>';
+            container.innerHTML = html;
+        }
+
+        function clearHighlights() {
+            document.querySelectorAll('.node').forEach(el => {
+                el.classList.remove('visited', 'active', 'found');
+            });
+        }
+
+        function setNodeState(level, idx, stateClass) {
+            const el = document.getElementById(`node-${level}-${idx}`);
+            if (el) el.classList.add(stateClass);
+        }
+
+        function removeNodeState(level, idx, stateClass) {
+            const el = document.getElementById(`node-${level}-${idx}`);
+            if (el) el.classList.remove(stateClass);
+        }
+
+        function startNewSearch() {
+            target = searchPool[Math.floor(Math.random() * searchPool.length)];
+            document.getElementById('status-display').innerHTML = `Target: <strong>${target}</strong>`;
+            document.getElementById('btn-step').disabled = false;
+            document.getElementById('btn-step').innerText = "Step Forward";
+            
+            clearHighlights();
+            currNodeIdx = 0;
+            currLevel = maxLevel;
+            state = 'searching';
+            
+            setNodeState(currLevel, currNodeIdx, 'active');
+        }
+
+        function nextStep() {
+            if (state !== 'searching') return;
+
+            // 1. Find the next valid node on the current level
+            let nextIdx = currNodeIdx + 1;
+            while (nextIdx < nodes.length && nodes[nextIdx].height < currLevel) {
+                nextIdx++;
+            }
+
+            // 2. Decide to move RIGHT or move DOWN
+            const nextNodeExists = nextIdx < nodes.length;
+            const nextVal = nextNodeExists ? nodes[nextIdx].val : Infinity;
+
+            if (nextNodeExists && nextVal <= target) {
+                // MOVE RIGHT
+                setNodeState(currLevel, currNodeIdx, 'visited');
+                removeNodeState(currLevel, currNodeIdx, 'active');
+                
+                currNodeIdx = nextIdx;
+                setNodeState(currLevel, currNodeIdx, 'active');
+
+                // Check for exact match (Early stopping for exact search)
+                if (nextVal === target) {
+                    setNodeState(currLevel, currNodeIdx, 'found');
+                    document.getElementById('status-display').innerHTML = `Found: <strong>${target}</strong>`;
+                    endSearch();
+                }
+            } else {
+                // MOVE DOWN
+                if (currLevel > 0) {
+                    setNodeState(currLevel, currNodeIdx, 'visited');
+                    removeNodeState(currLevel, currNodeIdx, 'active');
+                    
+                    currLevel--;
+                    setNodeState(currLevel, currNodeIdx, 'active');
+                } else {
+                    // Reached L0 and can't move right or down
+                    document.getElementById('status-display').innerHTML = `Stopped. <strong>${target}</strong> not in list.`;
+                    endSearch();
+                }
+            }
+        }
+
+        function endSearch() {
+            state = 'done';
+            document.getElementById('btn-step').disabled = true;
+            document.getElementById('btn-step').innerText = "Search Complete";
+        }
+
+        // Initialize
+        renderGrid();
+        startNewSearch();
+    </script>
+</body>
+</html>

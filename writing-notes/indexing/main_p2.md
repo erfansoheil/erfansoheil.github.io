@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Indexing in RAG piepline - Part II"
+title: "Indexing in RAG pipeline - Part II"
 ---
 
 
@@ -10,11 +10,7 @@ The Hierarchical Navigable Small World (HNSW) algorithm is currently one of the 
 
 
 
-HNSW adapts two key properties from two mentioned algorithms: 1- Skipping most of data 2- Navigating in a compact subsapce of data. Wit hthes two proeptires, HNSW elegantly solves the problem of searching massive vector databases with $O(\log n)$ complexity.
-
-
-
-
+HNSW adapts two key properties from the two mentioned algorithms: 1- Skipping most of the data; 2- Navigating in a compact subspace of data. With these two properties, HNSW elegantly solves the problem of searching massive vector databases with $O(\log n)$ complexity.
 
 
 #### **1. The Skip List**
@@ -35,7 +31,10 @@ The structure can be summarized as follows:
 * The upper levels provide speed.
 * Searching alternates between moving right and moving down.
 
----
+Here is an interactive visualization of how we traverse a Skip List. Notice how the algorithm moves right as long as the next value is less than or equal to our target. As soon as it overshoots, it drops down a layer to find a more granular path.
+
+<iframe src="./asset/skiplist-interactive.html" width="100%" height="450px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
+
 
 #### **Probabilistic Construction: The Coin Flip**
 
@@ -72,8 +71,6 @@ $$
 where $n$ is the total number of elements.
 
 The number of nodes therefore decreases exponentially as we move upward. This produces sparse upper levels containing long-range shortcuts and dense lower levels containing shorter, more precise connections.
-
----
 
 #### **The Role of the Promotion Probability**
 
@@ -397,10 +394,7 @@ $$
 are consecutive under some lexicographic arrangements, but their Euclidean distance is approximately
 
 $$
-\sqrt{(2-1)^2+(0-100)^2}
-========================
-
-\sqrt{10001},
+\sqrt{(2-1)^2+(0-100)^2}=\sqrt{10001},
 $$
 
 which is close to $100$.
@@ -684,19 +678,19 @@ print("\n--- Building IndexIVFFlat ---")
 nlist = 100                                  # Number of Voronoi cells (clusters)
 quantizer = faiss.IndexFlatL2(d)             # Coarse quantizer used to assign vectors to cells
 
-indexvf = faiss.IndexIVFFlat(quantizer, d, nlist, faiss.METRIC_L2)
+index_ivf = faiss.IndexIVFFlat(quantizer, d, nlist, faiss.METRIC_L2)
 
-print(f"Is trained before: {indexvf.is_trained}")
-indexvf.train(xb)                          # Critical: Must train to find cluster centroids
-print(f"Is trained after: {indexvf.is_trained}")
+print(f"Is trained before: {index_ivf.is_trained}")
+index_ivf.train(xb)                          # Critical: Must train to find cluster centroids
+print(f"Is trained after: {index_ivf.is_trained}")
 
-indexvf.add(xb)
+index_ivf.add(xb)
 
 # Adjust search-time parameters
-indexvf.nprobe = 10                        # Look into the 10 closest clusters at query time
+index_ivf.nprobe = 10                        # Look into the 10 closest clusters at query time
 
 start_time = time.time()
-distances, indices = indexvf.search(xq, k)
+distances, indices = index_ivf.search(xq, k)
 print(f"IVF Search Time: {(time.time() - start_time) * 1000:.3f} ms")
 
 ```
@@ -738,7 +732,7 @@ index_composite.train(xb)
 index_composite.add(xb)
 
 # Set runtime cluster probe depth
-faiss.extract_indexvf(index_composite).nprobe = 16
+faiss.extract_index_ivf(index_composite).nprobe = 16
 
 start_time = time.time()
 distances, indices = index_composite.search(xq, k)
