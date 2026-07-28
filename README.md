@@ -20,6 +20,6 @@ My interests include mathematics, artificial intelligence, and many other techni
 
 If you find something useful here, you are welcome to use it. If you improve any of my work, I would genuinely appreciate it if you shared your improvements with me.
 
-I have not yet settled on a final organization for the content. If you are looking for a place to start, I recommend beginning with **[Writing Notes]([./writing-notes](https://erfansoheil.github.io/writing-notes.html))**.
+I have not yet settled on a final organization for the content. If you are looking for a place to start, I recommend beginning with **[Writing Notes]((https://erfansoheil.github.io/writing-notes.html))**.
 
 
