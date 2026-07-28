@@ -36,6 +36,7 @@ Here is an interactive visualization of how we traverse a Skip List. Notice how 
 <iframe src="./asset/skiplist-interactive.html" width="100%" height="450px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
 
 
+Basicly it was the whole algorithm of **skip list**. However We did not mention about **How to generate** thess layers. In theory we use a probabilistc way of assinging each utem to specific layers. In the follwoign we explain this method in more details. 
 #### **Probabilistic Construction: The Coin Flip**
 
 A skip list is constructed incrementally. Whenever a new node is inserted, it is always placed in the base level $L_0$. A randomized procedure then determines whether the node should also appear in the higher levels.
@@ -72,23 +73,8 @@ where $n$ is the total number of elements.
 
 The number of nodes therefore decreases exponentially as we move upward. This produces sparse upper levels containing long-range shortcuts and dense lower levels containing shorter, more precise connections.
 
-#### **The Role of the Promotion Probability**
 
-The promotion probability $p$ directly controls the shape of the skip list.
-
-A larger value of $p$ causes more nodes to be promoted. This produces:
-
-* more populated upper levels;
-* more pointers and greater memory usage;
-* shorter distances between nodes within each level;
-* usually fewer horizontal steps before descending.
-
-A smaller value of $p$ causes fewer nodes to be promoted. This produces:
-
-* sparser upper levels;
-* fewer pointers and lower memory usage;
-* larger jumps between promoted nodes;
-* potentially more horizontal work during the search.
+It is obvious that the value of $p$ directly controls the shape of the skip list. A larger value of $p$ causes more nodes to be promoted. A smaller value of $p$ causes fewer nodes to be promoted. This produces:
 
 For example, suppose that the list contains $1{,}000$ elements.
 
@@ -104,11 +90,6 @@ $$
 1000,\ 250,\ 62,\ 15,\ 4,\ldots
 $$
 
-The second skip list has fewer levels and requires less memory, but its levels are much sparser.
-
-Therefore, changing $p$ changes the number of levels, the number of nodes in each level, the average jump length, and the memory–search trade-off.
-
----
 
 #### **Randomness as Both a Strength and a Weakness**
 
@@ -280,22 +261,6 @@ If the next major checkpoint is $900{,}000$, it would pass the target. The libra
 
 The sparse directories provide speed, while the complete directory provides precision.
 
-The correspondence is:
-
-| Skip-list concept   | Library equivalent                            |
-| ------------------- | --------------------------------------------- |
-| Node                | Book or catalogue position                    |
-| Key                 | Catalogue number                              |
-| Base level $L_0$    | Complete catalogue                            |
-| Upper levels        | Progressively sparser directories             |
-| Horizontal movement | Moving to the next checkpoint                 |
-| Vertical movement   | Consulting a more detailed directory          |
-| Promotion           | Selecting a book or shelf as a checkpoint     |
-| Overshooting        | The next checkpoint exceeds the target number |
-
-The probabilistic element means that checkpoints are not chosen according to a perfectly regular rule. Two libraries containing the same books could select different shelves as checkpoints. Their directory structures would differ, although both would have the same expected density at each level.
-
----
 
 #### **Why Total Order Matters**
 
