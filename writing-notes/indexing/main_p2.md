@@ -85,7 +85,7 @@ From the mathematical point of view it is interesting to investigate maximum pos
 
 Since at level $k$ we have $np^k$ of nodes, for **expected eeight (maximum number of layers)** we actually want to solve a simple equation 
 $$
-np^h \approx 1 \Righarrow p^h \approx \frac{1}{n}.
+np^h \approx 1 \Rightarrow p^h \approx \frac{1}{n}.
 $$
 
 Taking logarithms gives
