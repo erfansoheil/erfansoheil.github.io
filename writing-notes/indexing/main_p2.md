@@ -77,25 +77,15 @@ The probabilistic construction  can bee seen as both stenght and weakness of thi
 
 Even when two skip lists contain the same elements and use the same probability $p$, they may have different structures because their promotion outcomes can differ. A node may reach several upper levels in one construction but remain only in the base level in another.
 
-From the mathematical poinst of view it is interesting to investigate some 
-#### **Expected Height**
+#### **A Mathematical POV**
 
-At level $k$, the expected number of nodes is
+From the mathematical point of view it is interesting to investigate maximum possible layers and complexity of this algorithm. Both of them directly depends on the probability $p$ and total number of items $n$. 
 
+
+
+Since at level $k$ we have $np^k$ of nodes, for **expected eeight (maximum number of layers)** we actually want to solve a simple equation 
 $$
-np^k.
-$$
-
-The highest useful level is approximately the level at which only one node is expected to remain. Therefore, we set
-
-$$
-np^h \approx 1.
-$$
-
-Rearranging gives
-
-$$
-p^h \approx \frac{1}{n}.
+np^h \approx 1 \Righarrow p^h \approx \frac{1}{n}.
 $$
 
 Taking logarithms gives
@@ -106,21 +96,6 @@ $$
 
 Therefore, the expected height of a skip list grows logarithmically with the number of elements.
 
-For $p=\frac{1}{2}$, this becomes
-
-$$
-h \approx \log_2 n.
-$$
-
-For example, if $n=1{,}000{,}000$, then
-
-$$
-\log_2(1{,}000{,}000)\approx 20.
-$$
-
-Thus, a skip list containing approximately one million elements may require only around twenty useful levels.
-
----
 
 #### **Expected Search Complexity**
 
