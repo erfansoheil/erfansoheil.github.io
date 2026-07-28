@@ -91,31 +91,12 @@ $$
 $$
 
 
-#### **Randomness as Both a Strength and a Weakness**
+The probabilistic construction  can bee seen as both stenght and weakness of this algorithm. It creates a **hierarchical  ans sparse** structure and effective way for search. However, **the exact structure is not guaranteed**. 
 
-The probabilistic construction is the central strength of a skip list. It creates a balanced hierarchy without requiring expensive rotations, global reorganization, or deterministic balancing rules.
-
-However, randomness also introduces an important weakness: the exact structure is not guaranteed.
 
 Even when two skip lists contain the same elements and use the same probability $p$, they may have different structures because their promotion outcomes can differ. A node may reach several upper levels in one construction but remain only in the base level in another.
 
-The expected shape is well controlled, but the exact shape is random.
 
-This means that:
-
-* the number of nodes in each level is only an expected value;
-* the actual maximum height may vary;
-* search paths may differ between constructions;
-* performance is guaranteed in expectation rather than for every possible random outcome;
-* a poor sequence of random promotions can produce an unbalanced structure.
-
-In an extreme but unlikely case, no node may be promoted beyond $L_0$. The skip list would then behave like an ordinary linked list and require $O(n)$ search time. Conversely, too many promotions could create unnecessarily dense upper levels and increase memory consumption.
-
-Thus, probability is not simply a defect of the skip list. It is both its balancing mechanism and a source of variability. The parameter $p$ must be chosen carefully because it controls the trade-off between memory usage, hierarchy height, and horizontal search cost.
-
-In practical implementations, a maximum permitted height is usually imposed to prevent the structure from growing without bound.
-
----
 
 #### **Search Mechanics**
 
