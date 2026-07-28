@@ -72,7 +72,7 @@ $$
 $$
 
 
-The probabilistic construction  can bee seen as both stenght and weakness of this algorithm. It creates a **hierarchical  ans sparse** structure and effective way for search. However, **the exact structure is not guaranteed**. 
+The probabilistic construction  can bee seen as both stenght and weakness of this algorithm. It creates a **hierarchical and sparse** structure and effective way for search. However, **the exact structure is not guaranteed**. 
 
 
 Even when two skip lists contain the same elements and use the same probability $p$, they may have different structures because their promotion outcomes can differ. A node may reach several upper levels in one construction but remain only in the base level in another.
@@ -83,7 +83,8 @@ From the mathematical point of view it is interesting to investigate maximum pos
 
 
 
-Since at level $k$ we have $np^k$ of nodes, for **expected eeight (maximum number of layers)** we actually want to solve a simple equation 
+Since at level $k$ we have $np^k$ of nodes, for **expected weight (maximum number of layers)** we actually want to solve a simple equation 
+
 $$
 np^h \approx 1 \Rightarrow p^h \approx \frac{1}{n}.
 $$
