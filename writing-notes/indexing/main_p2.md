@@ -150,32 +150,6 @@ $$
 
 The logarithmic result describes its average behaviour over the random promotion process.
 
----
-
-#### **A Library Metaphor**
-
-Imagine a very large library whose books are arranged by catalogue number. Suppose a librarian needs to find book number $847{,}230$.
-
-The complete catalogue lists every book in increasing numerical order. The librarian could begin at the first entry and inspect every catalogue number until reaching $847{,}230$. The ordering ensures that the librarian knows whether to continue, but this method may still require examining hundreds of thousands of entries.
-
-To accelerate the search, the library creates several directory maps.
-
-* The most detailed directory contains every shelf.
-* A higher-level directory marks only selected shelves.
-* Another directory marks only selected aisles.
-* The sparsest directory may mark only a few major sections of the library.
-
-The librarian begins with the sparsest directory. As long as the next checkpoint remains below catalogue number $847{,}230$, the librarian moves to it. When the next checkpoint would go beyond the desired number, the librarian switches to a more detailed directory.
-
-For example, the librarian might follow checkpoints corresponding to
-
-$$
-100{,}000 \rightarrow 500{,}000 \rightarrow 800{,}000.
-$$
-
-If the next major checkpoint is $900{,}000$, it would pass the target. The librarian therefore consults a more detailed directory beginning from $800{,}000$. The process continues until the exact shelf and book are found.
-
-The sparse directories provide speed, while the complete directory provides precision.
 
 
 #### **Why Total Order Matters**
@@ -283,79 +257,6 @@ which is close to $100$.
 Therefore, an imposed order such as lexicographic order is not sufficient for nearest-neighbour search. In multiple dimensions, we are usually interested not in which vector comes before another, but in which vector is closest to a query.
 
 This requires a distance or similarity function, such as Euclidean distance, cosine similarity, or inner-product similarity.
-
----
-
-#### **From Skip Lists to HNSW**
-
-The skip list provides the central intuition behind HNSW:
-
-* use sparse upper levels for long-range movement;
-* use dense lower levels for precise local search;
-* begin with large steps;
-* gradually move toward smaller steps.
-
-However, the navigation rule changes.
-
-In a skip list, movement is guided by total order. The algorithm knows whether the target lies to the right because keys can be compared using $<$ and $>$.
-
-In HNSW, there is no useful one-dimensional order. Instead, movement is guided by distance. At every step, the algorithm selects neighbouring vectors that appear closer to the query.
-
-Therefore:
-
-> A skip list navigates through an ordered sequence, while HNSW navigates through a metric or similarity space.
-
-The skip list asks:
-
-> Is the next key still smaller than the target?
-
-HNSW instead asks:
-
-> Does this neighbouring vector bring us closer to the query?
-
-Both structures use a hierarchy of increasingly dense layers. The difference is that skip-list shortcuts follow a linear order, whereas HNSW connections form a proximity graph.
-
-There is also an important parallel in their probabilistic construction. In both structures, randomization influences the level assigned to each element. Changing the level probability changes the density of the hierarchy, the number of elements in upper layers, memory consumption, and search behaviour.
-
-This randomness makes the structure efficient to construct, but it also means that the resulting hierarchy is not unique or completely deterministic.
-
-
-
-
-
-
-
-
-
-
-#### **1. The Skip List**
-
-Imagine a long sorted linked list. Every element knows only its immediate successor. If you are searching for a value, the ordering immediately tells you whether you should continue moving forward or stop—you never need to move backward—but you still have to advance one node at a time.
-
-For a short list this is acceptable. For millions of elements, however, this becomes painfully inefficient because reaching a distant item may require traversing almost every intermediate node.
-
-The obvious idea is to skip ahead instead of visiting every element. But skipping introduces a new problem: if the jumps are too large, you may leap over the element you are searching for with no easy way to recover. What we need is a mechanism that allows large jumps when we are far away from the target, yet gradually switches to smaller, more precise steps as we get closer.
-
-A skip list achieves exactly this by organizing the same ordered sequence into multiple layers. The bottom layer contains every element and guarantees that the target can always be reached exactly. Higher layers contain progressively fewer elements, acting as express lanes that let the search cover large portions of the list in a handful of jumps before descending to finer-grained layers for the final search.
-
-#### **Probabilistic Construction (The Coin Flip)**
-A skip list is built iteratively, layer by layer. 
-1. **The Base Layer ($L_0$):** Every element inserted into the skip list exists in a strictly sorted base layer, $L_0$. 
-2. **Promotion:** When a new node is inserted into $L_0$, the algorithm flips a biased or fair coin (with probability of heads, $p$). 
-3. **Height Determination:** If the coin lands heads, the node is promoted to layer $L_1$. The algorithm flips again. If heads, it is promoted to $L_2$. This continues until a tail is flipped. 
-
-Because the probability of flipping $k$ consecutive heads is $p^k$, the probability of a node reaching layer $k$ decays exponentially. For $p = 1/2$, half the nodes reach $L_1$, a quarter reach $L_2$, and so on. This creates "express lanes": the top layers have exponentially fewer nodes, allowing a search algorithm to skip massive sections of the list.
-
-#### **Search Mechanics and Complexity**
-To search for a target value $T$:
-1. Start at the highest layer of the "Head" node.
-2. Look at the next node on the current layer $k$. 
-3. If its value is $\le T$, traverse horizontally to that node.
-4. If its value is $> T$ (or if it is a Null pointer), drop down vertically to layer $k-1$ and repeat.
-
-The expected maximum height of a skip list with $n$ elements is $\approx \log_{1/p} n$. The expected number of horizontal traversals per layer before dropping down is $1/p$. Therefore, the total search time is the product of the height and the horizontal steps per level:
-$$ \text{Expected Steps} = \left(\log_{1/p} n\right) \times \left(\frac{1}{p}\right) $$
-This yields an overall time complexity of $O(\log n)$.
 
 
 #### **2. Navigable Small Worlds (NSW)**
