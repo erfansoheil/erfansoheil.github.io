@@ -95,26 +95,17 @@ $$
 h \approx \log_{1/p}n.
 $$
 
-Therefore, the expected height of a skip list grows logarithmically with the number of elements.
+Therefore, the expected height of a skip list grows logarithmically with the number of elements. 
 
+In addition at each level there are several possible horizontal movements before descending. This amount of horizontal movments depends on the number of items in the level and we know that this number depends on $p$ or more presicely on $\frac{1}{p}$.
 
-#### **Expected Search Complexity**
-
-At each level, the search performs some horizontal movements before descending. The expected amount of horizontal work per level is a constant that depends on $p$.
-
-A common intuitive approximation is
+In other words, a common intuitive approximation is
 
 $$
-\text{Expected horizontal work per level}\approx\frac{1}{p}.
+\text{Expected horizontal movments per level}\approx\frac{1}{p}.
 $$
 
-Since the expected number of levels is approximately
-
-$$
-\log_{1/p}n,
-$$
-
-the expected search cost can be described as
+Since the expected number of levels is approximately $\log_{1/p}n$, the **expected search cost** can be described as
 
 $$
 \text{Expected search cost}
@@ -124,32 +115,7 @@ $$
 
 When $p$ is treated as a fixed constant independent of $n$, both $\frac{1}{p}$ and the logarithm base are constant factors. Therefore,
 
-$$
-\frac{1}{p}\log_{1/p}n=O(\log n).
-$$
-
-A skip list consequently provides expected search complexity
-
-$$
-O(\log n),
-$$
-
-compared with
-
-$$
-O(n)
-$$
-
-for an ordinary linked list.
-
-The word **expected** is important. The skip list does not guarantee logarithmic search time for every possible random construction. Its worst-case search time remains
-
-$$
-O(n).
-$$
-
-The logarithmic result describes its average behaviour over the random promotion process.
-
+The word **expected**  in **expected search cost** is important. The skip list does not **guarantee** logarithmic search time for every possible random construction. Its worst-case search time remains $O(n)$.
 
 
 #### **Why Total Order Matters**
