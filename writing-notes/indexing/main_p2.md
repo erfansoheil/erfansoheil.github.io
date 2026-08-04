@@ -118,112 +118,12 @@ When $p$ is treated as a fixed constant independent of $n$, both $\frac{1}{p}$ a
 The word **expected**  in **expected search cost** is important. The skip list does not **guarantee** logarithmic search time for every possible random construction. Its worst-case search time remains $O(n)$.
 
 
-#### **Why Total Order Matters**
+So far we discussed **expected weight** and **expected search comlexity** for a skip list. However there is a assumed fact about skip list, that its itmes belong to a **totally ordered set**. As we saw in the figure, all itmes of the skip list can be compared wit each other individually. In mathematical term: itmes of the skip list are comming from a **totally ordered** set. 
 
-A skip list relies on the fact that its keys belong to a **totally ordered set**.
+A set is totally ordered when any two elements can be compared. For two different elements $a$ and $b$, either $a<b$ or $b<a$. This property provides a **direction** for the search. If the next value is smaller than the target, we continue moving right. If it is larger, we descend to a more precise level.
 
-A set is totally ordered when any two elements can be compared. For two different elements $a$ and $b$, either
 
-$$
-a<b
-$$
-
-or
-
-$$
-b<a.
-$$
-
-This property provides a unique direction for the search. If the next value is smaller than the target, we continue moving right. If it is larger, we descend to a more precise level.
-
-Numbers have a natural total order. Words can also be ordered alphabetically. Dates can be ordered chronologically.
-
-Multidimensional vectors, however, do not have an equally natural order that represents their geometry.
-
-For example, consider the two-dimensional vectors
-
-$$
-(2,10)
-$$
-
-and
-
-$$
-(3,1).
-$$
-
-It is not geometrically meaningful to say that one vector naturally comes before the other in the same way that $2<3$.
-
-We can impose an artificial total order on vectors. One common choice is called **lexicographic order**.
-
-For two vectors
-
-$$
-x=(x_1,x_2)
-$$
-
-and
-
-$$
-y=(y_1,y_2),
-$$
-
-we say
-
-$$
-x<_{\mathrm{lex}}y
-$$
-
-when either
-
-$$
-x_1<y_1,
-$$
-
-or when the first coordinates are equal and
-
-$$
-x_2<y_2.
-$$
-
-In other words, we compare the first coordinates. Only if they are equal do we compare the second coordinates. In higher dimensions, we continue coordinate by coordinate until the first unequal pair is found.
-
-For example,
-
-$$
-(1,100)<_{\mathrm{lex}}(2,0)
-$$
-
-because $1<2$. The second coordinates do not matter once the first coordinates differ.
-
-This is similar to dictionary ordering. The words “apple” and “banana” are ordered according to their first different letter.
-
-Lexicographic order gives vectors a valid total order, but it does not preserve geometric proximity. Two vectors that are close in lexicographic order may be far apart in space, while two geometrically close vectors may be separated by many other vectors in the lexicographic ordering.
-
-For instance,
-
-$$
-(1,100)
-$$
-
-and
-
-$$
-(2,0)
-$$
-
-are consecutive under some lexicographic arrangements, but their Euclidean distance is approximately
-
-$$
-\sqrt{(2-1)^2+(0-100)^2}=\sqrt{10001},
-$$
-
-which is close to $100$.
-
-Therefore, an imposed order such as lexicographic order is not sufficient for nearest-neighbour search. In multiple dimensions, we are usually interested not in which vector comes before another, but in which vector is closest to a query.
-
-This requires a distance or similarity function, such as Euclidean distance, cosine similarity, or inner-product similarity.
-
+Multidimensional vectors, however, do not have an equally natural order that represents their geometry. Therefore creating a skip list for  a set of multidimensional vectors is challenging. This is one of the main limitation of skip list for extending it to higher dimensions, where most of modern embedding vectors use cases are related to. 
 
 #### **2. Navigable Small Worlds (NSW)**
 
