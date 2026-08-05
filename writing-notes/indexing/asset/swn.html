@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watts-Strogatz Small-World Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 0; }
+        .slider-container { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+        .slider-label { display: flex; justify-content: space-between; font-size: 0.875rem; font-weight: 500; }
+        input[type=range] { width: 100%; cursor: pointer; }
+        #viz-container { width: 100%; height: 500px; background-color: white; border-radius: 0.5rem; border: 1px solid #e2e8f0; overflow: hidden; position: relative; }
+        .metric-card { background-color: white; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1rem; text-align: center; }
+        .metric-value { font-size: 1.5rem; font-weight: 700; color: #2563eb; }
+        .metric-label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-top: 0.25rem; }
+        
+        /* D3 Graph Styles */
+        .node { fill: #3b82f6; stroke: #fff; stroke-width: 1.5px; }
+        .link { stroke: #cbd5e1; stroke-opacity: 0.6; }
+        .link.rewired { stroke: #ef4444; stroke-opacity: 0.8; stroke-width: 1.5px; }
+    </style>
+</head>
+<body class="p-4 md:p-8 max-w-6xl mx-auto">
+
+    <header class="mb-6">
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-800">Watts-Strogatz Small-World Simulator</h1>
+        <p class="text-slate-600 mt-2 text-sm md:text-base">Explore how structured ring lattices transition into small-world networks by tweaking the parameters below.</p>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <div class="lg:col-span-1 space-y-6">
+            <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+                <h2 class="text-lg font-semibold mb-4">Parameters</h2>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Nodes (N)</span>
+                        <span id="n-val">50</span>
+                    </div>
+                    <input type="range" id="n-slider" min="10" max="100" step="1" value="50">
+                    <p class="text-xs text-slate-500">Total number of nodes in the network.</p>
+                </div>
+
+                <div class="slider-container mt-4">
+                    <div class="slider-label">
+                        <span>Nearest Neighbors (K)</span>
+                        <span id="k-val">4</span>
+                    </div>
+                    <input type="range" id="k-slider" min="2" max="10" step="2" value="4">
+                    <p class="text-xs text-slate-500">Initial connections per node (must be even). High K means dense local clusters.</p>
+                </div>
+
+                <div class="slider-container mt-4">
+                    <div class="slider-label">
+                        <span>Rewiring Prob. (p)</span>
+                        <span id="p-val">0.05</span>
+                    </div>
+                    <input type="range" id="p-slider" min="0" max="1" step="0.01" value="0.05">
+                    <p class="text-xs text-slate-500">Chance to redirect a local edge to a random node. 0 = Lattice, 1 = Random Graph.</p>
+                </div>
+
+                <button id="regen-btn" class="mt-6 w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition duration-150">
+                    Regenerate Graph
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="metric-card shadow-sm">
+                    <div id="path-length" class="metric-value">--</div>
+                    <div class="metric-label">Avg Path Length (L)</div>
+                </div>
+                <div class="metric-card shadow-sm">
+                    <div id="clustering" class="metric-value">--</div>
+                    <div class="metric-label">Clustering Coeff (C)</div>
+                </div>
+            </div>
+            
+            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm text-slate-700">
+                <strong>Legend:</strong><br>
+                <span class="inline-block w-3 h-3 bg-slate-300 rounded-full mr-1 mt-2"></span> Original local edges<br>
+                <span class="inline-block w-3 h-3 bg-red-500 rounded-full mr-1 mt-1"></span> Rewired "shortcut" edges
+            </div>
+        </div>
+
+        <div class="lg:col-span-2">
+            <div id="viz-container" class="shadow-sm"></div>
+        </div>
+    </div>
+
+    <script>
+        // State variables
+        let N = 50;
+        let K = 4;
+        let p = 0.05;
+
+        // DOM Elements
+        const nSlider = document.getElementById('n-slider');
+        const kSlider = document.getElementById('k-slider');
+        const pSlider = document.getElementById('p-slider');
+        const nVal = document.getElementById('n-val');
+        const kVal = document.getElementById('k-val');
+        const pVal = document.getElementById('p-val');
+        const regenBtn = document.getElementById('regen-btn');
+        const vizContainer = document.getElementById('viz-container');
+
+        // D3 Setup
+        const width = vizContainer.clientWidth;
+        const height = vizContainer.clientHeight;
+        const radius = Math.min(width, height) / 2 - 40; // Ring radius
+        
+        const svg = d3.select("#viz-container")
+            .append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .attr("viewBox", [0, 0, width, height]);
+
+        const g = svg.append("g")
+            .attr("transform", `translate(${width / 2},${height / 2})`);
+
+        let linkGroup = g.append("g").attr("class", "links");
+        let nodeGroup = g.append("g").attr("class", "nodes");
+
+        function generateGraph() {
+            // Enforce K is even and < N
+            if (K >= N) K = N - (N % 2 === 0 ? 2 : 1);
+            if (K % 2 !== 0) K -= 1;
+            
+            // 1. Create nodes in a circle
+            const nodes = Array.from({length: N}, (_, i) => {
+                const angle = (i / N) * 2 * Math.PI - Math.PI / 2; // Start top
+                return {
+                    id: i,
+                    x: radius * Math.cos(angle),
+                    y: radius * Math.sin(angle)
+                };
+            });
+
+            // 2. Create regular ring lattice (connect to K/2 neighbors on each side)
+            let links = [];
+            let adjList = Array.from({length: N}, () => new Set());
+            
+            for (let i = 0; i < N; i++) {
+                for (let j = 1; j <= K / 2; j++) {
+                    let target = (i + j) % N;
+                    // To avoid duplicates in undirected graph, we only define i < target initially
+                    // But because of modulo, we just create the edge. We'll handle uniqueness.
+                    // Actually, for Watts-Strogatz, we iterate over nodes, and connect to right-hand neighbors.
+                    links.push({
+                        source: i,
+                        target: target,
+                        originalTarget: target, // keep track for rewiring logic
+                        rewired: false
+                    });
+                    adjList[i].add(target);
+                    adjList[target].add(i);
+                }
+            }
+
+            // 3. Rewire edges with probability p
+            links.forEach(link => {
+                if (Math.random() < p) {
+                    // Rewire
+                    let currentTarget = link.target;
+                    let source = link.source;
+                    
+                    // Pick new target randomly
+                    let newTarget;
+                    let valid = false;
+                    let attempts = 0;
+                    
+                    while (!valid && attempts < 50) { // prevent infinite loops
+                        newTarget = Math.floor(Math.random() * N);
+                        // Cannot connect to self, and cannot already be connected
+                        if (newTarget !== source && !adjList[source].has(newTarget)) {
+                            valid = true;
+                        }
+                        attempts++;
+                    }
+
+                    if (valid) {
+                        // Update adjacency list
+                        adjList[source].delete(currentTarget);
+                        adjList[currentTarget].delete(source);
+                        
+                        adjList[source].add(newTarget);
+                        adjList[newTarget].add(source);
+                        
+                        // Update link
+                        link.target = newTarget;
+                        link.rewired = true;
+                    }
+                }
+            });
+
+            return { nodes, links, adjList };
+        }
+
+        function calculateMetrics(adjList) {
+            // 1. Clustering Coefficient (Global)
+            let totalC = 0;
+            let validNodesForC = 0;
+
+            for (let i = 0; i < N; i++) {
+                const neighbors = Array.from(adjList[i]);
+                const k_i = neighbors.length;
+                
+                if (k_i >= 2) {
+                    let existingEdges = 0;
+                    for (let u = 0; u < k_i; u++) {
+                        for (let v = u + 1; v < k_i; v++) {
+                            if (adjList[neighbors[u]].has(neighbors[v])) {
+                                existingEdges++;
+                            }
+                        }
+                    }
+                    const possibleEdges = (k_i * (k_i - 1)) / 2;
+                    totalC += (existingEdges / possibleEdges);
+                    validNodesForC++;
+                }
+            }
+            const avgC = validNodesForC > 0 ? (totalC / validNodesForC).toFixed(3) : 0;
+
+            // 2. Average Path Length (BFS for all pairs)
+            let totalPathLength = 0;
+            let reachablePairs = 0;
+
+            for (let i = 0; i < N; i++) {
+                let distances = new Array(N).fill(-1);
+                distances[i] = 0;
+                let queue = [i];
+
+                while(queue.length > 0) {
+                    let curr = queue.shift();
+                    adjList[curr].forEach(neighbor => {
+                        if (distances[neighbor] === -1) {
+                            distances[neighbor] = distances[curr] + 1;
+                            queue.push(neighbor);
+                        }
+                    });
+                }
+
+                // Sum distances
+                for (let j = i + 1; j < N; j++) {
+                    if (distances[j] !== -1) {
+                        totalPathLength += distances[j];
+                        reachablePairs++;
+                    }
+                }
+            }
+            
+            const avgL = reachablePairs > 0 ? (totalPathLength / reachablePairs).toFixed(2) : "Disconnected";
+
+            document.getElementById('clustering').textContent = avgC;
+            document.getElementById('path-length').textContent = avgL;
+        }
+
+        function draw() {
+            const graph = generateGraph();
+            calculateMetrics(graph.adjList);
+
+            // Draw Links
+            const linkSelection = linkGroup.selectAll("line")
+                .data(graph.links);
+
+            linkSelection.exit().remove();
+
+            linkSelection.enter().append("line")
+                .merge(linkSelection)
+                .attr("class", d => d.rewired ? "link rewired" : "link")
+                .attr("x1", d => graph.nodes[d.source].x)
+                .attr("y1", d => graph.nodes[d.source].y)
+                .attr("x2", d => graph.nodes[d.target].x)
+                .attr("y2", d => graph.nodes[d.target].y);
+
+            // Draw Nodes
+            const nodeSelection = nodeGroup.selectAll("circle")
+                .data(graph.nodes);
+
+            nodeSelection.exit().remove();
+
+            nodeSelection.enter().append("circle")
+                .attr("class", "node")
+                .merge(nodeSelection)
+                .attr("r", 5)
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y);
+        }
+
+        function updateValues() {
+            N = parseInt(nSlider.value);
+            K = parseInt(kSlider.value);
+            p = parseFloat(pSlider.value);
+            
+            nVal.textContent = N;
+            kVal.textContent = K;
+            pVal.textContent = p.toFixed(2);
+        }
+
+        nSlider.addEventListener('input', () => { updateValues(); draw(); });
+        kSlider.addEventListener('input', () => { updateValues(); draw(); });
+        pSlider.addEventListener('input', () => { updateValues(); draw(); });
+        regenBtn.addEventListener('click', draw);
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const newWidth = vizContainer.clientWidth;
+            const newHeight = vizContainer.clientHeight;
+            svg.attr("viewBox", [0, 0, newWidth, newHeight]);
+            g.attr("transform", `translate(${newWidth / 2},${newHeight / 2})`);
+            // Update radius based on new dimensions, but we need to redraw to move nodes
+            // For simplicity, we keep original radius or trigger a redraw if we want it fully responsive.
+        });
+
+        // Initial Draw
+        updateValues();
+        draw();
+
+    </script>
+</body>
+</html>

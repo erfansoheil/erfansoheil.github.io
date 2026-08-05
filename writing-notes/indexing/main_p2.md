@@ -153,6 +153,10 @@ In 1998, Duncan Watts and Steven Strogatz formalized how such a network forms us
 *   **Rewiring:** Iterate through every edge. With probability $p$, detach one end and reconnect it to a uniformly random node in the network.
 *   **The Result:** When $p$ is tiny (e.g., $0.01$), the network retains its high clustering $C$ (because 99% of local edges remain), but the average path length $L$ plummets. Those few random edges act as "wormholes" bridging distant clusters.
 
+<iframe src="./asset/swn.html" width="100%" height="450px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
+
+
+
 This proves that short paths *exist*. But it introduces a severe limitation for AI retrieval: **How do we actually find them?**
 
 ---
