@@ -38,9 +38,9 @@
                 <div class="slider-container">
                     <div class="slider-label">
                         <span>Nodes (N)</span>
-                        <span id="n-val">50</span>
+                        <span id="n-val">15</span>
                     </div>
-                    <input type="range" id="n-slider" min="10" max="100" step="1" value="50">
+                    <input type="range" id="n-slider" min="10" max="20" step="1" value="15">
                     <p class="text-xs text-slate-500">Total number of nodes in the network.</p>
                 </div>
 
@@ -49,7 +49,7 @@
                         <span>Nearest Neighbors (K)</span>
                         <span id="k-val">4</span>
                     </div>
-                    <input type="range" id="k-slider" min="2" max="10" step="2" value="4">
+                    <input type="range" id="k-slider" min="2" max="14" step="2" value="4">
                     <p class="text-xs text-slate-500">Initial connections per node (must be even). High K means dense local clusters.</p>
                 </div>
 
@@ -92,7 +92,7 @@
 
     <script>
         // State variables
-        let N = 50;
+        let N = 15;
         let K = 4;
         let p = 0.05;
 
@@ -124,8 +124,11 @@
         let nodeGroup = g.append("g").attr("class", "nodes");
 
         function generateGraph() {
-            // Enforce K is even and < N
-            if (K >= N) K = N - (N % 2 === 0 ? 2 : 1);
+            // Ensure K is even and strictly less than N
+            let maxK = N - 1;
+            if (maxK % 2 !== 0) maxK -= 1; // max even K
+            
+            if (K >= N) K = maxK;
             if (K % 2 !== 0) K -= 1;
             
             // 1. Create nodes in a circle
@@ -145,17 +148,18 @@
             for (let i = 0; i < N; i++) {
                 for (let j = 1; j <= K / 2; j++) {
                     let target = (i + j) % N;
-                    // To avoid duplicates in undirected graph, we only define i < target initially
-                    // But because of modulo, we just create the edge. We'll handle uniqueness.
-                    // Actually, for Watts-Strogatz, we iterate over nodes, and connect to right-hand neighbors.
-                    links.push({
-                        source: i,
-                        target: target,
-                        originalTarget: target, // keep track for rewiring logic
-                        rewired: false
-                    });
-                    adjList[i].add(target);
-                    adjList[target].add(i);
+                    
+                    // Only add if not already connected (prevents duplicates when K approaches N)
+                    if (!adjList[i].has(target)) {
+                        links.push({
+                            source: i,
+                            target: target,
+                            originalTarget: target, // keep track for rewiring logic
+                            rewired: false
+                        });
+                        adjList[i].add(target);
+                        adjList[target].add(i);
+                    }
                 }
             }
 
@@ -166,12 +170,15 @@
                     let currentTarget = link.target;
                     let source = link.source;
                     
+                    // Check if rewiring is even possible (if node is already connected to everyone, we can't rewire)
+                    if (adjList[source].size >= N - 1) return; 
+
                     // Pick new target randomly
                     let newTarget;
                     let valid = false;
                     let attempts = 0;
                     
-                    while (!valid && attempts < 50) { // prevent infinite loops
+                    while (!valid && attempts < 100) { 
                         newTarget = Math.floor(Math.random() * N);
                         // Cannot connect to self, and cannot already be connected
                         if (newTarget !== source && !adjList[source].has(newTarget)) {
@@ -289,8 +296,22 @@
                 .attr("cy", d => d.y);
         }
 
+        function updateKSliderLimits() {
+            let maxK = N - 1;
+            if (maxK % 2 !== 0) maxK -= 1; // Must be even
+            
+            kSlider.max = maxK;
+            
+            // If current K is now too high, bring it down
+            if (parseInt(kSlider.value) > maxK) {
+                kSlider.value = maxK;
+            }
+        }
+
         function updateValues() {
             N = parseInt(nSlider.value);
+            updateKSliderLimits(); // Ensure K bounds are correct before reading K
+            
             K = parseInt(kSlider.value);
             p = parseFloat(pSlider.value);
             
