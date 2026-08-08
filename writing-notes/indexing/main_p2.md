@@ -156,7 +156,7 @@ In 1998, Duncan Watts and Steven Strogatz formalized how such a network forms us
 This proves that short paths *exist*. But it introduces a severe limitation for AI retrieval: **How do we actually find them?**
 
 
-**2. The Problem of Navigabilityc
+**2. The Problem of Navigability**s
 
 In a Vector Database (like Pinecone, Milvus, or FAISS), we don't have a god's-eye view of the entire graph at query time. We only have local information. We are standing on Node $A$, looking at its immediate neighbors, trying to find a path to Query Vector $q$.
 
@@ -191,8 +191,6 @@ Imagine the very first 10 nodes inserted into the empty database. Because the sp
 As the database grows to 1,000,000 nodes, those original edges remain. 
 
 The **early insertions automatically become the long-range "highways"**, while **later insertions form the dense local cliques**. Malkov's incremental construction practically simulates Kleinberg's distance-probability distribution without ever calculating it explicitly.
-
----
 
 #### **4. The NSW Search Algorithm (Greedy Traversal)**
 Once the graph is built, how do we use it for Retrieval-Augmented Generation (RAG)?
