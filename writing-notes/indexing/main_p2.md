@@ -4,7 +4,7 @@ title: "Indexing in RAG pipeline - Part II"
 ---
 
 
-### **3. HNSW (Hierarchical Navigable Small World)**
+## **3. HNSW (Hierarchical Navigable Small World)**
 
 The Hierarchical Navigable Small World (HNSW) algorithm is currently one of the most efficient and widely used structures for approximate nearest neighbor (ANN) search in high-dimensional spaces. To deeply understand how HNSW works, we must deconstruct it into its two foundational concepts: the probabilistic hierarchy of a **Skip List** (which operates in 1D space) and the decentralized graph routing of **Navigable Small Worlds (NSW)** (which operates in high-dimensional space). 
 
@@ -13,7 +13,7 @@ The Hierarchical Navigable Small World (HNSW) algorithm is currently one of the 
 HNSW adapts two key properties from the two mentioned algorithms: 1- Skipping most of the data; 2- Navigating in a compact subspace of data. With these two properties, HNSW elegantly solves the problem of searching massive vector databases with $O(\log n)$ complexity.
 
 
-#### **1. The Skip List**
+### **1. The Skip List**
 
 Imagine a long sorted linked list. Every element knows only its immediate successor. If we are searching for a target value, the ordering tells us whether to continue moving forward or stop. We do not need to search in arbitrary directions, but we still have to advance one node at a time.
 
@@ -37,6 +37,7 @@ Here is an interactive visualization of how we traverse a Skip List. Notice how 
 
 
 Basicly it was the whole algorithm of **skip list**. However We did not mention about **How to generate** thess layers. In theory we use a probabilistc way of assinging each utem to specific layers. In the follwoign we explain this method in more details. 
+
 #### **Probabilistic Construction: The Coin Flip**
 
 A skip list is constructed incrementally. Whenever a new node is inserted, it is always placed in the base level $L_0$. A randomized procedure then determines whether the node should also appear in the higher levels.
@@ -127,25 +128,20 @@ Multidimensional vectors, however, do not have an equally natural order that rep
 
 
 
+### **2. Navigable Small Worlds (NSW)**
 
-# Demystifying HNSW Part 2: The Navigable Small-World Network
+In our previous discussion, we thoroughly deconstructed the Skip List—the probabilistic data structure that gives Hierarchical Navigable Small World (HNSW) its vertical “layers” and logarithmic search time. But a Skip List alone only works for 1-dimensional scalar values. In modern AI, we deal with embeddings: dense, high-dimensional vectors representing semantic meaning (often hundreds or thousands of dimensions). You cannot easily sort vectors into a 1D linked list.
 
-*By [Your Name], Mathematician & AI Scientist*
+To solve this, HNSW replaces the 1D linked lists at each layer with a Navigable Small-World (NSW) graph. To truly understand HNSW, we must put the hierarchy aside for a moment and examine the mathematics and algorithms of a single, flat Small-World Network.
 
-In our previous discussion, we thoroughly deconstructed the **Skip List**—the probabilistic data structure that gives Hierarchical Navigable Small World (HNSW) its vertical "layers" and logarithmic search time. But a Skip List alone only works for 1-dimensional scalar values. In modern AI, we deal with embeddings: dense, high-dimensional vectors representing semantic meaning (often hundreds or thousands of dimensions). You cannot easily sort vectors into a 1D linked list.
-
-To solve this, HNSW replaces the 1D linked lists at each layer with a **Navigable Small-World (NSW)** graph. To truly understand HNSW, we must put the hierarchy aside for a moment and examine the mathematics and algorithms of a single, flat Small-World Network.
-
----
-
-## 1. The Small-World Phenomenon
+#### **Small-World Phenomenon**
 
 From a mathematical standpoint, a network (or graph) is defined by its nodes $V$ and edges $E$. A **Small-World Network** is a highly specific topological structure that balances two competing properties:
 
 1.  **High Clustering Coefficient ($C$):** The probability that two neighbors of a node are also neighbors of each other. In a social network, your friends are likely friends with each other. This implies dense, localized "cliques" or "near-cliques."
 2.  **Low Average Path Length ($L$):** The average number of steps required to get from any node $u$ to any node $v$. In a small-world network, $L$ scales proportionally to the logarithm of the number of nodes, $L \propto \ln(N)$.
 
-### The Watts-Strogatz Model
+**The Watts-Strogatz Model**
 
 In 1998, Duncan Watts and Steven Strogatz formalized how such a network forms using a single parameter: the **rewiring probability**, $p$.
 
@@ -159,9 +155,8 @@ In 1998, Duncan Watts and Steven Strogatz formalized how such a network forms us
 
 This proves that short paths *exist*. But it introduces a severe limitation for AI retrieval: **How do we actually find them?**
 
----
 
-## 2. The Problem of Navigability
+**2. The Problem of Navigabilityc
 
 In a Vector Database (like Pinecone, Milvus, or FAISS), we don't have a god's-eye view of the entire graph at query time. We only have local information. We are standing on Node $A$, looking at its immediate neighbors, trying to find a path to Query Vector $q$.
 
@@ -169,22 +164,21 @@ We use **Greedy Routing**: At each step, evaluate the distance from each neighbo
 
 The Watts-Strogatz model fails completely under greedy routing. Because its shortcuts are uniformly random, a routing algorithm has no spatial intuition. If you are in cluster A, a random shortcut might take you to cluster Z, but you need to go to cluster F. You have no way of knowing which edge to take. 
 
-### Kleinberg's Resolution (The Mathematical Fix)
+**Kleinberg's Resolution (The Mathematical Fix)**
 In 2000, Jon Kleinberg proved that a small-world network is only *navigable* if the probability of a shortcut existing between two nodes $u$ and $v$ is inversely proportional to their spatial distance $d(u,v)$ raised to the dimension of the space $\alpha$:
 
 $$ P(u, v) \propto \frac{1}{d(u, v)^\alpha} $$
 
 This power-law distribution ensures a perfect fractal-like hierarchy of edges: a few massive cross-network links, a moderate number of mid-range links, and many short local links. This allows the greedy algorithm to "zoom in"—taking huge leaps initially, then medium steps, then refining the search locally.
 
----
 
-## 3. The AI Engineering Solution: Building the NSW Algorithm
+**3. The AI Engineering Solution: Building the NSW Algorithm**
 
 As AI scientists, we face a computational barrier: calculating Kleinberg's probability distribution perfectly across millions of high-dimensional vectors is computationally infeasible ($O(N^2)$). 
 
 In 2014, Yury Malkov introduced the **Navigable Small World (NSW)** algorithm, which elegantly sidesteps this mathematical burden by building the network organically. 
 
-### The Incremental Construction Algorithm
+#### **The Incremental Construction Algorithm**
 Instead of starting with a lattice and rewiring it, we build the graph node by node.
 
 1.  **Initialize:** Start with an empty graph.
@@ -200,8 +194,7 @@ The **early insertions automatically become the long-range "highways"**, while *
 
 ---
 
-## 4. The NSW Search Algorithm (Greedy Traversal)
-
+#### **4. The NSW Search Algorithm (Greedy Traversal)**
 Once the graph is built, how do we use it for Retrieval-Augmented Generation (RAG)?
 
 Let $q$ be our query vector (e.g., the user's prompt). Let $v_{entry}$ be a predefined entry node. Let $D(a,b)$ be our distance metric (e.g., Cosine Similarity or Euclidean distance).
@@ -218,10 +211,9 @@ Let $q$ be our query vector (e.g., the user's prompt). Let $v_{entry}$ be a pred
 
 *Note: In production NSW, we track a list of candidates (a dynamic array of size `efSearch`) rather than a single node to avoid getting trapped in false local minima, but the greedy heuristic remains the same.*
 
----
 
-## 5. Bridging the Gap: Why We Still Need the Skip List (HNSW)
-
+#### **5. Bridging the Gap: Why We Still Need the Skip List (HNSW)**
+ 
 If NSW is so brilliant, why did Malkov eventually create **H**NSW? 
 
 While a flat NSW graph is highly navigable, the "zoom in" phase still takes poly-logarithmic time. In massive datasets, traversing those long-range links in a single flat layer requires too many distance calculations. Furthermore, a flat NSW can still occasionally trap the routing algorithm in a high-dimensional local minimum.
@@ -231,44 +223,6 @@ By marrying the **vertical probability distribution of a Skip List** with the **
 This union results in $O(\log N)$ search complexity in high-dimensional space—the backbone of modern AI retrieval.
 
 
-
-#### **2. Navigable Small Worlds (NSW)**
-
-Skip lists are perfect for scalar values (1D) that can be sorted left-to-right. However, in modern machine learning, data points are complex vectors in high-dimensional space. We cannot easily sort them in a straight line. Instead, we organize them into a graph. 
-
-### Small World Properties
-A "Small World" graph has two defining properties:
-1. **High Clustering:** Local neighborhoods form dense communities (if A is connected to B and C, B and C are likely connected).
-2. **Short Path Length:** Despite local clustering, long-range "highways" exist, meaning the number of hops between any two random nodes is surprisingly small.
-
-### Greedy Routing
-A graph is "navigable" if an algorithm can find the shortest path using only local information. In NSW, this is done via **Greedy Routing**.
-To find the nearest neighbor to a target vector $T$:
-1. Start at a random node in the graph.
-2. Calculate the distance (e.g., Euclidean or Cosine) between $T$ and all immediate neighbors of the current node.
-3. Move to the neighbor that is mathematically closest to $T$.
-4. Repeat until you reach a **local minimum**—a node where *none* of its neighbors are closer to $T$ than it is itself.
-
-### The Problem: Local Minima
-A flat NSW graph suffers from two issues:
-1. Starting randomly means crossing the graph via many small hops is computationally expensive.
-2. Greedy routing can get trapped in **local minima** (geometric "cul-de-sacs"), failing to find the true global nearest neighbor.
-
-
-
-## 3. The Synthesis: HNSW
-
-HNSW solves the local minima and efficiency problems of flat NSW by introducing the probabilistic hierarchy of the Skip List. 
-
-Instead of a single graph, HNSW creates multiple NSW graphs stacked on top of each other. The top layers are extremely sparse (acting as the skip list's express lanes), while the bottom layer contains every single vector.
-
-### The Mathematics of Hierarchy
-When a new vector $v$ is inserted, its maximum layer $l$ is determined by a continuous geometric distribution, conceptually identical to the skip list's coin flip:
-$$ l = \lfloor -\ln(\text{uniform}(0, 1)) \cdot m_L \rfloor $$
-* $\text{uniform}(0, 1)$ generates a random float between 0 and 1.
-* $m_L$ is a scaling factor (typically $1 / \ln(M)$) that normalizes the decay.
-
-Taking the natural log of a uniform distribution guarantees that the population of layers decays exponentially. If $L_0$ has $N$ nodes, $L_k$ will have approximately $N \cdot e^{-k/m_L}$ nodes.
 
 ### The Insertion Algorithm (Dropping the Anchor)
 The multi-scale layers construct themselves dynamically as nodes are inserted:
@@ -303,7 +257,7 @@ $$ \text{Keep } C_x \text{ if } dist(C_x, v) < dist(C_x, C_{selected}) \text{ fo
 **The Math Trade-off:** HNSW drops search complexity to $O(\log N)$, offering blistering query speeds and elite recall. However, storing the adjacency lists for the complex graph connections requires an immense memory footprint (RAM), and unlike IVF — where you can rebuild centroids relatively cheaply — an HNSW graph is expensive enough to construct that engineers are often reluctant to rebuild it often, even as the underlying data distribution shifts.
 
 
-### **4. PQ (Product Quantization)**
+## **4. PQ (Product Quantization)**
 
 IVF and HNSW both answer the same question: *which vectors should I even bother comparing against?* Product Quantization answers a completely different one: *once I've decided to compare against a vector, how cheaply can I store and score it?* IVF and HNSW optimize *how* we search; PQ optimizes *what* we store. It is, at its core, a lossy compression technique for high-dimensional vectors.
 
