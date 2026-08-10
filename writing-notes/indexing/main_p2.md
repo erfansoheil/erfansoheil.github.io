@@ -371,13 +371,9 @@ The basic construction is:
 4. Connect $v$ to several of those nearby vectors.
 5. Keep the old connections and repeat for the next vector.
 
-The important part is that the graph is based on **proximity**. Nearby vectors tend to become connected, which creates useful local structure.
+The important part is that the graph is based on **proximity**. Nearby vectors tend to become connected, which creates useful local structure. However, something interesting happens because the graph grows over time. Early in construction, the graph contains only a few points. Two points that are connected at that time may actually be far apart in the final dataset. Their old edge can remain even after thousands of new points are inserted.
 
-However, something interesting happens because the graph grows over time. Early in construction, the graph contains only a few points. Two points that are connected at that time may actually be far apart in the final dataset. Their old edge can remain even after thousands of new points are inserted.
-
-As a result, the graph naturally contains a mixture of edge lengths: short local edges and some longer edges connecting different regions of the space. Malkov et al. describe NSW as preserving older links produced during the incremental approximation of the proximity graph, which contributes to its small-world navigation behavior.
-
-So NSW does **not** explicitly calculate Kleinberg's probability $P(u,v)$. Instead, navigability emerges from two simple ideas: **graph growth** and **proximity-based connections**.
+As a result, the graph naturally contains a mixture of edge lengths: short local edges and some longer edges connecting different regions of the space. Malkov et al. describe NSW as preserving older links produced during the incremental approximation of the proximity graph, which contributes to its small-world navigation behavior So NSW does **not** explicitly calculate Kleinberg's probability $P(u,v)$. Instead, navigability emerges from two simple ideas: **graph growth** and **proximity-based connections**.
 
 **Searching an NSW Graph**
 
@@ -390,27 +386,17 @@ At each step:
 3. Move toward neighbors that are closer to $q$.
 4. Repeat until no sufficiently better candidate remains.
 
-In the simplest greedy version, if $N(v)$ is the neighborhood of $v$, we choose $u^*=\arg\min_{u\in N(v)} d(u,q)$.
+In the simplest greedy version, if $N(v)$ is the neighborhood of $v$, we choose $u^*=\arg\min_{u\in N(v)} d(u,q)$. If $d(u^*,q)<d(v,q)$, move from $v$ to $u^*$.
 
-If $d(u^*,q)<d(v,q)$, move from $v$ to $u^*$.
+For example: $A \rightarrow C \rightarrow F \rightarrow H \rightarrow q$. The long-range edges help the search move quickly between distant regions, while the short-range edges help refine the search once it reaches the correct neighborhood.
 
-For example: $A \rightarrow C \rightarrow F \rightarrow H \rightarrow q$.
-
-The long-range edges help the search move quickly between distant regions, while the short-range edges help refine the search once it reaches the correct neighborhood.
-
-A purely greedy algorithm can become trapped at a **local minimum**: a node whose neighbors are all farther from $q$, even though a better node exists somewhere else in the graph.
-
-For this reason, practical NSW search does not normally follow only one path. It maintains several promising candidates and explores them before deciding where to continue. This makes the search more robust against local minima.
+A purely greedy algorithm can become trapped at a **local minimum**: a node whose neighbors are all farther from $q$, even though a better node exists somewhere else in the graph. For this reason, practical NSW search does not normally follow only one path. It maintains several promising candidates and explores them before deciding where to continue. This makes the search more robust against local minima.
 
 The main idea can therefore be summarized as: **long edges provide exploration, short edges provide refinement, and proximity-based connections give greedy search a meaningful direction.**
 
 **What Happened to the Probability $p$?**
 
-At this point, the rewiring probability $p$ from the Watts-Strogatz model is no longer part of the practical construction.
-
-In the classical small-world model, $p$ controls how many local edges are replaced by random long-range shortcuts.
-
-In NSW, we instead build the graph directly from the geometry of the vectors. Connections are created using distance-based search and neighbor selection.
+At this point, the rewiring probability $p$ from the Watts-Strogatz model is no longer part of the practical construction. In the classical small-world model, $p$ controls how many local edges are replaced by random long-range shortcuts. In NSW, we instead build the graph directly from the geometry of the vectors. Connections are created using distance-based search and neighbor selection.
 
 So the transition is roughly:
 
@@ -425,15 +411,9 @@ $ \text{NSW: proximity-based incremental connections} $
 
 NSW makes graph search much more efficient than comparing the query with every vector, but it still has an important limitation: **the search can become expensive when the dataset and vector dimension are large**.
 
-Suppose the database contains millions of vectors, each with dimension $d=512$. Every time the search visits a node, it must compute the distance between the query and several candidate vectors.
+Suppose the database contains millions of vectors, each with dimension $d=512$. Every time the search visits a node, it must compute the distance between the query and several candidate vectors. For Euclidean distance, one comparison costs roughly $O(d)$ operations. Cosine similarity also requires roughly $O(d)$ operations once vector norms are handled. If the search evaluates $S$ candidate vectors, the distance-computation cost is approximately $O(Sd)$.
 
-For Euclidean distance, one comparison costs roughly $O(d)$ operations. Cosine similarity also requires roughly $O(d)$ operations once vector norms are handled.
-
-If the search evaluates $S$ candidate vectors, the distance-computation cost is approximately $O(Sd)$.
-
-Therefore, even if NSW greatly reduces $S$ compared with brute-force search over all $N$ vectors, the cost can still become large when both $S$ and $d$ are large.
-
-This creates the motivation for **Hierarchical Navigable Small World (HNSW)**: instead of searching through one large graph at the same resolution, HNSW introduces multiple layers so that the search can first move quickly through a sparse upper graph and then progressively refine the search in denser lower layers.
+Therefore, even if NSW greatly reduces $S$ compared with brute-force search over all $N$ vectors, the cost can still become large when both $S$ and $d$ are large. This creates the motivation for **Hierarchical Navigable Small World (HNSW)**: instead of searching through one large graph at the same resolution, HNSW introduces multiple layers so that the search can first move quickly through a sparse upper graph and then progressively refine the search in denser lower layers.
 
 
 Therefore, in practical vector-search graphs, we effectively **get rid of the Watts-Strogatz rewiring probability $p$**. The important quantities become things such as the number of neighbors, the search breadth, and the distance metric rather than a rewiring probability.
