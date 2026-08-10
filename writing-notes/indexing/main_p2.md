@@ -33,7 +33,7 @@ The structure can be summarized as follows:
 
 Here is an interactive visualization of how we traverse a Skip List. Notice how the algorithm moves right as long as the next value is less than or equal to our target. As soon as it overshoots, it drops down a layer to find a more granular path.
 
-<iframe src="./asset/skiplist-interactive.html" width="100%" height="450px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
+<iframe src="./asset/skiplist-interactive.html" width="100%" height="500px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
 
 
 Basicly it was the whole algorithm of **skip list**. However We did not mention about **How to generate** thess layers. In theory we use a probabilistc way of assinging each utem to specific layers. In the follwoign we explain this method in more details. 
@@ -160,7 +160,7 @@ In 1998, Duncan Watts and Steven Strogatz formalized how such a network forms us
 
 Here, $k$ is usually chosen to be even, so each node is connected to $k/2$ neighbors on each side of the ring. One important remark is that in the rewiring stage we only change **one** end and keep the other end. 
 
-<iframe src="./asset/swn.html" width="100%" height="450px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
+<iframe src="./asset/swn.html" width="100%" height="500px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
 
 
 #### **Some properties of Watts-Strogatz Model**
@@ -275,59 +275,6 @@ Thus, the essential idea behind a small-world network is not simply randomness. 
 
 
 The **small world** network construct a way to conncet different points with an algorithm. But it introduces a severe limitation for AI retrieval: **How do we actually find them?**. In other work this small world network is **not navigable**
-
-<!-- **2. The Problem of Navigability**
-
-In a Vector Database (like Pinecone, Milvus, or FAISS), we don't have a god's-eye view of the entire graph at query time. We only have local information. We are standing on Node $A$, looking at its immediate neighbors, trying to find a path to Query Vector $q$.
-
-We use **Greedy Routing**: At each step, evaluate the distance from each neighbor to the query $q$, and move to the neighbor that minimizes this distance. 
-
-The Watts-Strogatz model fails completely under greedy routing. Because its shortcuts are uniformly random, a routing algorithm has no spatial intuition. If you are in cluster A, a random shortcut might take you to cluster Z, but you need to go to cluster F. You have no way of knowing which edge to take. 
-
-**Kleinberg's Resolution (The Mathematical Fix)**
-In 2000, Jon Kleinberg proved that a small-world network is only *navigable* if the probability of a shortcut existing between two nodes $u$ and $v$ is inversely proportional to their spatial distance $d(u,v)$ raised to the dimension of the space $\alpha$:
-
-$$ P(u, v) \propto \frac{1}{d(u, v)^\alpha} $$
-
-This power-law distribution ensures a perfect fractal-like hierarchy of edges: a few massive cross-network links, a moderate number of mid-range links, and many short local links. This allows the greedy algorithm to "zoom in"—taking huge leaps initially, then medium steps, then refining the search locally.
-
-
-**3. The AI Engineering Solution: Building the NSW Algorithm**
-
-As AI scientists, we face a computational barrier: calculating Kleinberg's probability distribution perfectly across millions of high-dimensional vectors is computationally infeasible ($O(N^2)$). 
-
-In 2014, Yury Malkov introduced the **Navigable Small World (NSW)** algorithm, which elegantly sidesteps this mathematical burden by building the network organically. 
-
- #### **The Incremental Construction Algorithm**
-Instead of starting with a lattice and rewiring it, we build the graph node by node.
-
-1.  **Initialize:** Start with an empty graph.
-2.  **Insert Node $v_i$:** When a new vector is added, use the *current* graph to perform a greedy search to find its $M$ nearest neighbors.
-3.  **Connect:** Create bidirectional edges between $v_i$ and these $M$ neighbors.
-4.  **Repeat:** Do this for all $N$ nodes.
-
-**Why does this naturally satisfy Kleinberg's navigability?**
-Imagine the very first 10 nodes inserted into the empty database. Because the space is practically empty, these nodes might be semantically far apart, yet they are forced to connect to each other. 
-As the database grows to 1,000,000 nodes, those original edges remain. 
-
-The **early insertions automatically become the long-range "highways"**, while **later insertions form the dense local cliques**. Malkov's incremental construction practically simulates Kleinberg's distance-probability distribution without ever calculating it explicitly.
-
- #### **4. The NSW Search Algorithm (Greedy Traversal)**
-Once the graph is built, how do we use it for Retrieval-Augmented Generation (RAG)?
-
-Let $q$ be our query vector (e.g., the user's prompt). Let $v_{entry}$ be a predefined entry node. Let $D(a,b)$ be our distance metric (e.g., Cosine Similarity or Euclidean distance).
-
-**Algorithm:**
-1. Set `current_node` = $v_{entry}$.
-2. Compute the distance $D(q, u)$ for all nodes $u$ in `current_node.neighbors`.
-3. Find `best_neighbor` = $\arg\min_u D(q, u)$.
-4. If $D(q, \text{best\_neighbor}) < D(q, \text{current\_node})$:
-   * `current_node` = `best_neighbor`
-   * Go to Step 2.
-5. Else:
-   * **Return `current_node`**. (We have reached a local minimum).
-
-*Note: In production NSW, we track a list of candidates (a dynamic array of size `efSearch`) rather than a single node to avoid getting trapped in false local minima, but the greedy heuristic remains the same.* -->
 
 #### **From Small World to Navigable Small World**
 
