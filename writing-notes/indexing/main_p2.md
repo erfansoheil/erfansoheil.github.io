@@ -204,9 +204,7 @@ $$
 \sum_{v\in V}\deg(v)=2|E|.
 $$
 
-Since there are $N$ vertices and every vertex initially has degree $k$, $Nk=2|E|.$
-
-Therefore, $\boxed{|E|=\frac{Nk}{2}.}$
+Since there are $N$ vertices and every vertex initially has degree $k$, $Nk=2|E|.$ Therefore, $|E|=\frac{Nk}{2}.$
 
 Now consider one rewiring operation. Suppose an edge $(u,v)$ is removed and replaced by $(u,w).$
 
@@ -214,9 +212,7 @@ Then
 
 $$
 E'
-==
-
-\left(E\setminus{(u,v)}\right)
+=\left(E\setminus{(u,v)}\right)
 \cup
 {(u,w)}.
 $$
@@ -225,11 +221,8 @@ Thus,
 
 $$
 |E'|
-====
-
-|E|-1+1
-
-|E|.
+=|E|-1+1
+=|E|.
 $$
 
 Consequently, changing $p$ does not change the number of edges:
