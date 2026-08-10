@@ -134,20 +134,435 @@ In our previous discussion, we thoroughly deconstructed the Skip List—the prob
 
 To solve this, HNSW replaces the 1D linked lists at each layer with a Navigable Small-World (NSW) graph. To truly understand HNSW, we must put the hierarchy aside for a moment and examine the mathematics and algorithms of a single, flat Small-World Network.
 
-#### **Small-World Phenomenon**
+#### **Small-World Network**
 
-From a mathematical standpoint, a network (or graph) is defined by its nodes $V$ and edges $E$. A **Small-World Network** is a highly specific topological structure that balances two competing properties:
+A **small-world network** is a graph with two main properties:
 
-1.  **High Clustering Coefficient ($C$):** The probability that two neighbors of a node are also neighbors of each other. In a social network, your friends are likely friends with each other. This implies dense, localized "cliques" or "near-cliques."
-2.  **Low Average Path Length ($L$):** The average number of steps required to get from any node $u$ to any node $v$. In a small-world network, $L$ scales proportionally to the logarithm of the number of nodes, $L \propto \ln(N)$.
+1. Nodes are mostly connected to nearby nodes, so local neighborhoods are highly clustered.
+2. Even distant nodes can usually be reached through only a few steps.
 
-**The Watts-Strogatz Model**
+A common example is a social network: people mostly know others in their local group, but a few connections between different groups create **shortcuts** across the network.
+
+If $d_G(u,v)$ is the shortest-path distance between two nodes, a small-world network has a small average path length while keeping strong local clustering.
+
+The key idea is simple: **a few long-range connections can greatly shorten paths across the whole graph**.
+
+This is the idea formalized by the Watts-Strogatz model.
+
+
+
+## The Watts-Strogatz Model
 
 In 1998, Duncan Watts and Steven Strogatz formalized how such a network forms using a single parameter: the **rewiring probability**, $p$.
 
-*   **Initialization:** Start with a regular ring lattice of $N$ nodes, where each node connects to its $k$ nearest neighbors. Here, $C$ is maximal, but $L$ is huge ($O(N/k)$). It takes forever to cross the graph.
-*   **Rewiring:** Iterate through every edge. With probability $p$, detach one end and reconnect it to a uniformly random node in the network.
-*   **The Result:** When $p$ is tiny (e.g., $0.01$), the network retains its high clustering $C$ (because 99% of local edges remain), but the average path length $L$ plummets. Those few random edges act as "wormholes" bridging distant clusters.
+* **Initialization:** Start with a regular ring lattice of $N$ nodes, where each node connects to its $k$ nearest neighbors.
+* **Rewiring:** Iterate through every edge. With probability $p$, detach one end and reconnect it to a uniformly random node in the network.
+
+Here, $k$ is usually chosen to be even, so each node is connected to $k/2$ neighbors on each side of the ring.
+
+
+The parameter $p$ controls how much randomness is introduced into the graph. If $p=0$ no edge is rewired. The graph remains a completely regular ring lattice.
+
+For $k\geq2$, every node $i$ is connected at least to $ (i-1)\bmod N$ and $(i+1)\bmod N.$
+
+Therefore the graph contains the cycle
+
+$$
+0\rightarrow1\rightarrow2\rightarrow\cdots
+\rightarrow N-1\rightarrow0.
+$$
+
+Since this cycle contains every node, there exists a path between every pair of vertices. Hence the graph is **path connected**.
+
+Therefore,
+
+$$
+\boxed{
+p=0,\quad k\geq2
+\quad\Longrightarrow\quad
+G\text{ is connected}.
+}
+$$
+
+The problem, however, is that reaching a distant node may require traversing many intermediate nodes.
+
+For example,
+
+```text
+A -- B -- C -- D -- E -- F -- G
+```
+
+traveling from $A$ to $G$ requires several hops.
+
+---
+
+### Case 2: $0<p<1$
+
+When $p$ becomes positive, some local edges are replaced by longer-range connections.
+
+For example,
+
+```text
+A -- B -- C -- D -- E -- F -- G
+|                   |
++-------------------+
+```
+
+a newly rewired edge can create a shortcut between distant parts of the graph.
+
+Even a relatively small number of such shortcuts can significantly decrease the average shortest-path length.
+
+This is the regime in which the characteristic **small-world behavior** appears:
+
+$$
+\text{high local clustering}
++
+\text{small global path length}.
+$$
+
+Importantly, $p$ does not determine the number of edges. It only determines which edges are rewired.
+
+---
+
+### Case 3: $p=1$
+
+When
+
+$$
+p=1,
+$$
+
+every edge considered by the rewiring procedure is rewired.
+
+The resulting graph becomes highly random.
+
+However, it does **not** become a complete graph.
+
+A complete graph with $N$ vertices contains
+
+$$
+\frac{N(N-1)}{2}
+$$
+
+edges.
+
+The Watts-Strogatz graph contains only
+
+$$
+\frac{Nk}{2}
+$$
+
+edges.
+
+Unless
+
+$$
+k=N-1,
+$$
+
+these two quantities are different.
+
+Therefore,
+
+$$
+\boxed{
+p=1
+\not\Longrightarrow
+\text{complete graph}.
+}
+$$
+
+The role of $p$ is to change the **placement of edges**, not their total number.
+
+## The Number of Edges
+
+Before rewiring, every node has degree $k$.
+
+Using the handshake lemma,
+
+$$
+\sum_{v\in V}\deg(v)=2|E|.
+$$
+
+Since there are $N$ vertices and every vertex initially has degree $k$,
+
+$$
+Nk=2|E|.
+$$
+
+Therefore,
+
+$$
+\boxed{
+|E|=\frac{Nk}{2}.
+}
+$$
+
+Now consider one rewiring operation.
+
+Suppose an edge
+
+$$
+(u,v)
+$$
+
+is removed and replaced by
+
+$$
+(u,w).
+$$
+
+Then
+
+$$
+E'
+==
+
+\left(E\setminus{(u,v)}\right)
+\cup
+{(u,w)}.
+$$
+
+Thus,
+
+$$
+|E'|
+====
+
+# |E|-1+1
+
+|E|.
+$$
+
+Consequently, changing $p$ does not change the number of edges:
+
+$$
+\boxed{
+|E_p|=\frac{Nk}{2}
+\qquad
+\text{for every }p.
+}
+$$
+
+What changes is the topology of the graph.
+
+---
+
+## Expected Number of Rewired Edges
+
+The graph contains
+
+$$
+M=\frac{Nk}{2}
+$$
+
+edges.
+
+If every edge is independently rewired with probability $p$, the number of rewired edges $R$ can be modeled approximately as
+
+$$
+R\sim\operatorname{Binomial}(M,p).
+$$
+
+Therefore,
+
+$$
+\mathbb E[R]=Mp.
+$$
+
+Substituting
+
+$$
+M=\frac{Nk}{2},
+$$
+
+we obtain
+
+$$
+\boxed{
+\mathbb E[R]
+============
+
+p\frac{Nk}{2}.
+}
+$$
+
+For example, if
+
+$$
+N=1000,\qquad k=10,\qquad p=0.1,
+$$
+
+then
+
+$$
+M=5000,
+$$
+
+and the expected number of rewired edges is
+
+$$
+\mathbb E[R]=500.
+$$
+
+So only a fraction of the edges need to become long-range connections to significantly alter the global structure of the graph.
+
+---
+
+## The Effects of $k$ and $p$
+
+The parameters $k$ and $p$ play fundamentally different roles.
+
+The parameter $k$ controls the **density of the graph**.
+
+Increasing $k$ gives every node more neighbors and increases the total number of edges:
+
+$$
+|E|=\frac{Nk}{2}.
+$$
+
+The parameter $p$, on the other hand, controls the **randomness of the graph**.
+
+Increasing $p$ does not create more edges. Instead, it replaces increasingly many local connections with non-local ones.
+
+Therefore,
+
+$$
+\boxed{
+k \rightarrow \text{graph density}
+}
+$$
+
+while
+
+$$
+\boxed{
+p \rightarrow \text{graph randomness}.
+}
+$$
+
+For example, with fixed $N$:
+
+$$
+k=4,\quad p=1
+$$
+
+produces a sparse but highly random graph, whereas
+
+$$
+k=50,\quad p=1
+$$
+
+produces a much denser random graph.
+
+---
+
+## Connectivity and Rewiring
+
+At $p=0$ and $k\geq2$, connectivity follows directly from the original ring structure.
+
+Once
+
+$$
+p>0,
+$$
+
+the situation becomes probabilistic.
+
+The value of $p$ tells us how likely an edge is to be rewired, but it does not specify **which** edges will be rewired or where they will be reconnected.
+
+Therefore, two graphs generated using exactly the same values of
+
+$$
+(N,k,p)
+$$
+
+can have different topologies.
+
+As a result, there is generally no simple deterministic threshold
+
+$$
+p_c=f(N,k)
+$$
+
+such that
+
+$$
+p<p_c
+\Longrightarrow
+\text{connected}
+$$
+
+and
+
+$$
+p>p_c
+\Longrightarrow
+\text{disconnected}.
+$$
+
+Instead, for $p>0$, connectivity is more naturally described probabilistically:
+
+$$
+P(G\text{ is connected}\mid N,k,p).
+$$
+
+This distinction is important because the rewiring probability controls the distribution over possible graphs rather than uniquely determining a graph.
+
+## What Makes the Network "Small World"?
+
+The central phenomenon is the transition between two extremes.
+
+When
+
+$$
+p=0,
+$$
+
+the network is highly regular:
+
+$$
+\text{high clustering}
+\qquad
+\text{but relatively long paths}.
+$$
+
+When $p$ is small but positive, a few shortcuts appear:
+
+$$
+\text{high clustering}
+\qquad
++
+\qquad
+\text{short paths}.
+$$
+
+This is the small-world regime.
+
+When $p$ approaches $1$, the graph becomes increasingly random:
+
+$$
+\text{short paths}
+\qquad
+\text{but weaker local regularity}.
+$$
+
+Conceptually,
+
+$$
+\boxed{
+\text{Regular lattice}
+\xrightarrow{\quad p\uparrow\quad}
+\text{Small-world regime}
+\xrightarrow{\quad p\uparrow\quad}
+\text{Random graph}.
+}
+$$
+
+The remarkable point is that the average path length can decrease very quickly even when only a relatively small fraction of edges are rewired.
+
+Thus, the essential idea behind a small-world network is not simply randomness. It is the combination of **local structure and a small number of long-range shortcuts** that dramatically improve global connectivity.
+
 
 <iframe src="./asset/swn.html" width="100%" height="450px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
 
