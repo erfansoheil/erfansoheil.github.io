@@ -151,15 +151,18 @@ This is the idea formalized by the Watts-Strogatz model.
 
 
 
-## The Watts-Strogatz Model
+#### **The Watts-Strogatz Model**
 
 In 1998, Duncan Watts and Steven Strogatz formalized how such a network forms using a single parameter: the **rewiring probability**, $p$.
 
 * **Initialization:** Start with a regular ring lattice of $N$ nodes, where each node connects to its $k$ nearest neighbors.
 * **Rewiring:** Iterate through every edge. With probability $p$, detach one end and reconnect it to a uniformly random node in the network.
 
-Here, $k$ is usually chosen to be even, so each node is connected to $k/2$ neighbors on each side of the ring.
+Here, $k$ is usually chosen to be even, so each node is connected to $k/2$ neighbors on each side of the ring. One important remark is that in the rewiring stage we only change **one** end and keep the other end. 
 
+#### **Some properties of Watts-Strogatz Model**
+
+**Role of $p$**
 
 The parameter $p$ controls how much randomness is introduced into the graph. If $p=0$ no edge is rewired. The graph remains a completely regular ring lattice.
 
@@ -174,41 +177,10 @@ $$
 
 Since this cycle contains every node, there exists a path between every pair of vertices. Hence the graph is **path connected**.
 
-Therefore,
+The problem, however, is that reaching a distant node may require traversing many intermediate nodes. 
+ 
 
-$$
-\boxed{
-p=0,\quad k\geq2
-\quad\Longrightarrow\quad
-G\text{ is connected}.
-}
-$$
-
-The problem, however, is that reaching a distant node may require traversing many intermediate nodes.
-
-For example,
-
-```text
-A -- B -- C -- D -- E -- F -- G
-```
-
-traveling from $A$ to $G$ requires several hops.
-
----
-
-### Case 2: $0<p<1$
-
-When $p$ becomes positive, some local edges are replaced by longer-range connections.
-
-For example,
-
-```text
-A -- B -- C -- D -- E -- F -- G
-|                   |
-+-------------------+
-```
-
-a newly rewired edge can create a shortcut between distant parts of the graph.
+When $p$ becomes positive, some local edges are replaced by longer-range connections. A newly rewired edge can create a shortcut between distant parts of the graph.
 
 Even a relatively small number of such shortcuts can significantly decrease the average shortest-path length.
 
@@ -220,97 +192,23 @@ $$
 \text{small global path length}.
 $$
 
-Importantly, $p$ does not determine the number of edges. It only determines which edges are rewired.
+Importantly, $p$ does not determine the number of edges. It only determines which edges are rewired. In fact with a fixed $k$ and changing the $p$ the number of edges do not change.
 
----
+When $p=1,$ every edge considered by the rewiring procedure is rewired. The resulting graph becomes highly random. 
 
-### Case 3: $p=1$
+**The Number of Edges**
 
-When
-
-$$
-p=1,
-$$
-
-every edge considered by the rewiring procedure is rewired.
-
-The resulting graph becomes highly random.
-
-However, it does **not** become a complete graph.
-
-A complete graph with $N$ vertices contains
-
-$$
-\frac{N(N-1)}{2}
-$$
-
-edges.
-
-The Watts-Strogatz graph contains only
-
-$$
-\frac{Nk}{2}
-$$
-
-edges.
-
-Unless
-
-$$
-k=N-1,
-$$
-
-these two quantities are different.
-
-Therefore,
-
-$$
-\boxed{
-p=1
-\not\Longrightarrow
-\text{complete graph}.
-}
-$$
-
-The role of $p$ is to change the **placement of edges**, not their total number.
-
-## The Number of Edges
-
-Before rewiring, every node has degree $k$.
-
-Using the handshake lemma,
+Before rewiring, every node has degree $k$. Using the handshake lemma,
 
 $$
 \sum_{v\in V}\deg(v)=2|E|.
 $$
 
-Since there are $N$ vertices and every vertex initially has degree $k$,
+Since there are $N$ vertices and every vertex initially has degree $k$, $Nk=2|E|.$
 
-$$
-Nk=2|E|.
-$$
+Therefore, $\boxed{|E|=\frac{Nk}{2}.}$
 
-Therefore,
-
-$$
-\boxed{
-|E|=\frac{Nk}{2}.
-}
-$$
-
-Now consider one rewiring operation.
-
-Suppose an edge
-
-$$
-(u,v)
-$$
-
-is removed and replaced by
-
-$$
-(u,w).
-$$
+Now consider one rewiring operation. Suppose an edge $(u,v)$ is removed and replaced by $(u,w).$
 
 Then
 
@@ -329,7 +227,7 @@ $$
 |E'|
 ====
 
-# |E|-1+1
+|E|-1+1
 
 |E|.
 $$
