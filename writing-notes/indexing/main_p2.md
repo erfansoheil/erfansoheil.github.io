@@ -207,7 +207,7 @@ $$
 \sum_{v\in V}\deg(v)=2|E|.
 $$
 
-Since there are $N$ vertices and every vertex initially has degree 
+Since there are $N$ vertices and every vertex initially has degree $k$, $ Nk=2|E|$ . 
 
 Now consider one rewiring operation. Suppose an edge $(u,v)$ is removed and replaced by $(u,w).$
 
