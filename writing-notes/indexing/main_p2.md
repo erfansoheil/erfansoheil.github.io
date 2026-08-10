@@ -460,7 +460,7 @@ IVF and HNSW both answer the same question: *which vectors should I even bother 
 
 $$x = [x^{(1)}, x^{(2)}, \dots, x^{(m)}]$$
 
-2. **Sub-space Quantization:** For each of the $m$ sub-spaces, the system runs clustering (usually $k$-means) to find $k^{*}$ sub-centroids. Typically, $k^{*} = 256$, meaning each sub-centroid can be represented by an 8-bit integer (1 byte). 
+1. **Sub-space Quantization:** For each of the $m$ sub-spaces, the system runs clustering (usually $k$-means) to find $k'$ sub-centroids. Typically, $k'= 256$, meaning each sub-centroid can be represented by an 8-bit integer (1 byte). 
 
 3. **Encoding:** The original sub-vectors are replaced by the ID (the 1-byte code) of their nearest sub-centroid. A massive 768-dimensional array of 32-bit floats is mathematically approximated as a tiny string of $m$ bytes.
 
