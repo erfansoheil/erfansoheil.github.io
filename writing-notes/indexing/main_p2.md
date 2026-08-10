@@ -212,20 +212,10 @@ Then
 
 $$
 E'
-=\left(E\setminus{(u,v)}\right)
-\cup
-{(u,w)}.
+=\left(E\setminus{(u,v)}\right) \cup {(u,w)} =|E|-1+1 =|E|.
 $$
 
-Thus,
-
-$$
-|E'|
-=|E|-1+1
-=|E|.
-$$
-
-Consequently, changing $p$ does not change the number of edges:
+Thus, changing $p$ does not change the number of edges:
 
 $$
 \boxed{
