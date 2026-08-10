@@ -329,7 +329,7 @@ Let $q$ be our query vector (e.g., the user's prompt). Let $v_{entry}$ be a pred
 
 *Note: In production NSW, we track a list of candidates (a dynamic array of size `efSearch`) rather than a single node to avoid getting trapped in false local minima, but the greedy heuristic remains the same.* -->
 
-#### **2. From Small World to Navigable Small World**
+#### **From Small World to Navigable Small World**
 
 A **small-world graph** guarantees that short paths exist between distant nodes. However, this does not mean that we can easily **find** those paths.
 
@@ -357,7 +357,7 @@ The important remark is therefore: **a small world needs short paths; a navigabl
 
 This is a valid theoretical solution for navigability problem. But not a practical one to be used in retrieval tasks.
 
-**3. Navigable Small World for Vector Search**
+**Navigable Small World for Vector Search**
 
 For vector search, every node represents a vector and the graph is built using a distance function such as Euclidean or cosine distance.
 
@@ -379,7 +379,7 @@ As a result, the graph naturally contains a mixture of edge lengths: short local
 
 So NSW does **not** explicitly calculate Kleinberg's probability $P(u,v)$. Instead, navigability emerges from two simple ideas: **graph growth** and **proximity-based connections**.
 
-**4. Searching an NSW Graph**
+**Searching an NSW Graph**
 
 Suppose the query vector is $q$ and we start from some entry node $v$.
 
@@ -392,8 +392,7 @@ At each step:
 
 In the simplest greedy version, if $N(v)$ is the neighborhood of $v$, we choose $u^*=\arg\min_{u\in N(v)} d(u,q)$.
 
-If $d(u^*,q)<d(v,q)$, 
-move from $v$ to $u^*$.
+If $d(u^*,q)<d(v,q)$, move from $v$ to $u^*$.
 
 For example: $A \rightarrow C \rightarrow F \rightarrow H \rightarrow q$.
 
@@ -405,9 +404,42 @@ For this reason, practical NSW search does not normally follow only one path. It
 
 The main idea can therefore be summarized as: **long edges provide exploration, short edges provide refinement, and proximity-based connections give greedy search a meaningful direction.**
 
+**What Happened to the Probability $p$?**
+
+At this point, the rewiring probability $p$ from the Watts-Strogatz model is no longer part of the practical construction.
+
+In the classical small-world model, $p$ controls how many local edges are replaced by random long-range shortcuts.
+
+In NSW, we instead build the graph directly from the geometry of the vectors. Connections are created using distance-based search and neighbor selection.
+
+So the transition is roughly:
+
+$ \text{Watts-Strogatz: local edges + random rewiring controlled by }p $
+
+to
+
+$ \text{NSW: proximity-based incremental connections} $
 
 
-#### **5. Bridging the Gap: Why We Still Need the Skip List (HNSW)**
+#### **Limitation of Navigable Small World**
+
+NSW makes graph search much more efficient than comparing the query with every vector, but it still has an important limitation: **the search can become expensive when the dataset and vector dimension are large**.
+
+Suppose the database contains millions of vectors, each with dimension $d=512$. Every time the search visits a node, it must compute the distance between the query and several candidate vectors.
+
+For Euclidean distance, one comparison costs roughly $O(d)$ operations. Cosine similarity also requires roughly $O(d)$ operations once vector norms are handled.
+
+If the search evaluates $S$ candidate vectors, the distance-computation cost is approximately $O(Sd)$.
+
+Therefore, even if NSW greatly reduces $S$ compared with brute-force search over all $N$ vectors, the cost can still become large when both $S$ and $d$ are large.
+
+This creates the motivation for **Hierarchical Navigable Small World (HNSW)**: instead of searching through one large graph at the same resolution, HNSW introduces multiple layers so that the search can first move quickly through a sparse upper graph and then progressively refine the search in denser lower layers.
+
+
+Therefore, in practical vector-search graphs, we effectively **get rid of the Watts-Strogatz rewiring probability $p$**. The important quantities become things such as the number of neighbors, the search breadth, and the distance metric rather than a rewiring probability.
+
+
+#### **Bridging the Gap: Why We Still Need the Skip List (HNSW)**
  
 If NSW is so brilliant, why did Malkov eventually create **H**NSW? 
 
