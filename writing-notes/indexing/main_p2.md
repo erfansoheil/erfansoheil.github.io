@@ -160,6 +160,9 @@ In 1998, Duncan Watts and Steven Strogatz formalized how such a network forms us
 
 Here, $k$ is usually chosen to be even, so each node is connected to $k/2$ neighbors on each side of the ring. One important remark is that in the rewiring stage we only change **one** end and keep the other end. 
 
+<iframe src="./asset/swn.html" width="100%" height="450px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
+
+
 #### **Some properties of Watts-Strogatz Model**
 
 **Role of $p$**
@@ -204,7 +207,7 @@ $$
 \sum_{v\in V}\deg(v)=2|E|.
 $$
 
-Since there are $N$ vertices and every vertex initially has degree $k$, $ Nk=2|E|$ . Therefore, $ |E|=\frac{Nk}{2}$.
+Since there are $N$ vertices and every vertex initially has degree 
 
 Now consider one rewiring operation. Suppose an edge $(u,v)$ is removed and replaced by $(u,w).$
 
@@ -302,7 +305,6 @@ The remarkable point is that the average path length can decrease very quickly e
 Thus, the essential idea behind a small-world network is not simply randomness. It is the combination of **local structure and a small number of long-range shortcuts** that dramatically improve global connectivity.
 
 
-<iframe src="./asset/swn.html" width="100%" height="450px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
 
 
 
