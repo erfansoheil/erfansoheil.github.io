@@ -421,7 +421,9 @@ Looking up a query $q$ works almost the same way:
 2. At each layer, keep moving to whichever neighbor is closest to $q$. Once nothing gets closer, drop to the layer below.
 3. Once we reach the bottom layer, switch to keeping a list of `efSearch` candidates (instead of just one), same idea as `efConstruction` during insertion. This final list is what we return as the approximate nearest neighbors.
 
-The top layers do the same job the skip list's higher levels did: they let us cover a lot of ground in very few steps. The bottom layer does what NSW alone would do: slow down and look carefully at what's actually nearby. We need both parts for the same reason the skip list did — a single flat NSW graph has no shortcut across the space, so it has to pay for a large search at every point, with no cheap way to jump to a completely different region first.
+The top layers do the same job the skip list's higher levels did: they let us cover a lot of ground in very few steps. The bottom layer does what NSW alone would do: slow down and look carefully at what's actually nearby. We need both parts for the same reason the skip list did.
+
+ A flat NSW graph already contains long-range connections, but all navigation scales coexist inside the same graph. HNSW makes this structure explicit: sparse upper layers are responsible mainly for long-range navigation, while dense lower layers provide local refinement.
 
 **Why this beats a flat NSW graph**
 
@@ -440,13 +442,13 @@ A single flat NSW graph, with no layers on top, doesn't have this shortcut. Gree
 - **Search cost grows logarithmically** with the number of vectors, same as a skip list, but without needing the data to be sortable — the layering here comes from randomly assigning layers, not from sorting keys.
 - **Recall is good in practice**, since the bottom layer has more connections per node and can refine the search carefully.
 - **No training step needed.** Unlike IVF or PQ, there's no separate clustering pass before you can start indexing. Vectors can be added one at a time, whenever they arrive.
-- **Works with any valid distance function.** Euclidean, cosine, doesn't matter — HNSW doesn't assume anything special about the metric.
+- **Works with any valid distance function.** HNSW can be used with many common vector distance or similarity measures, including Euclidean distance, inner product, and cosine similarity, depending on the implementation.
 
 **Disadvantages**
 
 - **Uses more memory.** Every vector stores a list of neighbors at every layer it belongs to, on top of the vector itself. With a large $M$ and a lot of vectors, this can end up costing more memory than the vectors themselves.
 - **Slower to build.** Inserting a vector means running a real search at every layer it touches, plus the neighbor selection step. This is more expensive than, say, just assigning a vector to a cluster in IVF.
-- **Hard to delete from.** The graph only works well because of a careful mix of short and long connections. Removing a node cleanly, without breaking the connections that relied on it, is genuinely difficult. Most implementations just mark a node as deleted instead of actually removing it.
+- **Hard to delete from.** The graph only works well because of a careful mix of short and long connections. Removing a node cleanly, without breaking the connections that relied on it, is genuinely difficult. 
 - **Parameters need tuning.** $M$, `efConstruction`, and `efSearch` all affect the tradeoff between recall, speed, and memory, and there's no simple rule for picking them — you generally have to test on your own data.
 - **Not great for data stored on disk.** Searching means jumping between nodes with no particular pattern, which works fine in memory but is slow on disk. IVF, by contrast, groups vectors together in a way that plays nicer with disk reads.
 
@@ -744,7 +746,7 @@ If your data preparation pipeline is fundamentally flawed, you are simply accele
 ### **The Three Weak Links**
 
 1. **Flawed Tokenization & Chunking:** If your chunking strategy cuts off text mid-sentence, splits a core concept across two separate blocks, or fails to include structural metadata (like parent headers), the resulting semantic vector loses its context. An index will happily find that vector with blazingly fast speed, but the text payload it carries will be fragmented and useless to the LLM.
-2. **Embedding Model Blindness:** Embedding models encode data into a fixed representation based on how they were trained. If you use a general-purpose embedding model on highly domain-specific data (e.g., deep legal contracts, specialized medical terminology, or proprietary codebases), the model will map disparate concepts to similar spatial coordinates, or vice versa. The index will calculate distance perfectly on fundamentally flawed map coordinates.
+2. **Embedding Model Mismatch:** Embedding models encode data into a fixed representation based on how they were trained. If you use a general-purpose embedding model on highly domain-specific data (e.g., deep legal contracts, specialized medical terminology, or proprietary codebases), the model will map disparate concepts to similar spatial coordinates, or vice versa. The index will calculate distance perfectly on fundamentally flawed map coordinates.
 3. **The Out-of-Distribution Query Problem:** If a user submits a query that uses vocabulary or phrasing completely outside the distribution of the embedding model's training data, the query vector will land in a distorted region of the vector space. The index will efficiently retrieve the nearest neighbors to that distorted point, but those neighbors will be semantically meaningless.
 
 > **The Architectural Rule:** Indexing solves the *engineering problem* of scale and latency. Tokenization, chunking strategies, and embedding fine-tuning solve the *AI problem* of quality and meaning. An elite RAG system requires absolute alignment between both.
