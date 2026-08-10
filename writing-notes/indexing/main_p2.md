@@ -438,6 +438,9 @@ This creates the motivation for **Hierarchical Navigable Small World (HNSW)**: i
 
 Therefore, in practical vector-search graphs, we effectively **get rid of the Watts-Strogatz rewiring probability $p$**. The important quantities become things such as the number of neighbors, the search breadth, and the distance metric rather than a rewiring probability.
 
+<iframe src="./asset/nsw.html" width="100%" height="450px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
+
+
 
 #### **Bridging the Gap: Why We Still Need the Skip List (HNSW)**
  

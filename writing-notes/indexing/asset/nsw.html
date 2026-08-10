@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navigable Small-World (NSW) Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 0; }
+        .slider-container { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+        .slider-label { display: flex; justify-content: space-between; font-size: 0.875rem; font-weight: 500; }
+        input[type=range] { width: 100%; cursor: pointer; }
+        #viz-container { width: 100%; height: 500px; background-color: white; border-radius: 0.5rem; border: 1px solid #e2e8f0; overflow: hidden; position: relative; cursor: crosshair; }
+        .metric-card { background-color: white; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1rem; text-align: center; }
+        .metric-value { font-size: 1.5rem; font-weight: 700; color: #2563eb; }
+        .metric-label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-top: 0.25rem; }
+        
+        /* D3 Graph Styles */
+        .node { fill: #94a3b8; stroke: #fff; stroke-width: 1.5px; transition: fill 0.2s, r 0.2s; cursor: pointer; }
+        .node:hover { fill: #3b82f6; r: 8; }
+        .node.start { fill: #22c55e; r: 8; stroke: #166534; stroke-width: 2px; }
+        .node.target { fill: #ef4444; r: 8; stroke: #991b1b; stroke-width: 2px; }
+        .node.path { fill: #a855f7; r: 7; }
+        .node.current { fill: #eab308; r: 9; stroke: #ca8a04; stroke-width: 2px; }
+        
+        .link { stroke: #e2e8f0; stroke-opacity: 0.8; stroke-width: 1px; }
+        .link.path { stroke: #a855f7; stroke-opacity: 1; stroke-width: 3px; }
+        .link.evaluating { stroke: #eab308; stroke-opacity: 0.8; stroke-width: 2px; stroke-dasharray: 4; }
+
+        .distance-line { stroke: #ef4444; stroke-opacity: 0.4; stroke-width: 1.5px; stroke-dasharray: 5, 5; }
+        
+        /* Tooltip */
+        #status-bar { position: absolute; bottom: 10px; left: 10px; right: 10px; background: rgba(255,255,255,0.9); padding: 8px 12px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 0.875rem; pointer-events: none; text-align: center; font-weight: 500; display: none; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+    </style>
+</head>
+<body class="p-4 md:p-8 max-w-6xl mx-auto">
+
+    <header class="mb-6">
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-800">Incremental NSW & Greedy Routing Simulator</h1>
+        <p class="text-slate-600 mt-2 text-sm md:text-base">Watch how building a network incrementally creates long-range shortcuts, and test Greedy Routing to see if it can navigate out of local minima.</p>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <div class="lg:col-span-1 space-y-6">
+            <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+                <h2 class="text-lg font-semibold mb-4">Construction Parameters</h2>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Total Nodes (N)</span>
+                        <span id="n-val">50</span>
+                    </div>
+                    <input type="range" id="n-slider" min="20" max="150" step="10" value="50">
+                    <p class="text-xs text-slate-500">Number of points scattered in 2D space.</p>
+                </div>
+
+                <div class="slider-container mt-4">
+                    <div class="slider-label">
+                        <span>Edges per Node (M)</span>
+                        <span id="m-val">3</span>
+                    </div>
+                    <input type="range" id="m-slider" min="1" max="10" step="1" value="3">
+                    <p class="text-xs text-slate-500">When a node is inserted, it connects to its M nearest existing neighbors.</p>
+                </div>
+
+                <div class="flex gap-2 mt-6">
+                    <button id="build-btn" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 px-4 rounded transition duration-150">
+                        Rebuild Graph
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+                <h2 class="text-lg font-semibold mb-4">Routing Controls</h2>
+                <p class="text-xs text-slate-600 mb-4">Click nodes in the graph to set Start (Green) and Target (Red). Then run the greedy search.</p>
+                
+                <div class="flex gap-2">
+                    <button id="clear-route-btn" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 px-4 rounded border border-slate-300 transition duration-150">
+                        Clear Route
+                    </button>
+                    <button id="route-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition duration-150" disabled>
+                        Run Greedy Search
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="metric-card shadow-sm">
+                    <div id="hops-val" class="metric-value">--</div>
+                    <div class="metric-label">Hops Taken</div>
+                </div>
+                <div class="metric-card shadow-sm">
+                    <div id="status-val" class="metric-value text-slate-400">Wait</div>
+                    <div class="metric-label">Search Status</div>
+                </div>
+            </div>
+            
+            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm text-slate-700">
+                <strong>Legend:</strong><br>
+                <span class="inline-block w-3 h-3 bg-green-500 rounded-full mr-1 mt-2 border border-green-800"></span> Start Node<br>
+                <span class="inline-block w-3 h-3 bg-red-500 rounded-full mr-1 mt-1 border border-red-800"></span> Target Node<br>
+                <span class="inline-block w-3 h-3 bg-purple-500 rounded-full mr-1 mt-1"></span> Final Path<br>
+                <span class="inline-block w-3 h-3 bg-yellow-500 rounded-full mr-1 mt-1 border border-yellow-700"></span> Evaluated Node
+            </div>
+        </div>
+
+        <div class="lg:col-span-2 relative">
+            <div id="viz-container" class="shadow-sm"></div>
+            <div id="status-bar">Select a Start Node.</div>
+        </div>
+    </div>
+
+    <script>
+        // State variables
+        let N = 50;
+        let M = 3;
+        
+        let graphData = { nodes: [], links: [], adjList: [] };
+        
+        let routingState = {
+            startNode: null,
+            targetNode: null,
+            isRouting: false,
+            path: [],
+            visited: new Set()
+        };
+
+        // DOM Elements
+        const nSlider = document.getElementById('n-slider');
+        const mSlider = document.getElementById('m-slider');
+        const nVal = document.getElementById('n-val');
+        const mVal = document.getElementById('m-val');
+        const buildBtn = document.getElementById('build-btn');
+        const routeBtn = document.getElementById('route-btn');
+        const clearRouteBtn = document.getElementById('clear-route-btn');
+        const vizContainer = document.getElementById('viz-container');
+        const statusBar = document.getElementById('status-bar');
+        const hopsVal = document.getElementById('hops-val');
+        const statusVal = document.getElementById('status-val');
+
+        // D3 Setup
+        const width = vizContainer.clientWidth;
+        const height = vizContainer.clientHeight;
+        const padding = 30;
+        
+        const svg = d3.select("#viz-container")
+            .append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .attr("viewBox", [0, 0, width, height]);
+
+        const linkGroup = svg.append("g").attr("class", "links");
+        const nodeGroup = svg.append("g").attr("class", "nodes");
+        const overlayGroup = svg.append("g").attr("class", "overlay"); // For evaluation lines
+
+        // Helper: Euclidean distance
+        function dist(n1, n2) {
+            const dx = n1.x - n2.x;
+            const dy = n1.y - n2.y;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        function buildNSWGraph() {
+            // 1. Generate random nodes in 2D space
+            const nodes = Array.from({length: N}, (_, i) => ({
+                id: i,
+                x: padding + Math.random() * (width - 2 * padding),
+                y: padding + Math.random() * (height - 2 * padding),
+                insertionOrder: i
+            }));
+
+            const links = [];
+            const adjList = Array.from({length: N}, () => new Set());
+
+            // 2. Incremental Insertion Algorithm
+            // Node 0 is just added.
+            
+            for (let i = 1; i < N; i++) {
+                const currentNode = nodes[i];
+                
+                // Find distances to all CURRENTLY EXISTING nodes (nodes 0 to i-1)
+                let candidates = [];
+                for (let j = 0; j < i; j++) {
+                    candidates.push({
+                        id: j,
+                        distance: dist(currentNode, nodes[j])
+                    });
+                }
+                
+                // Sort by distance to find nearest
+                candidates.sort((a, b) => a.distance - b.distance);
+                
+                // Connect to the M nearest neighbors (or fewer if i < M)
+                const numToConnect = Math.min(M, i);
+                
+                for (let k = 0; k < numToConnect; k++) {
+                    const targetId = candidates[k].id;
+                    
+                    links.push({
+                        id: `e-${i}-${targetId}`,
+                        source: i,
+                        target: targetId,
+                        isPath: false,
+                        isEval: false
+                    });
+                    
+                    // Bidirectional connection for routing
+                    adjList[i].add(targetId);
+                    adjList[targetId].add(i);
+                }
+            }
+
+            graphData = { nodes, links, adjList };
+            resetRouting();
+            drawGraph();
+        }
+
+        function drawGraph() {
+            // Links
+            const linkSelection = linkGroup.selectAll("line")
+                .data(graphData.links, d => d.id);
+
+            linkSelection.exit().remove();
+
+            linkSelection.enter().append("line")
+                .merge(linkSelection)
+                .attr("class", d => {
+                    if (d.isPath) return "link path";
+                    if (d.isEval) return "link evaluating";
+                    return "link";
+                })
+                .attr("x1", d => graphData.nodes[d.source].x)
+                .attr("y1", d => graphData.nodes[d.source].y)
+                .attr("x2", d => graphData.nodes[d.target].x)
+                .attr("y2", d => graphData.nodes[d.target].y);
+
+            // Nodes
+            const nodeSelection = nodeGroup.selectAll("circle")
+                .data(graphData.nodes, d => d.id);
+
+            nodeSelection.exit().remove();
+
+            nodeSelection.enter().append("circle")
+                .attr("class", "node")
+                .on("click", handleNodeClick)
+                .merge(nodeSelection)
+                .attr("r", 5)
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y)
+                .attr("class", d => {
+                    let classes = "node";
+                    if (routingState.startNode === d.id) classes += " start";
+                    else if (routingState.targetNode === d.id) classes += " target";
+                    else if (routingState.path.includes(d.id)) classes += " path";
+                    return classes;
+                });
+        }
+
+        function handleNodeClick(event, d) {
+            if (routingState.isRouting) return; // Disable clicks during animation
+
+            if (routingState.startNode === null) {
+                routingState.startNode = d.id;
+                statusBar.style.display = "block";
+                statusBar.textContent = "Start node selected. Now select a Target Node.";
+                statusBar.style.color = "#166534";
+            } else if (routingState.targetNode === null && d.id !== routingState.startNode) {
+                routingState.targetNode = d.id;
+                statusBar.textContent = "Target set. Ready to route.";
+                statusBar.style.color = "#991b1b";
+                routeBtn.disabled = false;
+            } else if (d.id === routingState.startNode || d.id === routingState.targetNode) {
+                // Clicking existing start/target resets them
+                resetRouting();
+            }
+            drawGraph();
+        }
+
+        function resetRouting() {
+            routingState = {
+                startNode: null,
+                targetNode: null,
+                isRouting: false,
+                path: [],
+                visited: new Set()
+            };
+            
+            // Reset link styling
+            graphData.links.forEach(l => {
+                l.isPath = false;
+                l.isEval = false;
+            });
+            
+            overlayGroup.selectAll("*").remove();
+            
+            statusBar.style.display = "block";
+            statusBar.textContent = "Select a Start Node (Green).";
+            statusBar.style.color = "#334155";
+            routeBtn.disabled = true;
+            hopsVal.textContent = "--";
+            statusVal.textContent = "Wait";
+            statusVal.className = "metric-value text-slate-400";
+            
+            drawGraph();
+        }
+
+        async function runGreedyRouting() {
+            if (routingState.startNode === null || routingState.targetNode === null) return;
+            
+            routingState.isRouting = true;
+            routeBtn.disabled = true;
+            clearRouteBtn.disabled = true;
+            buildBtn.disabled = true;
+            
+            let currentNodeId = routingState.startNode;
+            const targetNode = graphData.nodes[routingState.targetNode];
+            routingState.path.push(currentNodeId);
+            
+            hopsVal.textContent = 0;
+            statusVal.textContent = "Routing...";
+            statusVal.className = "metric-value text-blue-600";
+
+            let reachedTarget = false;
+            let stuck = false;
+
+            while (!reachedTarget && !stuck) {
+                const currentNode = graphData.nodes[currentNodeId];
+                routingState.visited.add(currentNodeId);
+                
+                // Highlight current node temporarily
+                nodeGroup.selectAll("circle").filter(d => d.id === currentNodeId).classed("current", true);
+                
+                let bestNeighbor = null;
+                let minDistance = dist(currentNode, targetNode); // Distance from CURRENT to TARGET
+                
+                const neighbors = Array.from(graphData.adjList[currentNodeId]);
+                
+                // Animation: Evaluate neighbors
+                for (let neighborId of neighbors) {
+                    const neighborNode = graphData.nodes[neighborId];
+                    
+                    // Draw distance evaluation line
+                    const evalLine = overlayGroup.append("line")
+                        .attr("class", "distance-line")
+                        .attr("x1", neighborNode.x)
+                        .attr("y1", neighborNode.y)
+                        .attr("x2", targetNode.x)
+                        .attr("y2", targetNode.y);
+
+                    // Highlight the edge being checked
+                    const connectingLink = graphData.links.find(l => 
+                        (l.source === currentNodeId && l.target === neighborId) || 
+                        (l.target === currentNodeId && l.source === neighborId)
+                    );
+                    if (connectingLink) connectingLink.isEval = true;
+                    drawGraph();
+                    
+                    await new Promise(r => setTimeout(r, 400)); // Pause for visual
+                    
+                    const d = dist(neighborNode, targetNode);
+                    if (d < minDistance) {
+                        minDistance = d;
+                        bestNeighbor = neighborId;
+                    }
+                    
+                    evalLine.remove();
+                    if (connectingLink) connectingLink.isEval = false;
+                }
+
+                // Check termination conditions
+                if (bestNeighbor === routingState.targetNode) {
+                    // Success!
+                    reachedTarget = true;
+                    routingState.path.push(bestNeighbor);
+                    markPathEdges(currentNodeId, bestNeighbor);
+                    break;
+                } else if (bestNeighbor === null) {
+                    // Local Minimum! None of the neighbors are closer to the target than we currently are.
+                    stuck = true;
+                    break;
+                } else {
+                    // Move to the best neighbor
+                    markPathEdges(currentNodeId, bestNeighbor);
+                    currentNodeId = bestNeighbor;
+                    routingState.path.push(currentNodeId);
+                    hopsVal.textContent = routingState.path.length - 1;
+                }
+                
+                nodeGroup.selectAll("circle").classed("current", false);
+                drawGraph();
+            }
+
+            // Cleanup and Status
+            nodeGroup.selectAll("circle").classed("current", false);
+            drawGraph();
+            
+            routingState.isRouting = false;
+            clearRouteBtn.disabled = false;
+            buildBtn.disabled = false;
+
+            if (reachedTarget) {
+                hopsVal.textContent = routingState.path.length - 1;
+                statusVal.textContent = "Success";
+                statusVal.className = "metric-value text-green-600";
+                statusBar.textContent = `Target found in ${routingState.path.length - 1} hops!`;
+                statusBar.style.color = "#166534";
+            } else if (stuck) {
+                statusVal.textContent = "Local Min";
+                statusVal.className = "metric-value text-red-600";
+                statusBar.textContent = "Stuck in a Local Minimum! No neighbor is closer to the target.";
+                statusBar.style.color = "#991b1b";
+            }
+        }
+
+        // Helper to color the final path edges
+        function markPathEdges(sourceId, targetId) {
+            const link = graphData.links.find(l => 
+                (l.source === sourceId && l.target === targetId) || 
+                (l.target === sourceId && l.source === targetId)
+            );
+            if (link) link.isPath = true;
+        }
+
+        function updateValues() {
+            N = parseInt(nSlider.value);
+            M = parseInt(mSlider.value);
+            nVal.textContent = N;
+            mVal.textContent = M;
+        }
+
+        nSlider.addEventListener('input', updateValues);
+        mSlider.addEventListener('input', updateValues);
+        
+        buildBtn.addEventListener('click', () => {
+            updateValues();
+            buildNSWGraph();
+        });
+
+        clearRouteBtn.addEventListener('click', resetRouting);
+        routeBtn.addEventListener('click', runGreedyRouting);
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const newWidth = vizContainer.clientWidth;
+            const newHeight = vizContainer.clientHeight;
+            svg.attr("viewBox", [0, 0, newWidth, newHeight]);
+            // Rebuilding is easier than translating random coordinates to keep them inside padding
+            buildNSWGraph(); 
+        });
+
+        // Initial Draw
+        updateValues();
+        buildNSWGraph();
+
+    </script>
+</body>
+</html>
