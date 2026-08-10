@@ -204,7 +204,7 @@ $$
 \sum_{v\in V}\deg(v)=2|E|.
 $$
 
-Since there are $N$ vertices and every vertex initially has degree $k$, $Nk=2|E|.$ Therefore, $|E|=\frac{Nk}{2}.$
+Since there are $N$ vertices and every vertex initially has degree $k$, $Nk=2|E|$.  Therefore, $|E|=\frac{Nk}{2}$.
 
 Now consider one rewiring operation. Suppose an edge $(u,v)$ is removed and replaced by $(u,w).$
 
@@ -215,96 +215,20 @@ E'
 =\left(E\setminus{(u,v)}\right) \cup {(u,w)} =|E|-1+1 =|E|.
 $$
 
-Thus, changing $p$ does not change the number of edges:
+Thus, changing $p$ does not change the number of edges. What changes is the **topology** of the graph.
 
-$$
-\boxed{
-|E_p|=\frac{Nk}{2}
-\qquad
-\text{for every }p.
-}
-$$
 
-What changes is the topology of the graph.
-
----
-
-## Expected Number of Rewired Edges
-
-The graph contains
-
-$$
-M=\frac{Nk}{2}
-$$
-
-edges.
-
-If every edge is independently rewired with probability $p$, the number of rewired edges $R$ can be modeled approximately as
-
-$$
-R\sim\operatorname{Binomial}(M,p).
-$$
-
-Therefore,
-
-$$
-\mathbb E[R]=Mp.
-$$
-
-Substituting
-
-$$
-M=\frac{Nk}{2},
-$$
-
-we obtain
-
-$$
-\boxed{
-\mathbb E[R]
-============
-
-p\frac{Nk}{2}.
-}
-$$
-
-For example, if
-
-$$
-N=1000,\qquad k=10,\qquad p=0.1,
-$$
-
-then
-
-$$
-M=5000,
-$$
-
-and the expected number of rewired edges is
-
-$$
-\mathbb E[R]=500.
-$$
-
-So only a fraction of the edges need to become long-range connections to significantly alter the global structure of the graph.
-
----
-
-## The Effects of $k$ and $p$
+**The Effects of $k$ and $p$**
 
 The parameters $k$ and $p$ play fundamentally different roles.
 
-The parameter $k$ controls the **density of the graph**.
-
-Increasing $k$ gives every node more neighbors and increases the total number of edges:
+The parameter $k$ controls the **density of the graph**. Increasing $k$ gives every node more neighbors and increases the total number of edges:
 
 $$
 |E|=\frac{Nk}{2}.
 $$
 
-The parameter $p$, on the other hand, controls the **randomness of the graph**.
-
-Increasing $p$ does not create more edges. Instead, it replaces increasingly many local connections with non-local ones.
+The parameter $p$, on the other hand, controls the **randomness of the graph**. Increasing $p$ does not create more edges. Instead, it replaces increasingly many local connections with non-local ones.
 
 Therefore,
 
@@ -322,75 +246,8 @@ p \rightarrow \text{graph randomness}.
 }
 $$
 
-For example, with fixed $N$:
 
-$$
-k=4,\quad p=1
-$$
-
-produces a sparse but highly random graph, whereas
-
-$$
-k=50,\quad p=1
-$$
-
-produces a much denser random graph.
-
----
-
-## Connectivity and Rewiring
-
-At $p=0$ and $k\geq2$, connectivity follows directly from the original ring structure.
-
-Once
-
-$$
-p>0,
-$$
-
-the situation becomes probabilistic.
-
-The value of $p$ tells us how likely an edge is to be rewired, but it does not specify **which** edges will be rewired or where they will be reconnected.
-
-Therefore, two graphs generated using exactly the same values of
-
-$$
-(N,k,p)
-$$
-
-can have different topologies.
-
-As a result, there is generally no simple deterministic threshold
-
-$$
-p_c=f(N,k)
-$$
-
-such that
-
-$$
-p<p_c
-\Longrightarrow
-\text{connected}
-$$
-
-and
-
-$$
-p>p_c
-\Longrightarrow
-\text{disconnected}.
-$$
-
-Instead, for $p>0$, connectivity is more naturally described probabilistically:
-
-$$
-P(G\text{ is connected}\mid N,k,p).
-$$
-
-This distinction is important because the rewiring probability controls the distribution over possible graphs rather than uniquely determining a graph.
-
-## What Makes the Network "Small World"?
+**What Makes the Network "Small World"?**
 
 The central phenomenon is the transition between two extremes.
 
