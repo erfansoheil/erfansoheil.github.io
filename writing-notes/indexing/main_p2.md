@@ -363,93 +363,90 @@ Therefore, in practical vector-search graphs, we effectively **get rid of the Wa
 
 <iframe src="./asset/nsw.html" width="100%" height="500px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
 
-#### **Bridging the Gap: Why We Still Need the Skip List (HNSW)**
+#### Bridging the Gap: Why We Still Need the Skip List (HNSW)
 
-We now have the two ingredients we need. The skip list gave us a **probabilistic way to build a hierarchy**: nodes are promoted to higher levels with exponentially decreasing probability, so upper levels stay sparse and act as express lanes. NSW gave us a **way to navigate a single flat layer**: a distance function and a greedy routing rule that moves toward the query at every step.
+We now have both pieces. The skip list gave us a way to build layers on top of a data structure, so that a few of them stay sparse and let us skip over large chunks of data quickly. NSW gave us a way to search inside a single graph: move to whichever neighbor is closest to the query, and repeat until nothing gets closer.
 
-HNSW is, informally, what happens when we replace every level of a skip list with an NSW graph instead of a sorted linked list.
+HNSW just combines the two. Take a skip list, and at every layer, replace the sorted list with an NSW graph.
 
 $$
 \text{HNSW} = \text{Skip List (hierarchy \& layer assignment)} + \text{NSW (distance-based routing within a layer)}.
 $$
 
-The layers still get sparser as we go up, exactly as before. The difference is that instead of comparing scalar keys and moving left or right, at every layer we now compare vectors and move toward whichever neighbor is closer to the query.
+The layers still get sparser as you go up, same as before. The only thing that changes inside a layer is how we move: instead of comparing numbers and going left or right, we compare vectors and move to whichever neighbor is closer to the query.
 
-**Layer Assignment: Borrowing the Coin Flip**
+**Deciding which layers a vector belongs to**
 
-Recall that in a skip list, a node is inserted at $L_0$ and promoted to $L_1, L_2, \dots$ with probability $p$ at each step, so that the probability of reaching level $k$ is $p^k$. HNSW uses the exact same idea, only reparametrized.
+In a skip list, a node is placed at the bottom layer, and then, with some probability $p$, it also gets placed on the layer above, and so on. So the chance a node reaches layer $k$ is $p^k$: it drops off fast as $k$ grows, which is why higher layers have fewer nodes.
 
-When a new vector is inserted, its maximum layer $l$ is sampled as
+HNSW does the same thing, just written with a formula instead of a repeated coin flip. When we insert a new vector, we draw its top layer $l$ as
 
 $$
 l = \left\lfloor -\ln(u) \cdot m_L \right\rfloor, \qquad u \sim \text{Uniform}(0,1),
 $$
 
-where $m_L$ is a normalization constant, typically chosen as $m_L = \frac{1}{\ln(M)}$, with $M$ being the maximum number of connections per node per layer.
-
-This is just a continuous reparametrization of the same coin-flip process. The quantity $-\ln(u)$ is exponentially distributed, so $l$ follows (a discretized version of) an exponential distribution, which is the continuous analogue of the geometric distribution $p^k$ we derived for skip lists. The consequence is identical: the number of nodes present at level $k$ decays exponentially in $k$, giving us the same sparse-on-top, dense-at-bottom shape, and the same expected height
+where $m_L$ is just a constant, usually set to $m_L = \frac{1}{\ln(M)}$, and $M$ is the max number of neighbors a node is allowed to have per layer. This formula produces the same shape as the skip list's coin flips: most vectors only make it to the bottom layer, and fewer and fewer make it higher up. The expected number of layers is about
 
 $$
 h \approx \log_{1/p} n,
 $$
 
-now with $p$ implicitly controlled by $m_L$ (equivalently by $M$) instead of being an explicit parameter.
+with $M$ now playing the role that $p$ used to play.
 
-**Construction, Step by Step**
+**Inserting a new vector**
 
-Insertion of a new vector $v$ proceeds as follows:
+Say we're inserting a vector $v$. Here's what happens, step by step:
 
-1. **Sample the level.** Draw $l$ for $v$ using the formula above. This is the highest layer $v$ will belong to; $v$ is inserted into every layer from $0$ up to $l$.
+1. **Pick how high $v$ goes.** Use the formula above to draw a layer $l$. $v$ will be added to every layer from the bottom up to $l$.
 
-2. **Greedy descent from the entry point.** The graph keeps a global entry point at the current top layer. Starting there, we run a *single-path* greedy NSW search (candidate list of size $1$) at each layer from the current top layer down to layer $l+1$, always moving to the closest neighbor found. This is cheap because these top layers are sparse, and its only job is to get us close to $v$'s neighborhood before we start actually connecting edges.
+2. **Walk down to roughly the right area.** The graph keeps track of one starting node, called the entry point, which sits at the current highest layer. Starting from there, at each layer above $l$, we just move to whichever single neighbor is closest to $v$, and drop down a layer once nothing gets closer. This part is cheap because these top layers barely have any nodes in them. All it does is get us into the right neighborhood before we start actually connecting $v$ to anything.
 
-3. **Layer-by-layer neighbor search.** From layer $l$ down to layer $0$, we run the full NSW search described earlier, but now keeping a candidate list of size `efConstruction` instead of a single best node. This gives us a set of candidates close to $v$ at that layer.
+3. **Search properly at each layer $v$ belongs to.** From layer $l$ down to the bottom layer, we run the same kind of search as NSW, but instead of keeping only the single best node, we keep a list of the `efConstruction` best candidates found so far. So at each of these layers, we end up with a decent-sized pool of nearby candidates.
 
-4. **Neighbor selection and pruning.** From the candidate set, we pick $M$ neighbors to connect to $v$ (or $M_0$ at layer $0$, which is usually set to $2M$ since the base layer carries most of the traffic). Naively taking the $M$ closest candidates tends to produce clustered, redundant edges. HNSW instead uses a heuristic that also prefers neighbors that are not already well covered by $v$'s other chosen neighbors, which keeps the graph diverse and preserves long-range edges instead of collapsing everything into local cliques.
+4. **Choose neighbors from that pool.** Out of the candidates, we pick $M$ of them to actually connect to $v$ (or $2M$ at the bottom layer, since it handles most of the traffic during search). If we just picked the $M$ closest candidates, we'd end up with edges that are too clustered together. So instead, we also favor candidates that aren't already well connected to $v$'s other chosen neighbors. This keeps the connections spread out, which turns out to matter a lot for how well the graph can be searched later.
 
-5. **Bidirectional connection and degree cap.** Edges are added in both directions. Since $u$ gaining $v$ as a neighbor may push $u$ past its degree limit $M$, we re-run the same pruning heuristic on $u$'s neighbor list whenever it overflows.
+5. **Connect both directions, then check for overflow.** When $v$ connects to a neighbor $u$, $u$ also connects back to $v$. If this pushes $u$ over its limit of $M$ neighbors, we redo the same selection step on $u$'s list to bring it back down.
 
-6. **Update the entry point.** If $l$ exceeds the current maximum layer of the graph, $v$ becomes the new entry point.
+6. **Update the entry point, if needed.** If $v$'s layer $l$ turns out to be higher than anything currently in the graph, $v$ becomes the new entry point.
 
-Notice how steps 2–3 are literally the skip list's "move right, then drop down a level" logic, just replacing "move right" with "move to the closer neighbor."
+Steps 2 and 3 are really just the skip list's "move across, then drop a level" idea, except "move across" now means "move to the closer neighbor."
 
-**Retrieval**
+**Searching for a query**
 
-Search for a query $q$ mirrors construction almost exactly:
+Looking up a query $q$ works almost the same way:
 
 1. Start at the entry point, at the top layer.
-2. At each layer, run greedy NSW search with candidate list size $1$: keep moving to the closest neighbor until no neighbor improves the distance to $q$, then drop to the layer below.
-3. Once layer $0$ is reached, switch to a full NSW search with candidate list size `efSearch` (a query-time parameter, distinct from `efConstruction`). This produces the final set of approximate nearest neighbors.
+2. At each layer, keep moving to whichever neighbor is closest to $q$. Once nothing gets closer, drop to the layer below.
+3. Once we reach the bottom layer, switch to keeping a list of `efSearch` candidates (instead of just one), same idea as `efConstruction` during insertion. This final list is what we return as the approximate nearest neighbors.
 
-The upper layers are doing exactly what the skip list's express lanes did: they are responsible for covering large distances in very few hops. The base layer is doing exactly what NSW alone would do: fine-grained, high-recall refinement. The reason HNSW needs both is the same reason the skip list needed both: a single flat NSW graph has to pay $O(S \cdot d)$ for a possibly large $S$ candidate set, since without a hierarchy it has no cheap way to "jump" across distant regions of the space before doing expensive local refinement.
+The top layers do the same job the skip list's higher levels did: they let us cover a lot of ground in very few steps. The bottom layer does what NSW alone would do: slow down and look carefully at what's actually nearby. We need both parts for the same reason the skip list did — a single flat NSW graph has no shortcut across the space, so it has to pay for a large search at every point, with no cheap way to jump to a completely different region first.
 
-**Why Layered NSW Beats Flat NSW**
+**Why this beats a flat NSW graph**
 
-With $n$ points, roughly $\log n$ layers, and $O(M)$ neighbors visited per layer, the expected number of distance computations during search is on the order of
+With $n$ vectors, roughly $\log n$ layers, and about $M$ neighbors checked per layer, search does on the order of
 
 $$
-O(M \log n),
+O(M \log n)
 $$
 
-each costing $O(d)$, for a total of roughly $O(M d \log n)$. This is the same asymptotic shape as skip list search cost $\frac{1}{p}\log_{1/p} n$, with $M$ playing the role of $\frac{1}{p}$: it is the price we pay per level in exchange for the logarithmic number of levels.
+distance computations, each one costing $O(d)$ for a $d$-dimensional vector. Total cost: roughly $O(M d \log n)$. This mirrors the skip list's search cost, $\frac{1}{p}\log_{1/p} n$, with $M$ now playing the role $\frac{1}{p}$ used to play — it's the price we pay at each layer in exchange for having only $\log n$ layers to go through.
 
-Compare this to a single flat NSW graph over all $n$ points, where the absence of long-range express lanes means the greedy search may need to traverse many more intermediate nodes to escape the local region it started in, effectively behaving closer to the $O(S)$ regime we described as NSW's limitation, with no structural guarantee that $S$ stays small as $n$ grows.
+A single flat NSW graph, with no layers on top, doesn't have this shortcut. Greedy search can end up wandering through a lot more nodes just to reach the right region, and there's no guarantee that this stays small as $n$ grows.
 
 **Advantages**
 
-- **Logarithmic search complexity**, inherited directly from the skip list's layering, without requiring the data to lie in a totally ordered set — the layering is now driven by a random level assignment rather than by sorting keys.
-- **High recall** in practice, since the base layer (with its higher degree $M_0$) provides a dense enough graph for fine-grained refinement.
-- **Fully incremental**: unlike IVF or PQ, HNSW requires no training or clustering pass over the data beforehand; vectors can be inserted one at a time.
-- **No assumption on the distance metric's structure** beyond being a valid distance function; it works directly with Euclidean or cosine distance.
+- **Search cost grows logarithmically** with the number of vectors, same as a skip list, but without needing the data to be sortable — the layering here comes from randomly assigning layers, not from sorting keys.
+- **Recall is good in practice**, since the bottom layer has more connections per node and can refine the search carefully.
+- **No training step needed.** Unlike IVF or PQ, there's no separate clustering pass before you can start indexing. Vectors can be added one at a time, whenever they arrive.
+- **Works with any valid distance function.** Euclidean, cosine, doesn't matter — HNSW doesn't assume anything special about the metric.
 
 **Disadvantages**
 
-- **Memory footprint.** Every node stores neighbor lists at every layer it belongs to, on top of the raw vector itself. For large $M$ and large $n$, this graph overhead can dominate the memory cost of the raw vectors.
-- **Construction cost.** Insertion requires a full NSW-style search at every layer the node touches, plus neighbor pruning; this is considerably more expensive than, for instance, assigning a vector to an IVF cluster.
-- **Deletion is awkward.** Because the graph's navigability depends on a carefully grown structure of long- and short-range edges, removing a node cleanly (without breaking connectivity for the nodes that relied on it as a bridge) is nontrivial, and most implementations favor soft-deletion (marking nodes as deleted) over structural removal.
-- **Parameter sensitivity.** $M$, `efConstruction`, and `efSearch` all trade off recall against speed and memory in ways that are not always intuitive, and tuning them typically requires empirical validation on the target dataset rather than a closed-form rule.
-- **Poor fit for disk-resident indexes.** Since search requires chasing pointers across the graph with no locality guarantees, HNSW is primarily an in-memory structure; this is in contrast to methods like IVF, which partition the space in a way that is more amenable to reading only a few contiguous blocks from disk.
-
+- **Uses more memory.** Every vector stores a list of neighbors at every layer it belongs to, on top of the vector itself. With a large $M$ and a lot of vectors, this can end up costing more memory than the vectors themselves.
+- **Slower to build.** Inserting a vector means running a real search at every layer it touches, plus the neighbor selection step. This is more expensive than, say, just assigning a vector to a cluster in IVF.
+- **Hard to delete from.** The graph only works well because of a careful mix of short and long connections. Removing a node cleanly, without breaking the connections that relied on it, is genuinely difficult. Most implementations just mark a node as deleted instead of actually removing it.
+- **Parameters need tuning.** $M$, `efConstruction`, and `efSearch` all affect the tradeoff between recall, speed, and memory, and there's no simple rule for picking them — you generally have to test on your own data.
+- **Not great for data stored on disk.** Searching means jumping between nodes with no particular pattern, which works fine in memory but is slow on disk. IVF, by contrast, groups vectors together in a way that plays nicer with disk reads.
 
 <iframe src="./asset/hnsw.html" width="100%" height="500px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
 
@@ -463,7 +460,7 @@ IVF and HNSW both answer the same question: *which vectors should I even bother 
 
 $$x = [x^{(1)}, x^{(2)}, \dots, x^{(m)}]$$
 
-2. **Sub-space Quantization:** For each of the $m$ sub-spaces, the system runs clustering (usually $k$-means) to find $k^*$ sub-centroids. Typically, $k^* = 256$, meaning each sub-centroid can be represented by an 8-bit integer (1 byte).
+2. **Sub-space Quantization:** For each of the $m$ sub-spaces, the system runs clustering (usually $k$-means) to find $k^{*}$ sub-centroids. Typically, $k^{*} = 256$, meaning each sub-centroid can be represented by an 8-bit integer (1 byte).
 3. **Encoding:** The original sub-vectors are replaced by the ID (the 1-byte code) of their nearest sub-centroid. A massive 768-dimensional array of 32-bit floats is mathematically approximated as a tiny string of $m$ bytes.
 
 $$x \approx [c_{i_1}^{(1)}, c_{i_2}^{(2)}, \dots, c_{i_m}^{(m)}]$$
