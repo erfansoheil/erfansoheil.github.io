@@ -36,7 +36,7 @@ Here is an interactive visualization of how we traverse a Skip List. Notice how 
 <iframe src="./asset/skiplist-interactive.html" width="100%" height="500px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
 
 
-Basicly it was the whole algorithm of **skip list**. However We did not mention about **How to generate** thess layers. In theory we use a probabilistc way of assinging each utem to specific layers. In the follwoign we explain this method in more details. 
+Basically, that was the whole **skip list** algorithm. However, we did not mention **how to generate** these layers. In theory, we use a probabilistic method to assign each item to specific layers. In the following, we explain this method in more detail.
 
 #### **Probabilistic Construction: The Coin Flip**
 
@@ -73,18 +73,18 @@ $$
 $$
 
 
-The probabilistic construction  can bee seen as both stenght and weakness of this algorithm. It creates a **hierarchical and sparse** structure and effective way for search. However, **the exact structure is not guaranteed**. 
+The probabilistic construction can be seen as both a strength and a weakness of this algorithm. It creates a **hierarchical and sparse** structure and an effective way to search. However, **the exact structure is not guaranteed**.
 
 
 Even when two skip lists contain the same elements and use the same probability $p$, they may have different structures because their promotion outcomes can differ. A node may reach several upper levels in one construction but remain only in the base level in another.
 
 #### **A Mathematical POV**
 
-From the mathematical point of view it is interesting to investigate maximum possible layers and complexity of this algorithm. Both of them directly depends on the probability $p$ and total number of items $n$. 
+From a mathematical point of view, it is interesting to investigate the maximum possible number of layers and the complexity of this algorithm. Both directly depend on the probability $p$ and the total number of items $n$.
 
 
 
-Since at level $k$ we have $np^k$ of nodes, for **expected weight (maximum number of layers)** we actually want to solve a simple equation 
+Since at level $k$ we have $np^k$ nodes, for the **expected height (maximum number of layers)** we actually want to solve a simple equation:
 
 $$
 np^h \approx 1 \Rightarrow p^h \approx \frac{1}{n}.
@@ -98,12 +98,12 @@ $$
 
 Therefore, the expected height of a skip list grows logarithmically with the number of elements. 
 
-In addition at each level there are several possible horizontal movements before descending. This amount of horizontal movments depends on the number of items in the level and we know that this number depends on $p$ or more presicely on $\frac{1}{p}$.
+In addition, at each level there are several possible horizontal movements before descending. The number of horizontal movements depends on the number of items in the level, and we know that this number depends on $p$, or more precisely on $\frac{1}{p}$.
 
 In other words, a common intuitive approximation is
 
 $$
-\text{Expected horizontal movments per level}\approx\frac{1}{p}.
+\text{Expected horizontal movements per level}\approx\frac{1}{p}.
 $$
 
 Since the expected number of levels is approximately $\log_{1/p}n$, the **expected search cost** can be described as
@@ -119,12 +119,12 @@ When $p$ is treated as a fixed constant independent of $n$, both $\frac{1}{p}$ a
 The word **expected**  in **expected search cost** is important. The skip list does not **guarantee** logarithmic search time for every possible random construction. Its worst-case search time remains $O(n)$.
 
 
-So far we discussed **expected weight** and **expected search comlexity** for a skip list. However there is a assumed fact about skip list, that its itmes belong to a **totally ordered set**. As we saw in the figure, all itmes of the skip list can be compared wit each other individually. In mathematical term: itmes of the skip list are comming from a **totally ordered** set. 
+So far, we have discussed the **expected height** and **expected search complexity** of a skip list. However, there is an assumed fact about a skip list: its items belong to a **totally ordered set**. As we saw in the figure, all items in the skip list can be compared with each other individually. In mathematical terms, the items in the skip list come from a **totally ordered** set.
 
 A set is totally ordered when any two elements can be compared. For two different elements $a$ and $b$, either $a<b$ or $b<a$. This property provides a **direction** for the search. If the next value is smaller than the target, we continue moving right. If it is larger, we descend to a more precise level.
 
 
-Multidimensional vectors, however, do not have an equally natural order that represents their geometry. Therefore creating a skip list for  a set of multidimensional vectors is challenging. This is one of the main limitation of skip list for extending it to higher dimensions, where most of modern embedding vectors use cases are related to. 
+Multidimensional vectors, however, do not have an equally natural order that represents their geometry. Therefore, creating a skip list for a set of multidimensional vectors is challenging. This is one of the main limitations of extending skip lists to higher dimensions, where most modern embedding-vector use cases lie.
 
 
 
@@ -195,7 +195,7 @@ $$
 \text{small global path length}.
 $$
 
-Importantly, $p$ does not determine the number of edges. It only determines which edges are rewired. In fact with a fixed $k$ and changing the $p$ the number of edges do not change.
+Importantly, $p$ does not determine the number of edges. It only determines which edges are rewired. In fact, with a fixed $k$, changing $p$ does not change the number of edges.
 
 When $p=1,$ every edge considered by the rewiring procedure is rewired. The resulting graph becomes highly random. 
 
@@ -274,7 +274,7 @@ $$
 Thus, the essential idea behind a small-world network is not simply randomness. It is the combination of **local structure and a small number of long-range shortcuts** that dramatically improve global connectivity.
 
 
-The **small world** network construct a way to conncet different points with an algorithm. But it introduces a severe limitation for AI retrieval: **How do we actually find them?**. In other work this small world network is **not navigable**
+The **small-world** network provides a way to connect different points. But it introduces a severe limitation for AI retrieval: **How do we actually find them?** In other words, this small-world network is **not navigable**.
 
 #### **From Small World to Navigable Small World**
 
@@ -284,7 +284,7 @@ This is the problem of **navigability**. Suppose we are at node $A$ and want to 
 
 This gives the basic greedy rule: if the current node is $v$, choose the neighbor $u$ that minimizes $d(u,q)$ and move there. So the search behaves roughly as: $A \rightarrow v_1 \rightarrow v_2 \rightarrow \cdots \rightarrow q$.
 
-For this to work well, the graph must contain edges that guide us through the space. A purely random shortcut may shorten the graph theoretically, but it may not be useful for deciding where to move next. So, in order to make the graph navigable we can not only rely on proability $p$ to constrcut the graph. We indeed need a **distance function**. 
+For this to work well, the graph must contain edges that guide us through the space. A purely random shortcut may shorten the graph theoretically, but it may not be useful for deciding where to move next. So, in order to make the graph navigable, we cannot rely only on probability $p$ to construct the graph. We also need a **distance function**.
 
 **Kleinberg's Idea**
 
@@ -298,7 +298,7 @@ This is useful for greedy search because the search can make large movements whe
 
 The important remark is therefore: **a small world needs short paths; a navigable small world needs short paths that can be discovered using local information.**
 
-This is a valid theoretical solution for navigability problem. But not a practical one to be used in retrieval tasks.
+This is a valid theoretical solution to the navigability problem, but not a practical one for retrieval tasks.
 
 **Navigable Small World for Vector Search**
 
@@ -316,7 +316,7 @@ The basic construction is:
 
 The important part is that the graph is based on **proximity**. Nearby vectors tend to become connected, which creates useful local structure. However, something interesting happens because the graph grows over time. Early in construction, the graph contains only a few points. Two points that are connected at that time may actually be far apart in the final dataset. Their old edge can remain even after thousands of new points are inserted.
 
-As a result, the graph naturally contains a mixture of edge lengths: short local edges and some longer edges connecting different regions of the space. Malkov et al. describe NSW as preserving older links produced during the incremental approximation of the proximity graph, which contributes to its small-world navigation behavior So NSW does **not** explicitly calculate Kleinberg's probability $P(u,v)$. Instead, navigability emerges from two simple ideas: **graph growth** and **proximity-based connections**.
+As a result, the graph naturally contains a mixture of edge lengths: short local edges and some longer edges connecting different regions of the space. Malkov et al. describe NSW as preserving older links produced during the incremental approximation of the proximity graph, which contributes to its small-world navigation behavior. So NSW does **not** explicitly calculate Kleinberg's probability $P(u,v)$. Instead, navigability emerges from two simple ideas: **graph growth** and **proximity-based connections**.
 
 **Searching an NSW Graph**
 
@@ -460,7 +460,7 @@ IVF and HNSW both answer the same question: *which vectors should I even bother 
 
 $$x = [x^{(1)}, x^{(2)}, \dots, x^{(m)}]$$
 
-1. **Sub-space Quantization:** For each of the $m$ sub-spaces, the system runs clustering (usually $k$-means) to find $k'$ sub-centroids. Typically, $k'= 256$, meaning each sub-centroid can be represented by an 8-bit integer (1 byte). 
+2. **Sub-space Quantization:** For each of the $m$ sub-spaces, the system runs clustering (usually $k$-means) to find $k'$ sub-centroids. Typically, $k'= 256$, meaning each sub-centroid can be represented by an 8-bit integer (1 byte).
 
 3. **Encoding:** The original sub-vectors are replaced by the ID (the 1-byte code) of their nearest sub-centroid. A massive 768-dimensional array of 32-bit floats is mathematically approximated as a tiny string of $m$ bytes.
 
@@ -488,7 +488,7 @@ We'll formalize all four of these steps rigorously — codebooks, the full ADC d
 
 
 
-So far we have investigate three archetypes: IVF bets on **partitioning**, HNSW bets on **graph traversal**, and PQ bets on **compression** instead of pruning. None of them is strictly "better" in the abstract — which is exactly the question the next section is actually about.
+So far, we have investigated three archetypes: IVF bets on **partitioning**, HNSW bets on **graph traversal**, and PQ bets on **compression** instead of pruning. None of them is strictly "better" in the abstract — which is exactly the question the next section is actually about.
 
 
 
@@ -501,7 +501,7 @@ So far we have investigate three archetypes: IVF bets on **partitioning**, HNSW 
 
 ## **5. Indexing or Non-Indexing: This is the Question**
 
-I guess there is no such thing as a "better" indexing methods. Ther are only there are only **different** trade-offs. Building an index is not a default architectural choice; it must be justified by data volume and latency requirements.
+I guess there is no such thing as a "better" indexing method. There are only **different** trade-offs. Building an index is not a default architectural choice; it must be justified by data volume and latency requirements.
 
 
 For example, when selecting or tuning an index using popular libraries like **FAISS** (Facebook AI Similarity Search), **HNSWlib**, **Annoy**, or embedded engines like **LanceDB**, you are forced to balance four competing directions:
