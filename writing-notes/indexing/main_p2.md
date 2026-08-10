@@ -10,7 +10,7 @@ The Hierarchical Navigable Small World (HNSW) algorithm is currently one of the 
 
 
 
-HNSW adapts two key properties from the two mentioned algorithms: 1- Skipping most of the data; 2- Navigating in a compact subspace of data. With these two properties, HNSW elegantly solves the problem of searching massive vector databases with $O(\log n)$ complexity.
+HNSW adapts two key properties from the two mentioned algorithms: 1- Skipping most of the data; 2- Navigating in a compact subspace of data. With these two properties, HNSW is designed so that the number of distance evaluations required for search grows approximately logarithmically with the dataset size in typical settings.
 
 
 ### **3.1. The Skip List**
@@ -130,7 +130,9 @@ Multidimensional vectors, however, do not have an equally natural order that rep
 
 ### **3.2. Navigable Small Worlds (NSW)**
 
-In our previous discussion, we thoroughly deconstructed the Skip List—the probabilistic data structure that gives Hierarchical Navigable Small World (HNSW) its vertical “layers” and logarithmic search time. But a Skip List alone only works for 1-dimensional scalar values. In modern AI, we deal with embeddings: dense, high-dimensional vectors representing semantic meaning (often hundreds or thousands of dimensions). You cannot easily sort vectors into a 1D linked list.
+In our previous discussion, we thoroughly deconstructed the Skip List—the probabilistic data structure that gives Hierarchical Navigable Small World (HNSW) its vertical “layers” and logarithmic search time. A Skip List requires its elements to belong to a totally ordered set. Although multidimensional vectors can artificially be ordered, such an ordering generally does not preserve their geometric neighborhood structure, making it unsuitable for nearest-neighbor search. 
+
+In modern AI, we deal with embeddings: dense, high-dimensional vectors representing semantic meaning (often hundreds or thousands of dimensions). You cannot easily sort vectors into a 1D linked list.
 
 To solve this, HNSW replaces the 1D linked lists at each layer with a Navigable Small-World (NSW) graph. To truly understand HNSW, we must put the hierarchy aside for a moment and examine the mathematics and algorithms of a single, flat Small-World Network.
 
@@ -274,7 +276,7 @@ $$
 Thus, the essential idea behind a small-world network is not simply randomness. It is the combination of **local structure and a small number of long-range shortcuts** that dramatically improve global connectivity.
 
 
-The **small-world** network provides a way to connect different points. But it introduces a severe limitation for AI retrieval: **How do we actually find them?** In other words, this small-world network is **not navigable**.
+The **small-world** network provides a way to connect different points. But it introduces a severe limitation for AI retrieval: **How do we actually find them?** In other words, However, the small-world property alone **does not guarantee** navigability. Short paths may exist between nodes, while a search algorithm using only local information may still be unable to discover them efficiently..
 
 #### **From Small World to Navigable Small World**
 
@@ -284,7 +286,7 @@ This is the problem of **navigability**. Suppose we are at node $A$ and want to 
 
 This gives the basic greedy rule: if the current node is $v$, choose the neighbor $u$ that minimizes $d(u,q)$ and move there. So the search behaves roughly as: $A \rightarrow v_1 \rightarrow v_2 \rightarrow \cdots \rightarrow q$.
 
-For this to work well, the graph must contain edges that guide us through the space. A purely random shortcut may shorten the graph theoretically, but it may not be useful for deciding where to move next. So, in order to make the graph navigable, we cannot rely only on probability $p$ to construct the graph. We also need a **distance function**.
+For this to work well, the graph must contain edges that guide us through the space. A purely random shortcut may shorten the graph theoretically, but it may not be useful for deciding where to move next. So, in order to make the graph navigable, we cannot rely only on probability $p$ to construct the graph. For vector search, we therefore need graph connections that are related to the **geometry** of the vector space, so that **distance** to the query provides useful local information about where to move next.
 
 **Kleinberg's Idea**
 
@@ -314,7 +316,7 @@ The basic construction is:
 4. Connect $v$ to several of those nearby vectors.
 5. Keep the old connections and repeat for the next vector.
 
-The important part is that the graph is based on **proximity**. Nearby vectors tend to become connected, which creates useful local structure. However, something interesting happens because the graph grows over time. Early in construction, the graph contains only a few points. Two points that are connected at that time may actually be far apart in the final dataset. Their old edge can remain even after thousands of new points are inserted.
+The important part is that the graph is based on **proximity**. Nearby vectors tend to become connected, which creates useful local structure. However, something interesting happens because the graph grows over time. Early in construction, the graph contains only a few points.  Two points connected during an early stage may later cease to be close neighbors relative to newly inserted points. Their original edge can nevertheless remain, creating a longer-range connection in the final graph.
 
 As a result, the graph naturally contains a mixture of edge lengths: short local edges and some longer edges connecting different regions of the space. Malkov et al. describe NSW as preserving older links produced during the incremental approximation of the proximity graph, which contributes to its small-world navigation behavior. So NSW does **not** explicitly calculate Kleinberg's probability $P(u,v)$. Instead, navigability emerges from two simple ideas: **graph growth** and **proximity-based connections**.
 
@@ -329,7 +331,7 @@ At each step:
 3. Move toward neighbors that are closer to $q$.
 4. Repeat until no sufficiently better candidate remains.
 
-In the simplest greedy version, if $N(v)$ is the neighborhood of $v$, we choose $u^*=\arg\min_{u\in N(v)} d(u,q)$. If $d(u^*,q)<d(v,q)$, move from $v$ to $u^*$.
+In the simplified greedy version, if $N(v)$ is the neighborhood of $v$, we choose $u^*=\arg\min_{u\in N(v)} d(u,q)$. If $d(u^*,q)<d(v,q)$, move from $v$ to $u^*$. This illustrates the navigation principle, but practical NSW search uses a candidate set rather than following only one path.
 
 For example: $A \rightarrow C \rightarrow F \rightarrow H \rightarrow q$. The long-range edges help the search move quickly between distant regions, while the short-range edges help refine the search once it reaches the correct neighborhood.
 
@@ -367,7 +369,7 @@ Therefore, in practical vector-search graphs, we effectively **get rid of the Wa
 
 We now have both pieces. The skip list gave us a way to build layers on top of a data structure, so that a few of them stay sparse and let us skip over large chunks of data quickly. NSW gave us a way to search inside a single graph: move to whichever neighbor is closest to the query, and repeat until nothing gets closer.
 
-HNSW just combines the two. Take a skip list, and at every layer, replace the sorted list with an NSW graph.
+Conceptually, HNSW combines these two ideas: the probabilistic hierarchy of a skip list and the proximity-based graph navigation of NSW.
 
 $$
 \text{HNSW} = \text{Skip List (hierarchy \& layer assignment)} + \text{NSW (distance-based routing within a layer)}.
