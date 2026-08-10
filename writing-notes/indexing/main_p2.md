@@ -223,9 +223,7 @@ Thus, changing $p$ does not change the number of edges. What changes is the **to
 
 **The Effects of $k$ and $p$**
 
-The parameters $k$ and $p$ play fundamentally different roles.
-
-The parameter $k$ controls the **density of the graph**. Increasing $k$ gives every node more neighbors and increases the total number of edges:
+The parameters $k$ and $p$ play fundamentally different roles. The parameter $k$ controls the **density of the graph**. Increasing $k$ gives every node more neighbors and increases the total number of edges:
 
 $$
 |E|=\frac{Nk}{2}.
@@ -254,39 +252,11 @@ $$
 
 The central phenomenon is the transition between two extremes.
 
-When
+When $p=0,$ the network is highly regular: **high clustering but  relatively long paths**
 
-$$
-p=0,
-$$
+When $p$ is small but positive, a few shortcuts appear: **high clustering +short paths**. This is the **small-world** network. 
 
-the network is highly regular:
-
-$$
-\text{high clustering}
-\qquad
-\text{but relatively long paths}.
-$$
-
-When $p$ is small but positive, a few shortcuts appear:
-
-$$
-\text{high clustering}
-\qquad
-+
-\qquad
-\text{short paths}.
-$$
-
-This is the small-world regime.
-
-When $p$ approaches $1$, the graph becomes increasingly random:
-
-$$
-\text{short paths}
-\qquad
-\text{but weaker local regularity}.
-$$
+When $p$ approaches $1$, the graph becomes increasingly random: **short paths but weaker local regularity**
 
 Conceptually,
 
