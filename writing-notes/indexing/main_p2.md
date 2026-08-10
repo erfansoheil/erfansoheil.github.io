@@ -333,13 +333,9 @@ Let $q$ be our query vector (e.g., the user's prompt). Let $v_{entry}$ be a pred
 
 A **small-world graph** guarantees that short paths exist between distant nodes. However, this does not mean that we can easily **find** those paths.
 
-This is the problem of **navigability**.
+This is the problem of **navigability**. Suppose we are at node $A$ and want to reach a query vector $q$. We do not examine the entire graph. We only look at the neighbors of our current node and ask: **which neighbor is closer to $q$?** 
 
-Suppose we are at node $A$ and want to reach a query vector $q$. We do not examine the entire graph. We only look at the neighbors of our current node and ask: **which neighbor is closer to $q$?**
-
-This gives the basic greedy rule: if the current node is $v$, choose the neighbor $u$ that minimizes $d(u,q)$ and move there.
-
-So the search behaves roughly as: $A \rightarrow v_1 \rightarrow v_2 \rightarrow \cdots \rightarrow q$.
+This gives the basic greedy rule: if the current node is $v$, choose the neighbor $u$ that minimizes $d(u,q)$ and move there. So the search behaves roughly as: $A \rightarrow v_1 \rightarrow v_2 \rightarrow \cdots \rightarrow q$.
 
 For this to work well, the graph must contain edges that guide us through the space. A purely random shortcut may shorten the graph theoretically, but it may not be useful for deciding where to move next. So, in order to make the graph navigable we can not only rely on proability $p$ to constrcut the graph. We indeed need a **distance function**. 
 
