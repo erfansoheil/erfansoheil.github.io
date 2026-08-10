@@ -13,7 +13,7 @@ The Hierarchical Navigable Small World (HNSW) algorithm is currently one of the 
 HNSW adapts two key properties from the two mentioned algorithms: 1- Skipping most of the data; 2- Navigating in a compact subspace of data. With these two properties, HNSW elegantly solves the problem of searching massive vector databases with $O(\log n)$ complexity.
 
 
-### **1. The Skip List**
+### **3.1. The Skip List**
 
 Imagine a long sorted linked list. Every element knows only its immediate successor. If we are searching for a target value, the ordering tells us whether to continue moving forward or stop. We do not need to search in arbitrary directions, but we still have to advance one node at a time.
 
@@ -128,7 +128,7 @@ Multidimensional vectors, however, do not have an equally natural order that rep
 
 
 
-### **2. Navigable Small Worlds (NSW)**
+### **3.2. Navigable Small Worlds (NSW)**
 
 In our previous discussion, we thoroughly deconstructed the Skip List—the probabilistic data structure that gives Hierarchical Navigable Small World (HNSW) its vertical “layers” and logarithmic search time. But a Skip List alone only works for 1-dimensional scalar values. In modern AI, we deal with embeddings: dense, high-dimensional vectors representing semantic meaning (often hundreds or thousands of dimensions). You cannot easily sort vectors into a 1D linked list.
 
@@ -499,7 +499,7 @@ So far we have investigate three archetypes: IVF bets on **partitioning**, HNSW 
 
 
 
-## **4. Indexing or Non-Indexing: This is the Question**
+## **5. Indexing or Non-Indexing: This is the Question**
 
 I guess there is no such thing as a "better" indexing methods. Ther are only there are only **different** trade-offs. Building an index is not a default architectural choice; it must be justified by data volume and latency requirements.
 
@@ -531,7 +531,7 @@ There are many architectural scenarios where you should **not** use an index at 
 * **High-Frequency Writes:** If your application is writing new documents or updating vectors continuously, the CPU overhead of constantly modifying graph structures or recalculating centroids can bring your ingestion pipeline to a complete halt. Flat indexes handle dynamic append-only writes with zero overhead.
 
 
-## **5. Concrete Engineering Implementations with FAISS**
+## **6. Concrete Engineering Implementations with FAISS**
 
 The following code templates demonstrate how to implement the discussed index archetypes using **FAISS** (Facebook AI Similarity Search) in Python. We will use a standard dense vector dimension ($d = 768$, typical for models like `text-embedding-3-small` or `BERT`) and simulate a dataset of 100,000 documents.
 
@@ -554,7 +554,7 @@ k = 5
 
 ```
 
-### Type A: Flat (Brute-Force) Index
+### **Type A: Flat (Brute-Force) Index**
 
 The baseline index. It performs no compression and executes an exhaustive $O(N \cdot d)$ calculation.
 
@@ -572,7 +572,7 @@ print(f"Flat Search Time: {(time.time() - start_time) * 1000:.3f} ms")
 
 ```
 
-### Type B: Inverted File (IVF-Flat) Index
+### **Type B: Inverted File (IVF-Flat) Index**
 
 Uses $k$-means to cluster the space into Voronoi cells. It requires explicit training on the data distribution before vectors can be mapped.
 
@@ -598,7 +598,7 @@ print(f"IVF Search Time: {(time.time() - start_time) * 1000:.3f} ms")
 
 ```
 
-### Type C: HNSW (Hierarchical Navigable Small World) Index
+### **Type C: HNSW (Hierarchical Navigable Small World) Index**
 
 A graph-based index offering high recall and ultra-low search latency, at the cost of high RAM utilization.
 
@@ -618,7 +618,7 @@ print(f"HNSW Search Time: {(time.time() - start_time) * 1000:.3f} ms")
 
 ```
 
-### Type D: Composite Production Index (IVF + PQ via Index Factory)
+### **Type D: Composite Production Index (IVF + PQ via Index Factory)**
 
 For massive production scaling, you can combine methodologies using FAISS’s `index_factory`. This creates an IVF coarse quantizer coupled with Product Quantization bytes compression.
 
@@ -646,11 +646,11 @@ print(f"Total Vectors Indexed: {index_composite.ntotal}")
 
 ---
 
-## 6. Mathematical Breakdown of Product Quantization (PQ)
+## **7. Mathematical Breakdown of Product Quantization (PQ)**
 
 Product Quantization (PQ) is a lossy compression framework that enables memory reductions of up to 95% while natively supporting distance computations over compressed code domains.
 
-### Step 1: Subspace Decomposition
+### **Step 1: Subspace Decomposition**
 
 Let a high-dimensional database vector $x \in \mathbb{R}^d$ be partitioned into $m$ orthogonal, lower-dimensional sub-vectors $x^1, x^2, \dots, x^m \in \mathbb{R}^{d^*}$, where:
 
@@ -662,7 +662,7 @@ $$\mathbb{R}^d = \mathbb{R}^{d^*} \times \mathbb{R}^{d^*} \times \dots \times \m
 
 Visually, a 768-dimensional vector divided by $m=64$ yields 64 structural slices, each containing exactly 12 scalar fields.
 
-### Step 2: Codebook Generation via $k$-means
+### **Step 2: Codebook Generation via $k$-means**
 
 For each independent subspace $i \in \{1, \dots, m\}$, a dedicated $k$-means clustering algorithm is executed on a training slice of the database:
 
@@ -678,7 +678,7 @@ In standard configurations, $k^*$ is set to 256 ($2^8$), meaning each sub-centro
 
 $$\mathcal{C} = C^1 \times C^2 \times \dots \times C^m$$
 
-### Step 3: Quantization Mapping
+### **Step 3: Quantization Mapping**
 
 The structural quantization function $q(x)$ maps the raw vector $x$ to a compressed tuple of integer assignments by finding the nearest sub-centroid in each subspace:
 
@@ -694,7 +694,7 @@ $$\text{Compressed Size} = m \times 1 \text{ byte}$$
 
 If $m=64$, the memory footprint drops from 3,072 bytes to **64 bytes**—a $48\times$ compression factor.
 
-### Step 4: Asymmetric Distance Computation (ADC)
+### **Step 4: Asymmetric Distance Computation (ADC)**
 
 To avoid decompression overhead during retrieval, PQ uses **Asymmetric Distance Computation (ADC)**. In ADC, the query vector $y$ remains unquantized at full floating-point precision, while the database vectors $x$ are evaluated via their quantized codes $q(x)$.
 
@@ -714,7 +714,7 @@ The squared Euclidean distance between the unquantized query $y$ and the compres
 
 $$\tilde{d}(y, x)^2 = \Vert{}y - q(x)\Vert{}^2 = \sum_{i=1}^m \Vert{}y^i - q_i(x^i)\Vert{}^2$$
 
-#### The In-Memory Lookup Execution:
+#### **The In-Memory Lookup Execution:**
 
 1. **Lookup Table Construction:** Before scanning the database entries, the query engine computes an explicit $m \times k^*$ matrix. The cell at row $i$, column $j$ stores the exact squared Euclidean distance between the query sub-vector $y^i$ and the sub-centroid $c_j^i$:
 $$D_{i,j} = \Vert{}y^i - c_j^i\Vert{}^2$$
@@ -725,9 +725,8 @@ $$D_{i,j} = \Vert{}y^i - c_j^i\Vert{}^2$$
 
 By shifting the innermost loop of the retrieval engine from heavy floating-point operations to direct CPU cache lookups, ADC drastically improves throughput while running within heavily restricted memory bounds.
 
----
 
-## 7. The "Garbage In, Garbage Out" Trap in RAG Pipelines
+## **8. The "Garbage In, Garbage Out" Trap in RAG Pipelines**
 
 Engineers frequently fall into an optimization trap: spending weeks tweaking IVF cluster sizes, tuning HNSW hyperparameters, and optimizing memory allocation to trim retrieval latency down to single-digit milliseconds—only for the downstream LLM to output completely irrelevant garbage.
 
@@ -740,7 +739,7 @@ If your data preparation pipeline is fundamentally flawed, you are simply accele
 
 ```
 
-### The Three Weak Links
+### **The Three Weak Links**
 
 1. **Flawed Tokenization & Chunking:** If your chunking strategy cuts off text mid-sentence, splits a core concept across two separate blocks, or fails to include structural metadata (like parent headers), the resulting semantic vector loses its context. An index will happily find that vector with blazingly fast speed, but the text payload it carries will be fragmented and useless to the LLM.
 2. **Embedding Model Blindness:** Embedding models encode data into a fixed representation based on how they were trained. If you use a general-purpose embedding model on highly domain-specific data (e.g., deep legal contracts, specialized medical terminology, or proprietary codebases), the model will map disparate concepts to similar spatial coordinates, or vice versa. The index will calculate distance perfectly on fundamentally flawed map coordinates.
