@@ -207,7 +207,7 @@ $$
 \sum_{v\in V}\deg(v)=2|E|.
 $$
 
-Since there are $N$ vertices and every vertex initially has degree $k$,  Therefore, $ |E|=\frac{Nk}{2}$.
+Since there are $N$ vertices and every vertex initially has degree $k$, $Nk=2|E|$. Therefore, $|E|=\frac{Nk}{2}$.
 
 Now consider one rewiring operation. Suppose an edge $(u,v)$ is removed and replaced by $(u,w).$
 
@@ -254,7 +254,7 @@ The central phenomenon is the transition between two extremes.
 
 When $p=0,$ the network is highly regular: **high clustering but  relatively long paths**
 
-When $p$ is small but positive, a few shortcuts appear: **high clustering +short paths**. This is the **small-world** network. 
+When $p$ is small but positive, a few shortcuts appear: **high clustering + short paths**. This is the **small-world** network. 
 
 When $p$ approaches $1$, the graph becomes increasingly random: **short paths but weaker local regularity**
 
@@ -270,18 +270,13 @@ $$
 }
 $$
 
-The remarkable point is that the average path length can decrease very quickly even when only a relatively small fraction of edges are rewired.
 
 Thus, the essential idea behind a small-world network is not simply randomness. It is the combination of **local structure and a small number of long-range shortcuts** that dramatically improve global connectivity.
 
 
+The **small world** network construct a way to conncet different points with an algorithm. But it introduces a severe limitation for AI retrieval: **How do we actually find them?**. In other work this small world network is **not navigable**
 
-
-
-This proves that short paths *exist*. But it introduces a severe limitation for AI retrieval: **How do we actually find them?**
-
-
-**2. The Problem of Navigability**s
+<!-- **2. The Problem of Navigability**
 
 In a Vector Database (like Pinecone, Milvus, or FAISS), we don't have a god's-eye view of the entire graph at query time. We only have local information. We are standing on Node $A$, looking at its immediate neighbors, trying to find a path to Query Vector $q$.
 
@@ -303,7 +298,7 @@ As AI scientists, we face a computational barrier: calculating Kleinberg's proba
 
 In 2014, Yury Malkov introduced the **Navigable Small World (NSW)** algorithm, which elegantly sidesteps this mathematical burden by building the network organically. 
 
-#### **The Incremental Construction Algorithm**
+ #### **The Incremental Construction Algorithm**
 Instead of starting with a lattice and rewiring it, we build the graph node by node.
 
 1.  **Initialize:** Start with an empty graph.
@@ -317,7 +312,7 @@ As the database grows to 1,000,000 nodes, those original edges remain.
 
 The **early insertions automatically become the long-range "highways"**, while **later insertions form the dense local cliques**. Malkov's incremental construction practically simulates Kleinberg's distance-probability distribution without ever calculating it explicitly.
 
-#### **4. The NSW Search Algorithm (Greedy Traversal)**
+ #### **4. The NSW Search Algorithm (Greedy Traversal)**
 Once the graph is built, how do we use it for Retrieval-Augmented Generation (RAG)?
 
 Let $q$ be our query vector (e.g., the user's prompt). Let $v_{entry}$ be a predefined entry node. Let $D(a,b)$ be our distance metric (e.g., Cosine Similarity or Euclidean distance).
@@ -332,7 +327,82 @@ Let $q$ be our query vector (e.g., the user's prompt). Let $v_{entry}$ be a pred
 5. Else:
    * **Return `current_node`**. (We have reached a local minimum).
 
-*Note: In production NSW, we track a list of candidates (a dynamic array of size `efSearch`) rather than a single node to avoid getting trapped in false local minima, but the greedy heuristic remains the same.*
+*Note: In production NSW, we track a list of candidates (a dynamic array of size `efSearch`) rather than a single node to avoid getting trapped in false local minima, but the greedy heuristic remains the same.* -->
+
+#### **2. From Small World to Navigable Small World**
+
+A **small-world graph** guarantees that short paths exist between distant nodes. However, this does not mean that we can easily **find** those paths.
+
+This is the problem of **navigability**.
+
+Suppose we are at node $A$ and want to reach a query vector $q$. We do not examine the entire graph. We only look at the neighbors of our current node and ask: **which neighbor is closer to $q$?**
+
+This gives the basic greedy rule: if the current node is $v$, choose the neighbor $u$ that minimizes $d(u,q)$ and move there.
+
+So the search behaves roughly as: $A \rightarrow v_1 \rightarrow v_2 \rightarrow \cdots \rightarrow q$.
+
+For this to work well, the graph must contain edges that guide us through the space. A purely random shortcut may shorten the graph theoretically, but it may not be useful for deciding where to move next. So, in order to make the graph navigable we can not only rely on proability $p$ to constrcut the graph. We indeed need a **distance function**. 
+
+**Kleinberg's Idea**
+
+Kleinberg showed this distinction clearly using a spatial small-world model. Instead of choosing every long-range connection uniformly at random, the probability of connecting two nodes depends on their distance.
+
+In a $d$-dimensional lattice, the navigable case occurs when the probability of a long-range connection roughly follows $P(u,v)\propto 1/d(u,v)^d$. 
+
+This creates connections at different distance scales: many short connections, fewer medium-distance connections, and some long-range connections.
+
+This is useful for greedy search because the search can make large movements when it is far from the target and increasingly smaller movements as it gets closer.
+
+The important remark is therefore: **a small world needs short paths; a navigable small world needs short paths that can be discovered using local information.**
+
+This is a valid theoretical solution for navigability problem. But not a practical one to be used in retrieval tasks.
+
+**3. Navigable Small World for Vector Search**
+
+For vector search, every node represents a vector and the graph is built using a distance function such as Euclidean or cosine distance.
+
+The NSW algorithm builds this graph **incrementally**, rather than starting from a ring and randomly rewiring edges.
+
+The basic construction is:
+
+1. Start with a small graph.
+2. Insert a new vector $v$.
+3. Search the existing graph for vectors close to $v$.
+4. Connect $v$ to several of those nearby vectors.
+5. Keep the old connections and repeat for the next vector.
+
+The important part is that the graph is based on **proximity**. Nearby vectors tend to become connected, which creates useful local structure.
+
+However, something interesting happens because the graph grows over time. Early in construction, the graph contains only a few points. Two points that are connected at that time may actually be far apart in the final dataset. Their old edge can remain even after thousands of new points are inserted.
+
+As a result, the graph naturally contains a mixture of edge lengths: short local edges and some longer edges connecting different regions of the space. Malkov et al. describe NSW as preserving older links produced during the incremental approximation of the proximity graph, which contributes to its small-world navigation behavior.
+
+So NSW does **not** explicitly calculate Kleinberg's probability $P(u,v)$. Instead, navigability emerges from two simple ideas: **graph growth** and **proximity-based connections**.
+
+**4. Searching an NSW Graph**
+
+Suppose the query vector is $q$ and we start from some entry node $v$.
+
+At each step:
+
+1. Look at the neighbors of $v$.
+2. Compute their distances to $q$.
+3. Move toward neighbors that are closer to $q$.
+4. Repeat until no sufficiently better candidate remains.
+
+In the simplest greedy version, if $N(v)$ is the neighborhood of $v$, we choose $u^*=\arg\min_{u\in N(v)} d(u,q)$.
+
+If $d(u^*,q)<d(v,q)$, move from $v$ to $u^*$.
+
+For example: $A \rightarrow C \rightarrow F \rightarrow H \rightarrow q$.
+
+The long-range edges help the search move quickly between distant regions, while the short-range edges help refine the search once it reaches the correct neighborhood.
+
+A purely greedy algorithm can become trapped at a **local minimum**: a node whose neighbors are all farther from $q$, even though a better node exists somewhere else in the graph.
+
+For this reason, practical NSW search does not normally follow only one path. It maintains several promising candidates and explores them before deciding where to continue. This makes the search more robust against local minima.
+
+The main idea can therefore be summarized as: **long edges provide exploration, short edges provide refinement, and proximity-based connections give greedy search a meaningful direction.**
 
 
 #### **5. Bridging the Gap: Why We Still Need the Skip List (HNSW)**
