@@ -540,7 +540,7 @@ For example, when selecting or tuning an index using popular libraries like **FA
 ```
 
 1. **Search Performance:** How low is query latency, and how many queries per second can the system sustain?
-2. **ANN Recall:** What fraction of the exact mathematical top-$k$ neighbors does the approximate index recover? A standard definition is $\mathrm{Recall@}k = |ANN_k(q) \cap Exact_k(q)|/k$. This measures index approximation quality, not semantic relevance to the user's question.
+2. **ANN Recall:** What fraction of the exact mathematical top-$k$ neighbors does the approximate index recover? A standard definition is $\mathrm{Recall@}k = \|ANN_k(q) \cap Exact_k(q)\|/k$. This measures index approximation quality, not semantic relevance to the user's question.
 3. **Build Time & Dynamic Updates:** How expensive is index construction, and how efficiently can new vectors be inserted or existing data updated? HNSW must maintain graph connections during insertion, while a trained IVF index can assign new vectors to its existing centroids. Significant distribution drift may eventually make IVF retraining desirable.
 4. **Memory Consumption:** How much memory does the index require beyond the original vectors? HNSW stores graph connections in addition to vector data, while PQ-based indexes reduce vector-storage cost by replacing full-precision vectors with compact codes.
 
