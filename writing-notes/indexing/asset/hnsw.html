@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HNSW Algorithm Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 0; }
+        .slider-container { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem; }
+        .slider-label { display: flex; justify-content: space-between; font-size: 0.875rem; font-weight: 500; }
+        input[type=range] { width: 100%; cursor: pointer; }
+        #viz-container { width: 100%; height: 600px; background-color: #1e293b; border-radius: 0.5rem; overflow: hidden; position: relative; cursor: crosshair; }
+        .metric-card { background-color: white; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1rem; text-align: center; }
+        .metric-value { font-size: 1.5rem; font-weight: 700; color: #2563eb; }
+        .metric-label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-top: 0.25rem; }
+        
+        .layer-plane { fill-opacity: 0.05; stroke-width: 1px; stroke-dasharray: 4; transition: fill-opacity 0.3s; }
+        .layer-plane:hover { fill-opacity: 0.1; }
+        
+        .node { stroke: #fff; stroke-width: 1px; cursor: pointer; transition: r 0.2s; }
+        .node:hover { r: 6; stroke-width: 2px; }
+        .edge { stroke-opacity: 0.4; stroke-width: 1.5px; fill: none; }
+        
+        /* Vertical inter-layer links */
+        .vertical-link { stroke: #cbd5e1; stroke-width: 1px; stroke-dasharray: 2; opacity: 0.5; }
+        
+        /* Search Animation Styles */
+        .search-edge { stroke: #fcd34d; stroke-width: 3px; stroke-opacity: 0.9; stroke-dasharray: 5; animation: dash 1s linear infinite; }
+        .search-node { fill: #f59e0b !important; r: 7 !important; stroke: #fff !important; stroke-width: 2px !important; }
+        .drop-edge { stroke: #ef4444; stroke-width: 3px; stroke-dasharray: 4; stroke-opacity: 1; }
+        
+        .query-point { fill: #ef4444; r: 6; stroke: #fff; stroke-width: 2px; animation: pulse 1.5s infinite; }
+        .query-line { stroke: #ef4444; stroke-width: 1px; stroke-dasharray: 3; opacity: 0.5; }
+
+        @keyframes dash { to { stroke-dashoffset: -10; } }
+        @keyframes pulse { 
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); r: 5; } 
+            50% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); r: 8; } 
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); r: 5; } 
+        }
+
+        #status-bar { position: absolute; bottom: 10px; left: 10px; right: 10px; background: rgba(255,255,255,0.95); padding: 8px 12px; border-radius: 6px; font-size: 0.875rem; font-weight: 500; text-align: center; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+    </style>
+</head>
+<body class="p-4 md:p-8 max-w-7xl mx-auto">
+
+    <header class="mb-6">
+        <h1 class="text-2xl md:text-3xl font-bold text-slate-800">Hierarchical Navigable Small World (HNSW)</h1>
+        <p class="text-slate-600 mt-2 text-sm md:text-base">Observe how a hierarchical skip-list structure combined with small-world graphs enables rapid, logarithmic search in 2D space. Click anywhere on the bottom plane to drop a new query vector.</p>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        
+        <div class="lg:col-span-1 space-y-6">
+            <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+                <h2 class="text-lg font-semibold mb-4">Construction Parameters</h2>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Total Nodes (N)</span>
+                        <span id="n-val">80</span>
+                    </div>
+                    <input type="range" id="n-slider" min="30" max="150" step="10" value="80">
+                </div>
+
+                <div class="slider-container mt-4">
+                    <div class="slider-label">
+                        <span>Edges per Layer (M)</span>
+                        <span id="m-val">3</span>
+                    </div>
+                    <input type="range" id="m-slider" min="2" max="6" step="1" value="3">
+                </div>
+
+                <button id="build-btn" class="mt-6 w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 px-4 rounded transition duration-150">
+                    Rebuild Graph
+                </button>
+            </div>
+
+            <div class="bg-white p-5 rounded-lg border border-slate-200 shadow-sm">
+                <h2 class="text-lg font-semibold mb-4">Search Status</h2>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div class="metric-card shadow-sm">
+                        <div id="layer-val" class="metric-value">--</div>
+                        <div class="metric-label">Current Layer</div>
+                    </div>
+                    <div class="metric-card shadow-sm">
+                        <div id="hops-val" class="metric-value">--</div>
+                        <div class="metric-label">Total Hops</div>
+                    </div>
+                </div>
+                <div class="text-sm text-slate-700 font-medium" id="search-log">
+                    Ready. Click on the base plane (L0) to set a query point.
+                </div>
+            </div>
+            
+            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm text-slate-700">
+                <strong>Legend:</strong><br>
+                <span class="inline-block w-3 h-3 bg-cyan-400 rounded-full mr-1 mt-2"></span> Layer 2 (Expressways)<br>
+                <span class="inline-block w-3 h-3 bg-emerald-400 rounded-full mr-1 mt-1"></span> Layer 1 (Mid-range)<br>
+                <span class="inline-block w-3 h-3 bg-fuchsia-400 rounded-full mr-1 mt-1"></span> Layer 0 (Dense Base)<br>
+                <span class="inline-block w-3 h-3 border-2 border-red-500 rounded-full mr-1 mt-1"></span> Query Vector
+            </div>
+        </div>
+
+        <div class="lg:col-span-3 relative">
+            <div id="viz-container" class="shadow-sm"></div>
+            <div id="status-bar">Click anywhere on the bottom plane to insert a query vector!</div>
+        </div>
+    </div>
+
+    <script>
+        let N = 80;
+        let M = 3;
+        const L_MAX = 2; // Layers 0, 1, 2
+        
+        let graphData = { nodes: [], edges: [], planes: [] };
+        let isSearching = false;
+
+        // Colors per layer
+        const colors = {
+            2: { plane: '#06b6d4', node: '#22d3ee', edge: '#0891b2' }, // Cyan
+            1: { plane: '#10b981', node: '#34d399', edge: '#059669' }, // Emerald
+            0: { plane: '#d946ef', node: '#e879f9', edge: '#c026d3' }  // Fuchsia
+        };
+
+        // DOM Elements
+        const vizContainer = document.getElementById('viz-container');
+        const width = vizContainer.clientWidth;
+        const height = vizContainer.clientHeight;
+        
+        const svg = d3.select("#viz-container")
+            .append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .attr("viewBox", `0 0 ${width} ${height}`)
+            .on("click", handleCanvasClick);
+
+        // SVG Groups for perfect z-indexing
+        const gPlanes = svg.append("g").attr("class", "planes");
+        const gVerticals = svg.append("g").attr("class", "verticals");
+        const gEdges = svg.append("g").attr("class", "edges");
+        const gNodes = svg.append("g").attr("class", "nodes");
+        const gOverlay = svg.append("g").attr("class", "overlay");
+
+        const scale = Math.min(width, height) * 0.45;
+        const layerSpacing = 120;
+        const angle = Math.PI / 6; // 30 degrees for isometric
+
+        // Project 2D (x,y) in [0,1] and Layer (z) to Screen coordinates
+        function project(x, y, l) {
+            // Center the entire stack on screen
+            const cx = width / 2;
+            const cy = height / 2 + (layerSpacing) - 30; // Shift down slightly
+            
+            const sx = cx + (x - y) * Math.cos(angle) * scale;
+            const sy = cy + (x + y) * Math.sin(angle) * scale * 0.5 - l * layerSpacing;
+            return [sx, sy];
+        }
+
+        // Unproject screen coordinates on a specific layer back to [0,1] (x,y)
+        function unproject(sx, sy, l) {
+            const cx = width / 2;
+            const cy = height / 2 + (layerSpacing) - 30;
+            
+            const dx = (sx - cx) / (Math.cos(angle) * scale);
+            const dy = (sy - cy + l * layerSpacing) / (Math.sin(angle) * scale * 0.5);
+            
+            const x = (dx + dy) / 2;
+            const y = (dy - dx) / 2;
+            return [x, y];
+        }
+
+        // Distance in 2D space (all layers share the same 2D coordinate system)
+        function dist(n1, n2) {
+            const dx = n1.x - n2.x;
+            const dy = n1.y - n2.y;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        function buildHNSW() {
+            // 1. Generate Nodes and Assign Maximum Layers (Skip-List style)
+            const nodes = [];
+            for (let i = 0; i < N; i++) {
+                let max_layer = 0;
+                if (i === 0) {
+                    max_layer = L_MAX; // Node 0 is the entry point
+                } else {
+                    const r = Math.random();
+                    // Roughly 10% hit L2, 30% hit L1, rest hit L0
+                    if (r < 0.1) max_layer = 2;
+                    else if (r < 0.4) max_layer = 1;
+                    else max_layer = 0;
+                }
+                
+                nodes.push({
+                    id: i,
+                    x: Math.random(),
+                    y: Math.random(),
+                    max_layer: max_layer
+                });
+            }
+
+            // 2. Build Connections (M edges per node per layer)
+            const edges = [];
+            
+            for (let l = 0; l <= L_MAX; l++) {
+                const layerNodes = nodes.filter(n => n.max_layer >= l);
+                
+                // For visualization simplicity, use a naive k-NN to simulate the incremental NSW build.
+                // In a real HNSW, edges are built incrementally using greedy search, but k-NN yields a visually identical graph structure for small N.
+                layerNodes.forEach((n1, index) => {
+                    // Find M closest nodes in this layer
+                    const candidates = layerNodes
+                        .filter(n2 => n2.id !== n1.id)
+                        .map(n2 => ({ node: n2, d: dist(n1, n2) }))
+                        .sort((a, b) => a.d - b.d);
+                    
+                    const toConnect = Math.min(M, candidates.length);
+                    for (let k = 0; k < toConnect; k++) {
+                        const target = candidates[k].node;
+                        
+                        // Prevent duplicate undirected edges
+                        const exists = edges.find(e => 
+                            e.layer === l && 
+                            ((e.source.id === n1.id && e.target.id === target.id) || 
+                             (e.target.id === n1.id && e.source.id === target.id))
+                        );
+                        
+                        if (!exists) {
+                            edges.push({ source: n1, target: target, layer: l });
+                        }
+                    }
+                });
+            }
+
+            graphData = { nodes, edges };
+            drawGraph();
+        }
+
+        function drawGraph() {
+            gPlanes.selectAll("*").remove();
+            gVerticals.selectAll("*").remove();
+            gEdges.selectAll("*").remove();
+            gNodes.selectAll("*").remove();
+            gOverlay.selectAll("*").remove();
+
+            // Draw Planes (Base grids for L0, L1, L2)
+            const corners = [[0,0], [1,0], [1,1], [0,1]];
+            for (let l = 0; l <= L_MAX; l++) {
+                const pts = corners.map(c => project(c[0], c[1], l));
+                const dPath = `M ${pts[0][0]},${pts[0][1]} L ${pts[1][0]},${pts[1][1]} L ${pts[2][0]},${pts[2][1]} L ${pts[3][0]},${pts[3][1]} Z`;
+                
+                gPlanes.append("path")
+                    .attr("class", "layer-plane")
+                    .attr("d", dPath)
+                    .attr("fill", colors[l].plane)
+                    .attr("stroke", colors[l].plane);
+                
+                // Add layer labels
+                gPlanes.append("text")
+                    .attr("x", pts[3][0] - 40)
+                    .attr("y", pts[3][1])
+                    .attr("fill", "#94a3b8")
+                    .attr("font-size", "12px")
+                    .text(`Layer ${l}`);
+            }
+
+            // Draw Vertical Inter-layer links (showing node identity across layers)
+            graphData.nodes.forEach(n => {
+                for (let l = 0; l < n.max_layer; l++) {
+                    const p1 = project(n.x, n.y, l);
+                    const p2 = project(n.x, n.y, l + 1);
+                    gVerticals.append("line")
+                        .attr("class", "vertical-link")
+                        .attr("x1", p1[0]).attr("y1", p1[1])
+                        .attr("x2", p2[0]).attr("y2", p2[1]);
+                }
+            });
+
+            // Draw Edges (Horizontal inside each layer)
+            graphData.edges.forEach(e => {
+                const p1 = project(e.source.x, e.source.y, e.layer);
+                const p2 = project(e.target.x, e.target.y, e.layer);
+                gEdges.append("line")
+                    .attr("class", "edge")
+                    .attr("id", `edge-${e.layer}-${e.source.id}-${e.target.id}`)
+                    .attr("x1", p1[0]).attr("y1", p1[1])
+                    .attr("x2", p2[0]).attr("y2", p2[1])
+                    .attr("stroke", colors[e.layer].edge);
+            });
+
+            // Draw Nodes
+            graphData.nodes.forEach(n => {
+                for (let l = 0; l <= n.max_layer; l++) {
+                    const p = project(n.x, n.y, l);
+                    gNodes.append("circle")
+                        .attr("class", `node node-${l}-${n.id}`)
+                        .attr("cx", p[0]).attr("y", p[1]) // Initial animation setup
+                        .attr("cy", p[1])
+                        .attr("r", l === L_MAX && n.id === 0 ? 6 : 4) // Emphasize entry node
+                        .attr("fill", colors[l].node)
+                        .attr("stroke", l === L_MAX && n.id === 0 ? '#fff' : 'none');
+                }
+            });
+        }
+
+        function handleCanvasClick(event) {
+            if (isSearching) return; // Block clicks during animation
+
+            const coords = d3.pointer(event);
+            
+            // Map click to base plane L0
+            const [x, y] = unproject(coords[0], coords[1], 0);
+            
+            // Validate bounds
+            if (x >= 0 && x <= 1 && y >= 0 && y <= 1) {
+                runHNSWSearch(x, y);
+            } else {
+                document.getElementById('status-bar').textContent = "Click inside the purple base plane (L0) to set a query.";
+            }
+        }
+
+        // Helper to get connected neighbors in a specific layer
+        function getNeighbors(nodeId, layer) {
+            return graphData.edges
+                .filter(e => e.layer === layer && (e.source.id === nodeId || e.target.id === nodeId))
+                .map(e => e.source.id === nodeId ? e.target : e.source);
+        }
+
+        async function runHNSWSearch(qx, qy) {
+            isSearching = true;
+            gOverlay.selectAll("*").remove();
+            
+            // Draw Query Vector on L0
+            const qProj0 = project(qx, qy, 0);
+            const queryPoint = { x: qx, y: qy };
+            
+            // Draw vertical line from L2 to L0 for query
+            const qProj2 = project(qx, qy, 2);
+            gOverlay.append("line")
+                .attr("class", "query-line")
+                .attr("x1", qProj2[0]).attr("y1", qProj2[1])
+                .attr("x2", qProj0[0]).attr("y2", qProj0[1]);
+
+            gOverlay.append("circle")
+                .attr("class", "query-point")
+                .attr("cx", qProj0[0]).attr("y", qProj0[1])
+                .attr("cy", qProj0[1]);
+
+            // Entry point is node 0 at max layer
+            let currNode = graphData.nodes[0];
+            let currLayer = L_MAX;
+            let hops = 0;
+            
+            document.getElementById('status-bar').textContent = `Query dropped! Starting search at Entry Node 0 on Layer ${currLayer}.`;
+            document.getElementById('hops-val').textContent = hops;
+
+            // HNSW Search Loop
+            while (currLayer >= 0) {
+                document.getElementById('layer-val').textContent = `L${currLayer}`;
+                let localMin = false;
+                
+                // Highlight current node in current layer
+                d3.select(`.node-${currLayer}-${currNode.id}`).classed("search-node", true);
+                
+                while (!localMin) {
+                    await new Promise(r => setTimeout(r, 600)); // Pause for visual
+
+                    const neighbors = getNeighbors(currNode.id, currLayer);
+                    let bestNeighbor = currNode;
+                    let minDistance = dist(currNode, queryPoint);
+                    
+                    document.getElementById('search-log').innerHTML = `Routing in Layer ${currLayer}... Evaluating ${neighbors.length} neighbor(s).`;
+
+                    // Evaluate neighbors
+                    for (let n of neighbors) {
+                        const d = dist(n, queryPoint);
+                        
+                        // Draw evaluation line
+                        const currProj = project(currNode.x, currNode.y, currLayer);
+                        const nProj = project(n.x, n.y, currLayer);
+                        const evalLine = gOverlay.append("line")
+                            .attr("class", "search-edge")
+                            .attr("x1", currProj[0]).attr("y1", currProj[1])
+                            .attr("x2", nProj[0]).attr("y2", nProj[1]);
+
+                        await new Promise(r => setTimeout(r, 300));
+                        
+                        if (d < minDistance) {
+                            minDistance = d;
+                            bestNeighbor = n;
+                        }
+                        evalLine.remove();
+                    }
+
+                    if (bestNeighbor.id === currNode.id) {
+                        // Local minimum reached in this layer
+                        localMin = true;
+                        document.getElementById('search-log').innerHTML = `<span class="text-red-600 font-bold">Local Minimum in L${currLayer}</span>. Dropping down...`;
+                        await new Promise(r => setTimeout(r, 800));
+                    } else {
+                        // Move to best neighbor
+                        const currProj = project(currNode.x, currNode.y, currLayer);
+                        const bestProj = project(bestNeighbor.x, bestNeighbor.y, currLayer);
+                        
+                        // Draw final path line
+                        gOverlay.append("line")
+                            .attr("stroke", "#f59e0b")
+                            .attr("stroke-width", 2)
+                            .attr("x1", currProj[0]).attr("y1", currProj[1])
+                            .attr("x2", bestProj[0]).attr("y2", bestProj[1]);
+
+                        d3.select(`.node-${currLayer}-${currNode.id}`).classed("search-node", false);
+                        currNode = bestNeighbor;
+                        d3.select(`.node-${currLayer}-${currNode.id}`).classed("search-node", true);
+                        hops++;
+                        document.getElementById('hops-val').textContent = hops;
+                    }
+                }
+
+                d3.select(`.node-${currLayer}-${currNode.id}`).classed("search-node", false);
+
+                // Drop down to next layer
+                if (currLayer > 0) {
+                    const dropP1 = project(currNode.x, currNode.y, currLayer);
+                    const dropP2 = project(currNode.x, currNode.y, currLayer - 1);
+                    
+                    gOverlay.append("line")
+                        .attr("class", "drop-edge")
+                        .attr("x1", dropP1[0]).attr("y1", dropP1[1])
+                        .attr("x2", dropP2[0]).attr("y2", dropP2[1]);
+                        
+                    await new Promise(r => setTimeout(r, 600));
+                }
+
+                currLayer--;
+            }
+
+            // Final Node Found!
+            document.getElementById('layer-val').textContent = "DONE";
+            document.getElementById('search-log').innerHTML = `<span class="text-green-600 font-bold">Approximate Nearest Neighbor found in ${hops} hops!</span>`;
+            document.getElementById('status-bar').textContent = `Search Complete. Found closest node ${currNode.id}.`;
+            d3.select(`.node-0-${currNode.id}`).classed("search-node", true);
+            
+            // Draw line to query
+            const finalP = project(currNode.x, currNode.y, 0);
+            gOverlay.append("line")
+                .attr("stroke", "#10b981")
+                .attr("stroke-width", 2)
+                .attr("stroke-dasharray", 4)
+                .attr("x1", finalP[0]).attr("y1", finalP[1])
+                .attr("x2", qProj0[0]).attr("y2", qProj0[1]);
+
+            isSearching = false;
+        }
+
+        document.getElementById('n-slider').addEventListener('input', e => {
+            N = parseInt(e.target.value);
+            document.getElementById('n-val').textContent = N;
+        });
+
+        document.getElementById('m-slider').addEventListener('input', e => {
+            M = parseInt(e.target.value);
+            document.getElementById('m-val').textContent = M;
+        });
+
+        document.getElementById('build-btn').addEventListener('click', () => {
+            if (isSearching) return;
+            document.getElementById('layer-val').textContent = "--";
+            document.getElementById('hops-val').textContent = "--";
+            document.getElementById('search-log').innerHTML = "Ready. Click on the base plane (L0) to set a query point.";
+            document.getElementById('status-bar').textContent = "Graph rebuilt. Click to insert a query vector.";
+            buildHNSW();
+        });
+
+        // Initialize
+        buildHNSW();
+
+    </script>
+</body>
+</html>

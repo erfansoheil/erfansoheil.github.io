@@ -361,7 +361,7 @@ Therefore, even if NSW greatly reduces $S$ compared with brute-force search over
 
 Therefore, in practical vector-search graphs, we effectively **get rid of the Watts-Strogatz rewiring probability $p$**. The important quantities become things such as the number of neighbors, the search breadth, and the distance metric rather than a rewiring probability.
 
-<iframe src="./asset/nsw.html" width="100%" height="450px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
+<iframe src="./asset/nsw.html" width="100%" height="500px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
 
 #### **Bridging the Gap: Why We Still Need the Skip List (HNSW)**
 
@@ -449,6 +449,9 @@ Compare this to a single flat NSW graph over all $n$ points, where the absence o
 - **Deletion is awkward.** Because the graph's navigability depends on a carefully grown structure of long- and short-range edges, removing a node cleanly (without breaking connectivity for the nodes that relied on it as a bridge) is nontrivial, and most implementations favor soft-deletion (marking nodes as deleted) over structural removal.
 - **Parameter sensitivity.** $M$, `efConstruction`, and `efSearch` all trade off recall against speed and memory in ways that are not always intuitive, and tuning them typically requires empirical validation on the target dataset rather than a closed-form rule.
 - **Poor fit for disk-resident indexes.** Since search requires chasing pointers across the graph with no locality guarantees, HNSW is primarily an in-memory structure; this is in contrast to methods like IVF, which partition the space in a way that is more amenable to reading only a few contiguous blocks from disk.
+
+
+<iframe src="./asset/hnsw.html" width="100%" height="500px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
 
 
 
