@@ -392,7 +392,8 @@ At each step:
 
 In the simplest greedy version, if $N(v)$ is the neighborhood of $v$, we choose $u^*=\arg\min_{u\in N(v)} d(u,q)$.
 
-If $d(u^*,q)<d(v,q)$, move from $v$ to $u^*$.
+If $d(u^*,q)<d(v,q)$, 
+move from $v$ to $u^*$.
 
 For example: $A \rightarrow C \rightarrow F \rightarrow H \rightarrow q$.
 
@@ -403,6 +404,7 @@ A purely greedy algorithm can become trapped at a **local minimum**: a node whos
 For this reason, practical NSW search does not normally follow only one path. It maintains several promising candidates and explores them before deciding where to continue. This makes the search more robust against local minima.
 
 The main idea can therefore be summarized as: **long edges provide exploration, short edges provide refinement, and proximity-based connections give greedy search a meaningful direction.**
+
 
 
 #### **5. Bridging the Gap: Why We Still Need the Skip List (HNSW)**
