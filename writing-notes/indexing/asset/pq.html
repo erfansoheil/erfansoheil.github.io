@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Quantization Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; margin: 0; padding: 0; }
+        .panel { background-color: white; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .step-container { display: none; opacity: 0; transition: opacity 0.5s ease-in; }
+        .step-container.active { display: block; opacity: 1; }
+        
+        .vector-row { display: flex; align-items: center; margin-bottom: 0.25rem; font-family: 'Courier New', Courier, monospace; font-size: 0.875rem; }
+        .vector-label { width: 60px; font-weight: bold; color: #64748b; font-family: 'Inter', sans-serif;}
+        .vector-cell { width: 40px; height: 30px; display: flex; justify-content: center; align-items: center; background: #f1f5f9; border: 1px solid #cbd5e1; margin-right: 2px; border-radius: 4px; transition: all 0.3s; }
+        
+        /* Subspace splitting gaps */
+        .split-gap { margin-right: 12px !important; border-right: 2px dashed #94a3b8; }
+        
+        .codebook-container { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: space-around; margin-top: 1rem; }
+        .codebook-plot { width: 140px; height: 140px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; position: relative; }
+        
+        /* Code Colors */
+        .code-0 { background-color: #fca5a5 !important; border-color: #ef4444 !important; color: #7f1d1d; font-weight: bold;}
+        .code-1 { background-color: #93c5fd !important; border-color: #3b82f6 !important; color: #1e3a8a; font-weight: bold;}
+        .code-2 { background-color: #86efac !important; border-color: #22c55e !important; color: #14532d; font-weight: bold;}
+        .code-3 { background-color: #fde047 !important; border-color: #eab308 !important; color: #713f12; font-weight: bold;}
+
+        table.distance-table { width: 100%; border-collapse: collapse; margin-top: 1rem; text-align: center; font-size: 0.875rem; }
+        table.distance-table th, table.distance-table td { border: 1px solid #cbd5e1; padding: 0.5rem; }
+        table.distance-table th { background: #f1f5f9; font-weight: 600; color: #475569; }
+        .highlight-cell { outline: 3px solid #ef4444; outline-offset: -2px; font-weight: bold; }
+        
+        .nav-btn { padding: 0.5rem 1.25rem; border-radius: 0.5rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        .btn-primary { background: #2563eb; color: white; border: none; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-disabled { background: #cbd5e1; color: #94a3b8; cursor: not-allowed; }
+    </style>
+</head>
+<body class="p-4 md:p-8 max-w-6xl mx-auto">
+
+    <header class="mb-6 flex justify-between items-end">
+        <div>
+            <h1 class="text-xl md:text-2xl font-bold text-slate-900">Product Quantization (PQ) Simulator</h1>
+        </div>
+        <div class="flex gap-2">
+            <button id="prev-btn" class="nav-btn btn-disabled">Previous</button>
+            <button id="next-btn" class="nav-btn btn-primary">Next Step</button>
+        </div>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Left Column: The Database -->
+        <div class="lg:col-span-1 space-y-6">
+            <div class="panel">
+                <h2 class="text-lg font-semibold mb-2 flex items-center justify-between">
+                    <span>Database (Memory)</span>
+                    <span id="memory-badge" class="text-xs bg-slate-200 text-slate-700 px-2 py-1 rounded">Size: 40 Floats</span>
+                </h2>
+                <p class="text-xs text-slate-500 mb-4" id="db-desc">We start with 5 raw vectors, each with 8 dimensions (D=8).</p>
+                <div id="vector-db"></div>
+            </div>
+            
+            <div id="query-panel" class="panel hidden">
+                <h2 class="text-lg font-semibold mb-2 text-red-600">Incoming Query Vector</h2>
+                <p class="text-xs text-slate-500 mb-4">The query arrives as a raw 8D vector.</p>
+                <div id="query-vector" class="vector-row"></div>
+                
+                <div id="adc-results" class="mt-4 hidden">
+                    <h3 class="font-bold text-sm text-slate-700 border-b pb-1 mb-2">Distance Results (ADC)</h3>
+                    <div id="results-list" class="space-y-1 text-sm font-mono"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Visualization Steps -->
+        <div class="lg:col-span-2">
+            <div class="panel min-h-[500px] relative">
+                
+                <!-- STEP 0 -->
+                <div id="step-0" class="step-container active">
+                    <h2 class="text-xl font-bold text-slate-800 mb-4">Step 0: The Raw Vectors</h2>
+                    <p class="text-slate-600">
+                        In a real vector database, vectors can have 768 or 1536 dimensions. Storing millions of these as raw 32-bit floats takes massive amounts of RAM. 
+                        <br><br>
+                        Here, our toy dataset has 5 vectors, each with 8 dimensions. Our goal is to compress them so we can search them faster and cheaper.
+                    </p>
+                </div>
+
+                <!-- STEP 1 -->
+                <div id="step-1" class="step-container">
+                    <h2 class="text-xl font-bold text-slate-800 mb-4">Step 1: Subspace Splitting</h2>
+                    <p class="text-slate-600">
+                        The "Product" in Product Quantization means we split the large vector space into the Cartesian product of smaller sub-spaces.
+                        <br><br>
+                        We split our 8-dimensional vectors into <strong>4 subspaces (m=4)</strong>. Now, instead of one big 8D vector, we treat it as four tiny 2D vectors. Look at the database on the left—notice the gaps!
+                    </p>
+                </div>
+
+                <!-- STEP 2 -->
+                <div id="step-2" class="step-container">
+                    <h2 class="text-xl font-bold text-slate-800 mb-4">Step 2: Training Codebooks (K-Means)</h2>
+                    <p class="text-slate-600 text-sm mb-4">
+                        For each of the 4 subspaces, we look at all the 2D chunks and run K-Means clustering. We find <strong>k=4 centroids</strong> per subspace. These 4 centroids make up our "Codebook" for that subspace.
+                    </p>
+                    <div class="codebook-container" id="codebooks">
+                        <!-- D3 will render 4 plots here -->
+                    </div>
+                </div>
+
+                <!-- STEP 3 -->
+                <div id="step-3" class="step-container">
+                    <h2 class="text-xl font-bold text-slate-800 mb-4">Step 3: Quantization (Compression)</h2>
+                    <p class="text-slate-600 mb-4">
+                        Now we compress! For every 2D chunk in our database, we find its nearest centroid in the codebook and replace the floating-point numbers with the <strong>Integer ID</strong> (0, 1, 2, or 3) of that centroid.
+                        <br><br>
+                        Look at the database on the left. The 8 floats are gone, replaced by just 4 tiny integers! We have massively reduced memory usage.
+                    </p>
+                </div>
+
+                <!-- STEP 4 -->
+                <div id="step-4" class="step-container">
+                    <h2 class="text-xl font-bold text-slate-800 mb-4">Step 4: Asymmetric Distance Computation (ADC)</h2>
+                    <p class="text-slate-600 text-sm mb-4">
+                        How do we search compressed vectors without decompressing them? When the <strong>Query Vector</strong> arrives, we slice it into 4 subspaces too. 
+                        We compute the distance from the query's sub-vectors to <em>all centroids</em> and build a <strong>Lookup Table</strong>.
+                        <br><br>
+                        To score a database vector, we simply look up its IDs in this table and sum them up! No math needed for the DB vectors.
+                    </p>
+                    <h3 class="font-bold text-slate-700">Distance Lookup Table</h3>
+                    <table class="distance-table" id="dist-table">
+                        <thead>
+                            <tr>
+                                <th>Centroid ID</th>
+                                <th>Subspace 1 (Dim 1-2)</th>
+                                <th>Subspace 2 (Dim 3-4)</th>
+                                <th>Subspace 3 (Dim 5-6)</th>
+                                <th>Subspace 4 (Dim 7-8)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Table populated by JS -->
+                        </tbody>
+                    </table>
+                    <p class="text-xs text-slate-500 mt-2 text-center italic">Hover over the vectors in the database to see how their approximate distance is calculated via table lookup.</p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Parameters
+        const N = 5; // Vectors
+        const D = 8; // Dimensions
+        const M = 4; // Subspaces
+        const subD = D / M; // Dimensions per subspace (2)
+        const K = 4; // Centroids per subspace
+
+        // Data State
+        let vectors = [];
+        let queryVector = [];
+        let codebooks = []; // Array of length M, containing K centroids each
+        let quantizedVectors = []; // Array of N, containing M centroid IDs
+        let distanceTable = []; // M x K array
+
+        let currentStep = 0;
+
+        // Generate Random Data [0.0 - 9.9]
+        function initData() {
+            for (let i = 0; i < N; i++) {
+                vectors.push(Array.from({length: D}, () => parseFloat((Math.random() * 9).toFixed(1))));
+            }
+            queryVector = Array.from({length: D}, () => parseFloat((Math.random() * 9).toFixed(1)));
+        }
+
+        // Toy K-Means for 2D subvectors
+        function runKMeans(subspaceData) {
+            let centroids = [];
+            // Randomly initialize from data points
+            let shuffled = [...subspaceData].sort(() => 0.5 - Math.random());
+            for(let i=0; i<K; i++) centroids.push([...shuffled[i % shuffled.length]]);
+
+            let assignments = new Array(subspaceData.length);
+            
+            // 5 Iterations is enough for toy dataset
+            for (let iter = 0; iter < 5; iter++) {
+                // Assign
+                for (let i = 0; i < subspaceData.length; i++) {
+                    let minD = Infinity;
+                    let bestK = 0;
+                    for (let c = 0; c < K; c++) {
+                        let d = Math.pow(subspaceData[i][0] - centroids[c][0], 2) + Math.pow(subspaceData[i][1] - centroids[c][1], 2);
+                        if (d < minD) { minD = d; bestK = c; }
+                    }
+                    assignments[i] = bestK;
+                }
+                
+                // Update
+                let sums = Array.from({length: K}, () => [0, 0]);
+                let counts = new Array(K).fill(0);
+                for (let i = 0; i < subspaceData.length; i++) {
+                    sums[assignments[i]][0] += subspaceData[i][0];
+                    sums[assignments[i]][1] += subspaceData[i][1];
+                    counts[assignments[i]]++;
+                }
+                for (let c = 0; c < K; c++) {
+                    if (counts[c] > 0) {
+                        centroids[c][0] = parseFloat((sums[c][0] / counts[c]).toFixed(1));
+                        centroids[c][1] = parseFloat((sums[c][1] / counts[c]).toFixed(1));
+                    }
+                }
+            }
+            return { centroids, assignments };
+        }
+
+        function trainCodebooks() {
+            codebooks = [];
+            quantizedVectors = Array.from({length: N}, () => new Array(M));
+
+            for (let m = 0; m < M; m++) {
+                let subspaceData = [];
+                for (let n = 0; n < N; n++) {
+                    subspaceData.push([vectors[n][m*2], vectors[n][m*2 + 1]]);
+                }
+                
+                let { centroids, assignments } = runKMeans(subspaceData);
+                codebooks.push(centroids);
+                
+                for (let n = 0; n < N; n++) {
+                    quantizedVectors[n][m] = assignments[n];
+                }
+            }
+        }
+
+        function calculateDistanceTable() {
+            distanceTable = Array.from({length: M}, () => new Array(K).fill(0));
+            
+            for (let m = 0; m < M; m++) {
+                let qSub = [queryVector[m*2], queryVector[m*2 + 1]];
+                for (let k = 0; k < K; k++) {
+                    let c = codebooks[m][k];
+                    // L2 Distance Squared
+                    let dist = Math.pow(qSub[0] - c[0], 2) + Math.pow(qSub[1] - c[1], 2);
+                    distanceTable[m][k] = parseFloat(dist.toFixed(1));
+                }
+            }
+        }
+
+        // Render functions
+        function renderDatabase(step) {
+            const db = document.getElementById('vector-db');
+            db.innerHTML = '';
+            
+            for (let i = 0; i < N; i++) {
+                let row = document.createElement('div');
+                row.className = 'vector-row cursor-pointer';
+                row.id = `db-row-${i}`;
+                
+                let label = document.createElement('div');
+                label.className = 'vector-label';
+                label.textContent = `Vec ${i}:`;
+                row.appendChild(label);
+
+                if (step < 3) {
+                    // Show raw floats
+                    for (let d = 0; d < D; d++) {
+                        let cell = document.createElement('div');
+                        cell.className = 'vector-cell text-xs';
+                        if (step >= 1 && d % 2 === 1 && d !== D-1) cell.classList.add('split-gap');
+                        cell.textContent = vectors[i][d];
+                        row.appendChild(cell);
+                    }
+                    document.getElementById('memory-badge').textContent = `Size: ${N * D * 4} Bytes`;
+                    document.getElementById('memory-badge').className = "text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-bold";
+                } else {
+                    // Show quantized integer IDs
+                    for (let m = 0; m < M; m++) {
+                        let cell = document.createElement('div');
+                        cell.className = `vector-cell code-${quantizedVectors[i][m]}`;
+                        if (m !== M-1) cell.classList.add('split-gap');
+                        cell.textContent = `ID:${quantizedVectors[i][m]}`;
+                        row.appendChild(cell);
+                    }
+                    document.getElementById('memory-badge').textContent = `Size: ${N * M * 1} Bytes`;
+                    document.getElementById('memory-badge').className = "text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold";
+                }
+
+                // Add hover effect for ADC
+                if (step === 4) {
+                    row.addEventListener('mouseenter', () => highlightADC(i));
+                    row.addEventListener('mouseleave', clearADC);
+                }
+
+                db.appendChild(row);
+            }
+        }
+
+        function renderQuery() {
+            const qRow = document.getElementById('query-vector');
+            qRow.innerHTML = '';
+            let label = document.createElement('div');
+            label.className = 'vector-label text-red-600';
+            label.textContent = `Query:`;
+            qRow.appendChild(label);
+
+            for (let d = 0; d < D; d++) {
+                let cell = document.createElement('div');
+                cell.className = 'vector-cell text-xs bg-red-50 border-red-200';
+                if (d % 2 === 1 && d !== D-1) cell.classList.add('split-gap');
+                cell.textContent = queryVector[d];
+                qRow.appendChild(cell);
+            }
+        }
+
+        function renderCodebooks() {
+            const container = d3.select("#codebooks");
+            container.selectAll("*").remove();
+
+            for (let m = 0; m < M; m++) {
+                let svg = container.append("svg")
+                    .attr("class", "codebook-plot")
+                    .attr("viewBox", "-1 -1 11 11"); // Scale 0-9
+
+                // Title
+                svg.append("text")
+                    .attr("x", 5).attr("y", 0.5)
+                    .attr("text-anchor", "middle")
+                    .attr("font-size", "1.2px").attr("fill", "#64748b")
+                    .text(`Subspace ${m+1}`);
+
+                // Data points
+                let pts = [];
+                for(let n=0; n<N; n++) {
+                    pts.push({ x: vectors[n][m*2], y: vectors[n][m*2+1], cluster: quantizedVectors[n][m] });
+                }
+
+                // Colors based on cluster ID
+                const colors = ['#ef4444', '#3b82f6', '#22c55e', '#eab308'];
+
+                svg.selectAll("circle.pt")
+                    .data(pts).enter().append("circle")
+                    .attr("cx", d => d.x).attr("cy", d => d.y).attr("r", 0.4)
+                    .attr("fill", d => colors[d.cluster]).attr("opacity", 0.4);
+
+                // Centroids
+                let cents = codebooks[m].map((c, i) => ({ x: c[0], y: c[1], id: i }));
+                
+                svg.selectAll("polygon.cent")
+                    .data(cents).enter().append("polygon")
+                    // Star shape
+                    .attr("points", d => {
+                        let s = 0.5;
+                        return `${d.x},${d.y-s} ${d.x+s*0.3},${d.y-s*0.3} ${d.x+s},${d.y-s*0.3} ${d.x+s*0.4},${d.y+s*0.2} ${d.x+s*0.6},${d.y+s} ${d.x},${d.y+s*0.5} ${d.x-s*0.6},${d.y+s} ${d.x-s*0.4},${d.y+s*0.2} ${d.x-s},${d.y-s*0.3} ${d.x-s*0.3},${d.y-s*0.3}`;
+                    })
+                    .attr("fill", d => colors[d.id])
+                    .attr("stroke", "#1e293b").attr("stroke-width", 0.1);
+            }
+        }
+
+        function renderDistanceTable() {
+            const tbody = document.querySelector("#dist-table tbody");
+            tbody.innerHTML = '';
+
+            for (let k = 0; k < K; k++) {
+                let tr = document.createElement('tr');
+                let th = document.createElement('td');
+                th.className = `code-${k}`;
+                th.textContent = `ID: ${k}`;
+                tr.appendChild(th);
+
+                for (let m = 0; m < M; m++) {
+                    let td = document.createElement('td');
+                    td.id = `dist-cell-${m}-${k}`;
+                    td.textContent = distanceTable[m][k].toFixed(1);
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            }
+        }
+
+        // Interaction for Step 4
+        function highlightADC(vecIdx) {
+            clearADC();
+            document.getElementById(`db-row-${vecIdx}`).style.transform = "scale(1.02)";
+            document.getElementById(`db-row-${vecIdx}`).style.backgroundColor = "#f8fafc";
+            
+            let codes = quantizedVectors[vecIdx];
+            let sum = 0;
+            let equation = "";
+
+            for (let m = 0; m < M; m++) {
+                let code = codes[m];
+                let cell = document.getElementById(`dist-cell-${m}-${code}`);
+                cell.classList.add('highlight-cell');
+                cell.style.backgroundColor = getCodeColor(code);
+                
+                let dist = distanceTable[m][code];
+                sum += dist;
+                equation += `${dist.toFixed(1)}${m < M-1 ? ' + ' : ''}`;
+            }
+
+            const resList = document.getElementById('results-list');
+            resList.innerHTML = `
+                <div class="flex justify-between">
+                    <span>Vec ${vecIdx} Approximation:</span>
+                    <span class="font-bold text-blue-600">${sum.toFixed(1)}</span>
+                </div>
+                <div class="text-xs text-slate-500 mt-1">${equation} = ${sum.toFixed(1)}</div>
+            `;
+        }
+
+        function clearADC() {
+            document.querySelectorAll('.highlight-cell').forEach(c => {
+                c.classList.remove('highlight-cell');
+                c.style.backgroundColor = '';
+            });
+            for(let i=0; i<N; i++) {
+                document.getElementById(`db-row-${i}`).style.transform = "none";
+                document.getElementById(`db-row-${i}`).style.backgroundColor = "transparent";
+            }
+            document.getElementById('results-list').innerHTML = '<div class="text-slate-400 italic">Hover over a compressed vector...</div>';
+        }
+
+        function getCodeColor(code) {
+            if (code === 0) return '#fca5a5';
+            if (code === 1) return '#93c5fd';
+            if (code === 2) return '#86efac';
+            if (code === 3) return '#fde047';
+            return 'transparent';
+        }
+
+        // Navigation
+        function updateView() {
+            document.querySelectorAll('.step-container').forEach((el, i) => {
+                if (i === currentStep) el.classList.add('active');
+                else el.classList.remove('active');
+            });
+
+            document.getElementById('prev-btn').className = currentStep === 0 ? 'nav-btn btn-disabled' : 'nav-btn bg-slate-200 hover:bg-slate-300 text-slate-800';
+            document.getElementById('next-btn').className = currentStep === 4 ? 'nav-btn btn-disabled' : 'nav-btn btn-primary';
+
+            renderDatabase(currentStep);
+
+            const queryPanel = document.getElementById('query-panel');
+            const adcResults = document.getElementById('adc-results');
+
+            if (currentStep === 1) {
+                document.getElementById('db-desc').innerHTML = "We split our D=8 vector into <strong>m=4</strong> sub-vectors (length 2 each). Notice the dashed lines.";
+            } else if (currentStep === 3) {
+                document.getElementById('db-desc').innerHTML = "The floats are replaced by <strong>Codebook IDs</strong> (0-3).";
+            }
+
+            if (currentStep === 2) {
+                renderCodebooks();
+            }
+
+            if (currentStep >= 4) {
+                queryPanel.classList.remove('hidden');
+                adcResults.classList.remove('hidden');
+                renderQuery();
+                calculateDistanceTable();
+                renderDistanceTable();
+                clearADC();
+            } else {
+                queryPanel.classList.add('hidden');
+                adcResults.classList.add('hidden');
+            }
+        }
+
+        document.getElementById('prev-btn').addEventListener('click', () => {
+            if (currentStep > 0) { currentStep--; updateView(); }
+        });
+        document.getElementById('next-btn').addEventListener('click', () => {
+            if (currentStep < 4) { currentStep++; updateView(); }
+        });
+
+        // Init
+        initData();
+        trainCodebooks();
+        updateView();
+
+    </script>
+</body>
+</html>

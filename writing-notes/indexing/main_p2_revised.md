@@ -363,7 +363,7 @@ Therefore, practical NSW does not use the Watts-Strogatz rewiring probability $\
 
 <iframe src="./asset/nsw.html" width="100%" height="500px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
 
-#### Bridging the Gap: Why We Still Need the Skip List (HNSW)
+#### **Bridging the Gap: Why We Still Need the Skip List (HNSW)**
 
 We now have both pieces. The skip list gave us a way to build layers on top of a data structure, so that a few of them stay sparse and let us skip over large chunks of data quickly. NSW gave us a way to search inside a single graph: move to whichever neighbor is closest to the query, and repeat until nothing gets closer.
 
@@ -447,18 +447,9 @@ The top layers do the same job the skip list's higher levels did: they let us co
 
 A flat NSW graph already contains long-range connections, but all navigation scales coexist inside the same graph. HNSW makes this structure explicit: sparse upper layers are responsible mainly for long-range navigation, while dense lower layers provide local refinement.
 
-**Why this beats a flat NSW graph**
-
-The benefit of HNSW should not be interpreted as a strict $O(M\log n)$ bound. The upper hierarchy contains increasingly sparse graphs, allowing the search to move between distant regions using relatively few distance evaluations. Once the search reaches the bottom layer, however, it explores a broader candidate set controlled by `efSearch`.
-
-Therefore, the actual query cost depends on several factors: the number of vectors $n$, connectivity parameter $M$, `efSearch`, vector dimension $d$, data geometry, and the desired recall. HNSW is designed to exhibit approximately logarithmic scaling with dataset size under typical conditions, but $O(Md\log n)$ should not be treated as a general worst-case complexity formula.
-
-Compared with flat NSW, the key advantage is **scale separation**: long-range navigation is concentrated in sparse upper layers, while detailed neighborhood exploration happens mainly near the bottom.
-
 **Advantages**
 
-- **Efficient scaling in practice.** The hierarchical organization gives HNSW approximately logarithmic search scaling under typical conditions, without requiring a one-dimensional ordering of the vectors.
-- **High recall is achievable in practice.** The bottom-layer exploration can be widened with `efSearch`, trading additional distance evaluations for better recall.
+- **Efficient scaling in practice.** The hierarchical structure gives HNSW approximately logarithmic search scaling under typical conditions, without requiring a one-dimensional ordering of the vectors.
 - **No training step needed.** Unlike IVF or PQ, there's no separate clustering pass before you can start indexing. Vectors can be added one at a time, whenever they arrive.
 - **Works with any valid distance function.** HNSW can be used with many common vector distance or similarity measures, including Euclidean distance, inner product, and cosine similarity, depending on the implementation.
 
@@ -466,9 +457,8 @@ Compared with flat NSW, the key advantage is **scale separation**: long-range na
 
 - **Uses more memory.** Every vector stores a list of neighbors at every layer it belongs to, on top of the vector itself. With a large $M$ and a lot of vectors, this can end up costing more memory than the vectors themselves.
 - **Slower to build.** Inserting a vector means running a real search at every layer it touches, plus the neighbor selection step. This is more expensive than, say, just assigning a vector to a cluster in IVF.
-- **Hard to delete from.** The graph only works well because of a careful mix of short and long connections. Removing a node cleanly, without breaking the connections that relied on it, is genuinely difficult. 
-- **Parameters need tuning.** $M$, `efConstruction`, and `efSearch` all affect the tradeoff between recall, speed, and memory, and there's no simple rule for picking them — you generally have to test on your own data.
-- **Irregular memory-access pattern.** Graph traversal jumps between neighbor lists and vectors, which works well in memory but can be unfriendly to storage with high random-read latency. Disk-oriented ANN systems often need specialized graph layouts or caching strategies.
+
+- **Parameters need tuning.** $M$, `efConstruction`, and `efSearch` all affect the tradeoff between recall, speed, and memory, and there's no simple rule for picking them. 
 
 <iframe src="./asset/hnsw.html" width="100%" height="500px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
 
@@ -518,6 +508,7 @@ So far, we have investigated three archetypes: IVF bets on **partitioning**, HNS
 
 
 
+<iframe src="./asset/pq.html" width="100%" height="500px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
 
 
 
