@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PQ: Sub-vectors & Codewords</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #ffffff;
+    margin: 0;
+    padding: 20px;
+    color: #1f2937;
+    overflow-x: hidden;
+  }
+  .container {
+    max-width: 700px;
+    margin: 0 auto;
+    background: #f9fafb;
+    padding: 24px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+  }
+  .controls {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  button {
+    padding: 8px 16px;
+    border: none;
+    background: #3b82f6;
+    color: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background 0.2s;
+  }
+  button:hover:not(:disabled) { background: #2563eb; }
+  button:disabled { background: #d1d5db; cursor: not-allowed; }
+  
+  .step-desc {
+    text-align: center;
+    font-size: 16px;
+    margin-bottom: 30px;
+    min-height: 48px;
+  }
+  
+  .viz-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 250px;
+  }
+  
+  /* Vector Layout */
+  .vector-row {
+    display: flex;
+    gap: 4px;
+    transition: all 0.8s ease;
+  }
+  .cell {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #4b5563;
+    transition: all 0.8s ease;
+  }
+  
+  /* Subspace Grouping */
+  .subvector-group {
+    display: flex;
+    gap: 4px;
+    padding: 0;
+    border: 2px dashed transparent;
+    border-radius: 8px;
+    transition: all 0.8s ease;
+  }
+  
+  /* State 2 & 3 Colors */
+  .state-2 .subvector-group, .state-3 .subvector-group {
+    padding: 8px;
+    margin: 0 4px;
+  }
+  .state-2 .group-0, .state-3 .group-0 { border-color: #93c5fd; background: #eff6ff; }
+  .state-2 .group-1, .state-3 .group-1 { border-color: #86efac; background: #f0fdf4; }
+  .state-2 .group-2, .state-3 .group-2 { border-color: #fde047; background: #fefce8; }
+  .state-2 .group-3, .state-3 .group-3 { border-color: #fca5a5; background: #fef2f2; }
+
+  .state-2 .group-0 .cell, .state-3 .group-0 .cell { border-color: #93c5fd; background: #dbeafe; }
+  .state-2 .group-1 .cell, .state-3 .group-1 .cell { border-color: #86efac; background: #dcfce7; }
+  .state-2 .group-2 .cell, .state-3 .group-2 .cell { border-color: #fde047; background: #fef08a; }
+  .state-2 .group-3 .cell, .state-3 .group-3 .cell { border-color: #fca5a5; background: #fee2e2; }
+
+  /* Codebooks */
+  .codebooks {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 40px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.8s ease;
+    pointer-events: none;
+  }
+  .state-3 .codebooks {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  
+  .codebook {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+  }
+  .cb-title { font-size: 11px; font-weight: 600; color: #6b7280; margin-bottom: 4px; text-transform: uppercase;}
+  
+  .centroid {
+    display: flex;
+    gap: 2px;
+  }
+  .centroid .cell {
+    width: 32px;
+    height: 32px;
+    font-size: 10px;
+    background: #ffffff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="controls">
+    <button id="btnPrev" onclick="changeStep(-1)" disabled>Previous</button>
+    <button id="btnNext" onclick="changeStep(1)">Next Step</button>
+  </div>
+  
+  <div class="step-desc" id="desc">
+    <strong>Step 1: The Original Vector</strong><br>
+    A high-dimensional vector (e.g., $D=8$) representing a single data point.
+  </div>
+
+  <div class="viz-area" id="viz">
+    <div class="vector-row">
+      <!-- Subspace 1 -->
+      <div class="subvector-group group-0">
+        <div class="cell">0.42</div>
+        <div class="cell">0.88</div>
+      </div>
+      <!-- Subspace 2 -->
+      <div class="subvector-group group-1">
+        <div class="cell">-0.1</div>
+        <div class="cell">0.34</div>
+      </div>
+      <!-- Subspace 3 -->
+      <div class="subvector-group group-2">
+        <div class="cell">0.91</div>
+        <div class="cell">-0.7</div>
+      </div>
+      <!-- Subspace 4 -->
+      <div class="subvector-group group-3">
+        <div class="cell">0.05</div>
+        <div class="cell">0.55</div>
+      </div>
+    </div>
+
+    <div class="codebooks">
+      <!-- Codebook 1 -->
+      <div class="codebook">
+        <div class="cb-title">Codebook 1</div>
+        <div class="centroid"><div class="cell">0.40</div><div class="cell">0.90</div></div>
+        <div class="centroid"><div class="cell">0.10</div><div class="cell">-0.2</div></div>
+        <div class="centroid"><div class="cell">-0.5</div><div class="cell">0.60</div></div>
+      </div>
+      <!-- Codebook 2 -->
+      <div class="codebook">
+        <div class="cb-title">Codebook 2</div>
+        <div class="centroid"><div class="cell">-0.1</div><div class="cell">0.30</div></div>
+        <div class="centroid"><div class="cell">0.80</div><div class="cell">0.10</div></div>
+        <div class="centroid"><div class="cell">-0.9</div><div class="cell">-0.4</div></div>
+      </div>
+      <!-- Codebook 3 -->
+      <div class="codebook">
+        <div class="cb-title">Codebook 3</div>
+        <div class="centroid"><div class="cell">0.90</div><div class="cell">-0.8</div></div>
+        <div class="centroid"><div class="cell">0.20</div><div class="cell">0.40</div></div>
+        <div class="centroid"><div class="cell">-0.3</div><div class="cell">0.70</div></div>
+      </div>
+      <!-- Codebook 4 -->
+      <div class="codebook">
+        <div class="cb-title">Codebook 4</div>
+        <div class="centroid"><div class="cell">0.10</div><div class="cell">0.50</div></div>
+        <div class="centroid"><div class="cell">-0.6</div><div class="cell">-0.1</div></div>
+        <div class="centroid"><div class="cell">0.70</div><div class="cell">0.90</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let step = 1;
+  const maxSteps = 3;
+  const descriptions = [
+    "<strong>Step 1: The Original Vector</strong><br>A high-dimensional vector (e.g., D=8) representing a single data point in your dataset.",
+    "<strong>Step 2: Splitting into Sub-spaces</strong><br>The vector is split into <em>m</em> sub-vectors (here, m=4). Each sub-vector now exists in a smaller, independent sub-space.",
+    "<strong>Step 3: Creating Codewords</strong><br>K-Means clustering is run independently on each sub-space across the entire dataset. The resulting cluster centers become the <strong>Codewords</strong> (Codebooks)."
+  ];
+
+  function changeStep(delta) {
+    step += delta;
+    
+    document.getElementById('btnPrev').disabled = (step === 1);
+    document.getElementById('btnNext').disabled = (step === maxSteps);
+    
+    document.getElementById('desc').innerHTML = descriptions[step - 1];
+    
+    const viz = document.getElementById('viz');
+    viz.className = `viz-area state-${step}`;
+  }
+</script>
+</body>
+</html>

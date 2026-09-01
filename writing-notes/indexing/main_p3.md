@@ -40,6 +40,14 @@ We'll formalize all four of these steps rigorously — codebooks, the full ADC d
 
 
 
+
+
+
+<iframe src="./asset/pq_step1.html" width="100%" height="500px" style="border: none; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);"></iframe>
+
+
+
+
 So far, we have investigated three archetypes: IVF bets on **partitioning**, HNSW bets on **graph traversal**, and PQ bets on **compression** instead of pruning. None of them is strictly "better" in the abstract — which is exactly the question the next section is actually about.
 
 
